@@ -1,0 +1,620 @@
+// Prisma schema for iStays — Multi-Tenant Hotel & Lodge Management Platform
+// Single-schema with Row-Level Security (RLS) for tenant isolation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("MIGRATION_DATABASE_URL")
+}
+
+// ============================================================
+// Global / Platform-Level Models (no RLS)
+// ============================================================
+
+model GlobalUser {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String   @map("password_hash")
+  fullName         String   @map("full_name")
+  phone            String?
+  isActive         Boolean  @default(true) @map("is_active")
+  isGlobalAdmin    Boolean  @default(false) @map("is_global_admin")
+  emailVerified    Boolean  @default(false) @map("email_verified")
+  twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
+  avatarUrl        String?  @map("avatar_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  memberships  TenantMembership[]
+  ownedTenants Tenant[]       @relation("TenantOwner")
+  guestProfile GuestProfile?
+
+  @@map("global_users")
+}
+
+model GuestProfile {
+  id                String   @id @default(uuid())
+  globalUserId      String   @unique @map("global_user_id")
+  fullName          String   @map("full_name")
+  phone             String?
+  email             String?
+  nationality       String   @default("Indian")
+  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
+  gender            String?
+  preferredLanguage String?  @map("preferred_language")
+  idProofType       String?  @map("id_proof_type")
+  idProofNumber     String?  @map("id_proof_number")
+  address           String?
+  city              String?
+  state             String?
+  pincode           String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  globalUser GlobalUser @relation(fields: [globalUserId], references: [id])
+  bookings   Booking[]
+  reviews    Review[]
+
+  @@map("guest_profiles")
+}
+
+model Tenant {
+  id                        String   @id @default(uuid())
+  name                      String
+  slug                      String   @unique
+  customDomain              String?  @unique @map("custom_domain")
+  schemaName                String   @unique @map("schema_name")
+  status                    String   @default("pending_approval")
+  plan                      String   @default("free")
+  propertyType              String   @default("hotel") @map("property_type")
+  address                   String?
+  city                      String?
+  state                     String?
+  pincode                   String?
+  gstNumber                 String?  @map("gst_number")
+  contactPhone              String?  @map("contact_phone")
+  contactEmail              String?  @map("contact_email")
+  latitude                  Float?
+  longitude                 Float?
+  timezone                  String   @default("Asia/Kolkata")
+  defaultCheckInTime        String   @default("14:00") @map("default_check_in_time")
+  defaultCheckOutTime       String   @default("11:00") @map("default_check_out_time")
+  cancellationPolicyHours   Int      @default(24) @map("cancellation_policy_hours")
+  lateCheckoutChargePercent Float    @default(50) @map("late_checkout_charge_percent")
+  config                    Json     @default("{}")
+  featureOverrides          Json     @default("{}") @map("feature_overrides")
+  brandLogo                 String?  @map("brand_logo")
+  primaryColor              String?  @map("primary_color")
+  secondaryColor            String?  @map("secondary_color")
+  tagline                   String?
+  heroImage                 String?  @map("hero_image")
+  description               String?
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  ownerId String     @map("owner_id")
+  owner   GlobalUser @relation("TenantOwner", fields: [ownerId], references: [id])
+
+  memberships         TenantMembership[]
+  subscriptions       Subscription[]
+  platformPayments    PlatformPayment[]
+  floors              Floor[]
+  roomTypes           RoomType[]
+  rooms               Room[]
+  roomPhotos          RoomPhoto[]
+  rateSeasons         RateSeason[]
+  bookings            Booking[]
+  bookingRooms        BookingRoom[]
+  bookingGuests       BookingGuest[]
+  folioCharges        FolioCharge[]
+  guestPayments       GuestPayment[]
+  invoices            Invoice[]
+  housekeepingTasks   HousekeepingTask[]
+  maintenanceRequests MaintenanceRequest[]
+  lostAndFound        LostAndFound[]
+  reviews             Review[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  tenantStats         TenantStats?
+
+  @@map("tenants")
+}
+
+model TenantMembership {
+  id          String   @id @default(uuid())
+  isActive    Boolean  @default(true) @map("is_active")
+  role        String
+  permissions Json     @default("{}") @map("permissions")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userId   String     @map("user_id")
+  user     GlobalUser @relation(fields: [userId], references: [id])
+  tenantId String     @map("tenant_id")
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+
+  @@unique([userId, tenantId, role])
+  @@map("tenant_memberships")
+}
+
+// ============================================================
+// Platform Settings & Billing
+// ============================================================
+
+model PlatformSettings {
+  id        String   @id @default("global")
+  config    Json     @default("{}")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}
+
+model Subscription {
+  id                 String    @id @default(uuid())
+  tenantId           String    @map("tenant_id")
+  plan               String
+  billingCycle       String    @default("monthly") @map("billing_cycle")
+  status             String    @default("active")
+  trialStart         DateTime? @map("trial_start")
+  trialEnd           DateTime? @map("trial_end")
+  currentPeriodStart DateTime  @map("current_period_start")
+  currentPeriodEnd   DateTime  @map("current_period_end")
+  cancelledAt        DateTime? @map("cancelled_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id])
+  payments PlatformPayment[]
+
+  @@map("subscriptions")
+}
+
+model PlatformPayment {
+  id               String   @id @default(uuid())
+  tenantId         String   @map("tenant_id")
+  subscriptionId   String?  @map("subscription_id")
+  amount           Float
+  currency         String   @default("INR")
+  status           String   @default("pending")
+  method           String   @default("dummy")
+  gatewayPaymentId String?  @map("gateway_payment_id")
+  receiptNumber    String   @unique @map("receipt_number")
+  description      String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@map("platform_payments")
+}
+
+// ============================================================
+// Tenant-Scoped Models (RLS enforced)
+// All tables below have tenant_id for row-level isolation
+// ============================================================
+
+model Floor {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String   @db.VarChar(100)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  rooms  Room[]
+
+  @@index([tenantId])
+  @@map("floors")
+}
+
+model RoomType {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  name          String   @db.VarChar(100)
+  slug          String   @db.VarChar(100)
+  description   String?
+  baseOccupancy Int      @default(2) @map("base_occupancy")
+  maxOccupancy  Int      @default(3) @map("max_occupancy")
+  maxExtraBeds  Int      @default(1) @map("max_extra_beds")
+  extraBedCharge Float   @default(0) @map("extra_bed_charge")
+  baseRate      Float    @map("base_rate")
+  weekendRate   Float?   @map("weekend_rate")
+  amenities     Json     @default("[]")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
+  rooms  Room[]
+  photos RoomPhoto[]
+  bookingRooms BookingRoom[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("room_types")
+}
+
+model Room {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  floorId      String   @map("floor_id")
+  roomTypeId   String   @map("room_type_id")
+  roomNumber   String   @map("room_number") @db.VarChar(20)
+  status       String   @default("available") @db.VarChar(20)
+  rateOverride Float?   @map("rate_override")
+  features     Json     @default("{}")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  floor    Floor    @relation(fields: [floorId], references: [id])
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+
+  bookingRooms        BookingRoom[]
+  housekeepingTasks   HousekeepingTask[]
+  maintenanceRequests MaintenanceRequest[]
+  lostAndFound        LostAndFound[]
+
+  @@unique([tenantId, floorId, roomNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("rooms")
+}
+
+model RoomPhoto {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  roomTypeId String   @map("room_type_id")
+  url        String
+  sortOrder  Int      @default(0) @map("sort_order")
+  caption    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+
+  @@index([tenantId])
+  @@map("room_photos")
+}
+
+model RateSeason {
+  id                   String   @id @default(uuid())
+  tenantId             String   @map("tenant_id")
+  name                 String   @db.VarChar(100)
+  startDate            DateTime @map("start_date") @db.Date
+  endDate              DateTime @map("end_date") @db.Date
+  multiplier           Float    @default(1.0)
+  applicableRoomTypes  Json     @default("[]") @map("applicable_room_types")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("rate_seasons")
+}
+
+// ============================================================
+// Booking & Guest Models
+// ============================================================
+
+model Booking {
+  id                 String    @id @default(uuid())
+  tenantId           String    @map("tenant_id")
+  bookingNumber      String    @map("booking_number") @db.VarChar(30)
+  guestProfileId     String?   @map("guest_profile_id")
+  guestName          String    @map("guest_name")
+  guestEmail         String?   @map("guest_email")
+  guestPhone         String?   @map("guest_phone")
+  source             String    @default("online") @db.VarChar(20)
+  checkInDate        DateTime  @map("check_in_date") @db.Date
+  checkOutDate       DateTime  @map("check_out_date") @db.Date
+  numAdults          Int       @default(1) @map("num_adults")
+  numChildren        Int       @default(0) @map("num_children")
+  numRooms           Int       @default(1) @map("num_rooms")
+  status             String    @default("pending_confirmation") @db.VarChar(30)
+  totalAmount        Float     @default(0) @map("total_amount")
+  advancePaid        Float     @default(0) @map("advance_paid")
+  balanceDue         Float     @default(0) @map("balance_due")
+  cancellationReason String?   @map("cancellation_reason")
+  cancelledAt        DateTime? @map("cancelled_at")
+  checkedInAt        DateTime? @map("checked_in_at")
+  checkedOutAt       DateTime? @map("checked_out_at")
+  specialRequests    String?   @map("special_requests")
+  notes              String?
+  createdBy          String?   @map("created_by")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  guestProfile GuestProfile? @relation(fields: [guestProfileId], references: [id])
+
+  bookingRooms  BookingRoom[]
+  bookingGuests BookingGuest[]
+  folioCharges  FolioCharge[]
+  guestPayments GuestPayment[]
+  invoices      Invoice[]
+  review        Review?
+
+  @@unique([tenantId, bookingNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, checkInDate])
+  @@index([tenantId, guestProfileId])
+  @@map("bookings")
+}
+
+model BookingRoom {
+  id             String   @id @default(uuid())
+  tenantId       String   @map("tenant_id")
+  bookingId      String   @map("booking_id")
+  roomId         String?  @map("room_id")
+  roomTypeId     String   @map("room_type_id")
+  ratePerNight   Float    @map("rate_per_night")
+  extraBeds      Int      @default(0) @map("extra_beds")
+  extraBedCharge Float    @default(0) @map("extra_bed_charge")
+  guestNames     Json     @default("[]") @map("guest_names")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  booking  Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room     Room?     @relation(fields: [roomId], references: [id])
+  roomType RoomType  @relation(fields: [roomTypeId], references: [id])
+
+  @@index([tenantId])
+  @@index([bookingId])
+  @@map("booking_rooms")
+}
+
+model BookingGuest {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  bookingId       String    @map("booking_id")
+  guestProfileId  String?   @map("guest_profile_id")
+  fullName        String    @map("full_name")
+  idProofType     String?   @map("id_proof_type")
+  idProofNumber   String?   @map("id_proof_number")
+  idProofImageUrl String?   @map("id_proof_image_url")
+  nationality     String    @default("Indian")
+  isFormBRecorded Boolean   @default(false) @map("is_form_b_recorded")
+  cFormSubmitted  Boolean   @default(false) @map("c_form_submitted")
+  cFormSubmittedAt DateTime? @map("c_form_submitted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([bookingId])
+  @@map("booking_guests")
+}
+
+// ============================================================
+// Billing & Invoice Models
+// ============================================================
+
+model FolioCharge {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  bookingId       String   @map("booking_id")
+  chargeDate      DateTime @map("charge_date") @db.Date
+  category        String   @db.VarChar(30)
+  description     String   @db.VarChar(255)
+  sacCode         String?  @map("sac_code") @db.VarChar(10)
+  quantity        Int      @default(1)
+  unitPrice       Float    @map("unit_price")
+  totalPrice      Float    @map("total_price")
+  gstRate         Float    @default(0) @map("gst_rate")
+  cgst            Float    @default(0)
+  sgst            Float    @default(0)
+  igst            Float    @default(0)
+  isAutoGenerated Boolean  @default(false) @map("is_auto_generated")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, bookingId])
+  @@map("folio_charges")
+}
+
+model GuestPayment {
+  id               String   @id @default(uuid())
+  tenantId         String   @map("tenant_id")
+  bookingId        String   @map("booking_id")
+  amount           Float
+  method           String   @db.VarChar(30)
+  status           String   @default("completed") @db.VarChar(20)
+  gatewayPaymentId String?  @map("gateway_payment_id")
+  receiptNumber    String?  @map("receipt_number")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, bookingId])
+  @@map("guest_payments")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  bookingId     String   @map("booking_id")
+  invoiceNumber String   @map("invoice_number") @db.VarChar(30)
+  guestName     String   @map("guest_name")
+  guestGstin    String?  @map("guest_gstin")
+  propertyGstin String?  @map("property_gstin")
+  placeOfSupply String?  @map("place_of_supply")
+  subtotal      Float    @default(0)
+  totalCgst     Float    @default(0) @map("total_cgst")
+  totalSgst     Float    @default(0) @map("total_sgst")
+  totalIgst     Float    @default(0) @map("total_igst")
+  grandTotal    Float    @default(0) @map("grand_total")
+  pdfUrl        String?  @map("pdf_url")
+  isProforma    Boolean  @default(false) @map("is_proforma")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@map("invoices")
+}
+
+// ============================================================
+// Housekeeping & Maintenance
+// ============================================================
+
+model HousekeepingTask {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  roomId      String    @map("room_id")
+  assignedTo  String?   @map("assigned_to")
+  taskDate    DateTime  @map("task_date") @db.Date
+  status      String    @default("pending") @db.VarChar(20)
+  checklist   Json      @default("[]")
+  notes       String?
+  completedAt DateTime? @map("completed_at")
+  inspectedBy String?   @map("inspected_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, taskDate])
+  @@map("housekeeping_tasks")
+}
+
+model MaintenanceRequest {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  roomId      String    @map("room_id")
+  raisedBy    String    @map("raised_by")
+  category    String    @db.VarChar(30)
+  priority    String    @default("medium") @db.VarChar(10)
+  description String
+  status      String    @default("open") @db.VarChar(20)
+  assignedTo  String?   @map("assigned_to")
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("maintenance_requests")
+}
+
+model LostAndFound {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  roomId          String?   @map("room_id")
+  itemDescription String    @map("item_description")
+  foundBy         String    @map("found_by")
+  foundDate       DateTime  @map("found_date") @db.Date
+  photoUrl        String?   @map("photo_url")
+  status          String    @default("stored") @db.VarChar(20)
+  claimedBy       String?   @map("claimed_by")
+  claimDate       DateTime? @map("claim_date")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  room   Room?  @relation(fields: [roomId], references: [id])
+
+  @@index([tenantId])
+  @@map("lost_and_found")
+}
+
+// ============================================================
+// Reviews & Notifications
+// ============================================================
+
+model Review {
+  id             String    @id @default(uuid())
+  tenantId       String    @map("tenant_id")
+  bookingId      String    @unique @map("booking_id")
+  guestProfileId String    @map("guest_profile_id")
+  rating         Int
+  text           String?
+  ownerReply     String?   @map("owner_reply")
+  isPublished    Boolean   @default(true) @map("is_published")
+  reportedAt     DateTime? @map("reported_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  booking      Booking      @relation(fields: [bookingId], references: [id])
+  guestProfile GuestProfile @relation(fields: [guestProfileId], references: [id])
+
+  @@index([tenantId])
+  @@map("reviews")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String?  @map("tenant_id")
+  userId    String?  @map("user_id")
+  channel   String   @default("inApp") @db.VarChar(20)
+  type      String   @db.VarChar(50)
+  title     String   @db.VarChar(255)
+  message   String?
+  metadata  Json     @default("{}")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ============================================================
+// Audit & Statistics
+// ============================================================
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  userId     String?  @map("user_id")
+  action     String
+  resource   String
+  resourceId String?  @map("resource_id")
+  changes    Json     @default("{}")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, resource])
+  @@map("audit_logs")
+}
+
+model TenantStats {
+  id                    String   @id @default(uuid())
+  tenantId              String   @unique @map("tenant_id")
+  totalBookings         Int      @default(0) @map("total_bookings")
+  totalRevenue          Float    @default(0) @map("total_revenue")
+  activeBookings        Int      @default(0) @map("active_bookings")
+  todayOccupancyPercent Float    @default(0) @map("today_occupancy_percent")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("tenant_stats")
+}
