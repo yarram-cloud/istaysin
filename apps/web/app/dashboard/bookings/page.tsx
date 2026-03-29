@@ -195,12 +195,17 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [guestEmail, setGuestEmail] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
-  const [numRooms, setNumRooms] = useState('1');
-  const [numAdults, setNumAdults] = useState('1');
-  const [numChildren, setNumChildren] = useState('0');
-  const [roomTypeId, setRoomTypeId] = useState('');
   const [source, setSource] = useState('walk_in');
   const [notes, setNotes] = useState('');
+  
+  // Cart state for Group Bookings (multiple room types per reservation)
+  const [roomSelections, setRoomSelections] = useState<{ roomTypeId: string; quantity: number; extraBeds: number }[]>([]);
+  
+  // Current item being added to cart
+  const [activeRoomTypeId, setActiveRoomTypeId] = useState('');
+  const [activeQuantity, setActiveQuantity] = useState('1');
+  const [activeExtraBeds, setActiveExtraBeds] = useState('0');
+
   const [roomTypes, setRoomTypes] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -209,18 +214,47 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
     roomsApi.getRoomTypes().then((res) => {
       if (res.success) {
         setRoomTypes(res.data || []);
-        if (res.data?.length) setRoomTypeId(res.data[0].id);
+        if (res.data?.length) setActiveRoomTypeId(res.data[0].id);
       }
     }).catch(() => {});
   }, []);
+
+  function handleAddRoom() {
+    if (!activeRoomTypeId) return;
+    setRoomSelections(prev => [
+      ...prev,
+      { roomTypeId: activeRoomTypeId, quantity: parseInt(activeQuantity), extraBeds: parseInt(activeExtraBeds) }
+    ]);
+    // Reset active fields slightly to encourage flow
+    setActiveQuantity('1');
+    setActiveExtraBeds('0');
+  }
+
+  function handleRemoveRoom(index: number) {
+    setRoomSelections(prev => prev.filter((_, i) => i !== index));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!guestName.trim() || !checkIn || !checkOut) { setError('Fill required fields'); return; }
     if (new Date(checkOut) <= new Date(checkIn)) { setError('Check-out must be after check-in'); return; }
+    if (roomSelections.length === 0) { setError('At least one room must be added to the booking'); return; }
 
     setSaving(true);
     setError('');
+    
+    // Format room selections array for Zod schema (expand quantities into individual items)
+    const expandedSelections: any[] = [];
+    let totalAdults = 0;
+    
+    roomSelections.forEach(sel => {
+      const rt = roomTypes.find(r => r.id === sel.roomTypeId);
+      for (let i = 0; i < sel.quantity; i++) {
+        expandedSelections.push({ roomTypeId: sel.roomTypeId, extraBeds: sel.extraBeds });
+        totalAdults += (rt?.baseOccupancy || 2) + sel.extraBeds;
+      }
+    });
+
     try {
       await bookingsApi.create({
         guestName: guestName.trim(),
@@ -228,10 +262,9 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
         guestEmail: guestEmail.trim() || undefined,
         checkInDate: checkIn,
         checkOutDate: checkOut,
-        numRooms: parseInt(numRooms),
-        numAdults: parseInt(numAdults),
-        numChildren: parseInt(numChildren),
-        roomTypeId: roomTypeId || undefined,
+        numAdults: totalAdults, // Roughly estimate adults based on selected beds
+        numChildren: 0,
+        roomSelections: expandedSelections,
         source,
         notes: notes.trim() || undefined,
       });
@@ -245,88 +278,112 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface-900 border border-white/[0.08] rounded-2xl w-full max-w-lg p-6 mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-surface-900 border border-white/[0.08] rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-surface-900/90 backdrop-blur z-10 px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
           <h2 className="text-lg font-display font-bold">New Booking</h2>
           <button onClick={onClose} className="text-surface-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-surface-300 mb-1">Guest Name *</label>
-              <input value={guestName} onChange={(e) => setGuestName(e.target.value)} className="input-field" required placeholder="Full name" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Phone</label>
-              <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="input-field" placeholder="+91 98765 43210" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Email</label>
-              <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className="input-field" placeholder="guest@email.com" />
+          {/* Guest Info */}
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">1. Guest Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <input value={guestName} onChange={(e) => setGuestName(e.target.value)} className="input-field" required placeholder="Guest full name *" />
+              </div>
+              <div>
+                <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="input-field" placeholder="Phone number" />
+              </div>
+              <div>
+                <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className="input-field" placeholder="Email address" />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Check-in *</label>
-              <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className="input-field" required />
+          {/* Stay Info */}
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">2. Stay Dates & Source</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-surface-400 mb-1">Check-in *</label>
+                <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className="input-field" required />
+              </div>
+              <div>
+                <label className="block text-xs text-surface-400 mb-1">Check-out *</label>
+                <input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} className="input-field" required />
+              </div>
+              <div>
+                <label className="block text-xs text-surface-400 mb-1">Source</label>
+                <select value={source} onChange={(e) => setSource(e.target.value)} className="input-field">
+                  <option value="walk_in">Walk-in</option>
+                  <option value="phone">Phone</option>
+                  <option value="email">Email</option>
+                  <option value="website">Website</option>
+                  <option value="ota_booking_com">Booking.com</option>
+                  <option value="ota_makemytrip">MakeMyTrip</option>
+                  <option value="ota_goibibo">Goibibo</option>
+                  <option value="agent">Travel Agent</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Check-out *</label>
-              <input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} className="input-field" required />
+          </div>
+
+          {/* Room Selection Cart */}
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">3. Room Assignments (Group Booking)</h3>
+            
+            {roomSelections.length > 0 && (
+              <div className="mb-4 space-y-2">
+                {roomSelections.map((sel, idx) => {
+                  const rt = roomTypes.find(r => r.id === sel.roomTypeId);
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-primary-500/10 border border-primary-500/20">
+                      <div>
+                        <p className="text-sm font-medium text-primary-100">{sel.quantity}x {rt?.name || 'Unknown Room'}</p>
+                        <p className="text-xs text-primary-300/70">{sel.extraBeds > 0 ? `${sel.extraBeds} extra bed(s) per room` : 'No extra beds'}</p>
+                      </div>
+                      <button type="button" onClick={() => handleRemoveRoom(idx)} className="p-1.5 text-primary-400 hover:bg-primary-500/20 rounded-md transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex gap-2 items-end p-4 rounded-xl border border-white/[0.06] bg-surface-800/50">
+              <div className="flex-1">
+                <label className="block text-xs text-surface-400 mb-1">Add Room Type</label>
+                <select value={activeRoomTypeId} onChange={(e) => setActiveRoomTypeId(e.target.value)} className="input-field text-sm">
+                  {roomTypes.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div className="w-20">
+                <label className="block text-xs text-surface-400 mb-1">Qty</label>
+                <input type="number" value={activeQuantity} onChange={(e) => setActiveQuantity(e.target.value)} className="input-field text-sm" min="1" />
+              </div>
+              <div className="w-24">
+                <label className="block text-xs text-surface-400 mb-1">Extra Beds</label>
+                <input type="number" value={activeExtraBeds} onChange={(e) => setActiveExtraBeds(e.target.value)} className="input-field text-sm" min="0" max="5" />
+              </div>
+              <button type="button" onClick={handleAddRoom} className="btn-secondary h-[42px] px-4 whitespace-nowrap">
+                Add
+              </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Room Type</label>
-            <select value={roomTypeId} onChange={(e) => setRoomTypeId(e.target.value)} className="input-field">
-              <option value="">-- Select --</option>
-              {roomTypes.map((t: any) => <option key={t.id} value={t.id}>{t.name} (₹{t.baseRate}/night)</option>)}
-            </select>
+            <label className="block text-sm font-medium text-surface-300 mb-1">Special Requests & Notes</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input-field" rows={2} placeholder="Optional notes for staff..." />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Rooms</label>
-              <input type="number" value={numRooms} onChange={(e) => setNumRooms(e.target.value)} className="input-field" min="1" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Adults</label>
-              <input type="number" value={numAdults} onChange={(e) => setNumAdults(e.target.value)} className="input-field" min="1" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Children</label>
-              <input type="number" value={numChildren} onChange={(e) => setNumChildren(e.target.value)} className="input-field" min="0" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Source</label>
-            <select value={source} onChange={(e) => setSource(e.target.value)} className="input-field">
-              <option value="walk_in">Walk-in</option>
-              <option value="phone">Phone</option>
-              <option value="email">Email</option>
-              <option value="website">Website</option>
-              <option value="ota_booking_com">Booking.com</option>
-              <option value="ota_makemytrip">MakeMyTrip</option>
-              <option value="ota_goibibo">Goibibo</option>
-              <option value="ota_other">Other OTA</option>
-              <option value="agent">Travel Agent</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input-field" rows={2} placeholder="Special requests, preferences..." />
-          </div>
-
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4 border-t border-white/[0.08]">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Create Booking
+            <button type="submit" disabled={saving || roomSelections.length === 0} className="btn-primary flex-1 flex items-center justify-center gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Confirm & Create Booking
             </button>
           </div>
         </form>
@@ -372,7 +429,21 @@ function BookingDetail({ booking, onClose, onConfirm, onCancel }: {
               <div className="flex justify-between text-sm"><span className="text-surface-400">Check-in</span><span>{new Date(booking.checkInDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
               <div className="flex justify-between text-sm"><span className="text-surface-400">Check-out</span><span>{new Date(booking.checkOutDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
               <div className="flex justify-between text-sm"><span className="text-surface-400">Nights</span><span>{nights}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-surface-400">Rooms</span><span>{booking.numRooms}</span></div>
+              <div className="flex flex-col gap-2 text-sm pt-2 pb-2">
+                <div className="flex justify-between font-medium"><span className="text-surface-400">Rooms Booked ({booking.numRooms})</span></div>
+                {booking.bookingRooms && booking.bookingRooms.length > 0 ? (
+                  <div className="pl-3 border-l-2 border-primary-500/30 space-y-1.5 py-1">
+                    {booking.bookingRooms.map((br: any, i: number) => (
+                      <div key={i} className="flex justify-between text-xs text-surface-200">
+                        <span>{br.roomType?.name || 'Standard'} {br.room ? `(Rm ${br.room.roomNumber})` : ''}</span>
+                        {br.extraBeds > 0 ? <span className="text-primary-400">+{br.extraBeds} extra bed</span> : <span className="text-surface-500">Standard</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-right text-surface-300">{booking.numRooms} Room(s) Counted</div>
+                )}
+              </div>
               <div className="flex justify-between text-sm"><span className="text-surface-400">Guests</span><span>{booking.numAdults} adult{booking.numAdults !== 1 ? 's' : ''}{booking.numChildren ? `, ${booking.numChildren} child${booking.numChildren !== 1 ? 'ren' : ''}` : ''}</span></div>
               <div className="flex justify-between text-sm"><span className="text-surface-400">Source</span><span className="capitalize">{booking.source?.replace(/_/g, ' ')}</span></div>
             </div>

@@ -6,6 +6,7 @@ import { authorize } from '../../middleware/rbac';
 import { propertyRegistrationSchema, brandingSchema, staffInviteSchema } from '@istays/shared';
 import { logAudit } from '../../middleware/audit-log';
 import { sendPropertyApprovalEmail } from '../../services/email';
+import { getSubdomainUrl, getRootDomain } from '../../services/cloudflare';
 
 export const tenantsRouter = Router();
 
@@ -98,6 +99,7 @@ tenantsRouter.get('/my-properties', authenticate, async (req: Request, res: Resp
         ...m.tenant,
         role: m.role,
         membershipId: m.id,
+        subdomainUrl: m.tenant.status === 'active' ? getSubdomainUrl(m.tenant.slug) : null,
       })),
     });
   } catch (err) {
@@ -304,3 +306,191 @@ tenantsRouter.delete('/staff/:userId', authenticate, resolveTenant, requireTenan
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// Domain Management
+// ═══════════════════════════════════════════════════════
+
+// GET /tenants/domain-status — Get domain settings and verification status
+tenantsRouter.get('/domain-status', authenticate, resolveTenant, requireTenant, async (req: Request, res: Response) => {
+  try {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: req.tenantId },
+      select: { slug: true, customDomain: true, config: true, status: true },
+    });
+
+    if (!tenant) {
+      res.status(404).json({ success: false, error: 'Property not found' });
+      return;
+    }
+
+    const config = (tenant.config as any) || {};
+    const rootDomain = getRootDomain();
+
+    res.json({
+      success: true,
+      data: {
+        slug: tenant.slug,
+        subdomainUrl: `${tenant.slug}.${rootDomain}`,
+        customDomain: tenant.customDomain,
+        customDomainVerified: config.domainVerified || false,
+        cnameTarget: rootDomain,
+        status: tenant.status,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to get domain status' });
+  }
+});
+
+// PATCH /tenants/slug — Change property subdomain (owner only)
+tenantsRouter.patch(
+  '/slug',
+  authenticate,
+  resolveTenant,
+  requireTenant,
+  authorize('property_owner'),
+  async (req: Request, res: Response) => {
+    try {
+      const { slug } = req.body;
+
+      if (!slug || typeof slug !== 'string') {
+        res.status(400).json({ success: false, error: 'New subdomain is required' });
+        return;
+      }
+
+      const normalizedSlug = slug.toLowerCase().trim().replace(/\s+/g, '-');
+
+      // Validate format
+      if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(normalizedSlug)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid subdomain. Use 3-50 lowercase letters, numbers, and hyphens. Must start and end with a letter or number.',
+        });
+        return;
+      }
+
+      // Check reserved words
+      const reserved = ['admin', 'api', 'www', 'app', 'mail', 'blog', 'docs', 'help', 'support', 'dashboard', 'login', 'register', 'property', 'book', 'search'];
+      if (reserved.includes(normalizedSlug)) {
+        res.status(400).json({ success: false, error: 'This subdomain is reserved. Please choose a different one.' });
+        return;
+      }
+
+      // Check current slug — no-op if same
+      const current = await prisma.tenant.findUnique({
+        where: { id: req.tenantId },
+        select: { slug: true },
+      });
+      if (current?.slug === normalizedSlug) {
+        res.json({ success: true, data: { slug: normalizedSlug, message: 'Subdomain unchanged' } });
+        return;
+      }
+
+      // Check availability
+      const existing = await prisma.tenant.findUnique({ where: { slug: normalizedSlug }, select: { id: true } });
+      if (existing) {
+        res.status(409).json({ success: false, error: 'This subdomain is already taken. Please choose a different one.' });
+        return;
+      }
+
+      // Update slug
+      await prisma.tenant.update({
+        where: { id: req.tenantId },
+        data: { slug: normalizedSlug },
+      });
+
+      const rootDomain = getRootDomain();
+      console.log(`[Tenant] Slug changed: ${current?.slug} → ${normalizedSlug} (tenant: ${req.tenantId})`);
+
+      await logAudit(req.tenantId!, req.userId, 'CHANGE_SLUG', 'tenant', req.tenantId!, { oldSlug: current?.slug, newSlug: normalizedSlug }, req.ip || undefined);
+
+      res.json({
+        success: true,
+        data: {
+          slug: normalizedSlug,
+          subdomainUrl: `${normalizedSlug}.${rootDomain}`,
+          oldSlug: current?.slug,
+        },
+        message: `Subdomain updated! Your property is now at ${normalizedSlug}.${rootDomain}`,
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        res.status(409).json({ success: false, error: 'This subdomain is already taken.' });
+        return;
+      }
+      res.status(500).json({ success: false, error: 'Failed to update subdomain' });
+    }
+  }
+);
+
+// POST /tenants/verify-domain — Verify custom domain DNS (CNAME check)
+tenantsRouter.post(
+  '/verify-domain',
+  authenticate,
+  resolveTenant,
+  requireTenant,
+  authorize('property_owner'),
+  async (req: Request, res: Response) => {
+    try {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.tenantId },
+        select: { customDomain: true, config: true },
+      });
+
+      if (!tenant?.customDomain) {
+        res.status(400).json({
+          success: false,
+          error: 'No custom domain configured. Set a custom domain first in property settings.',
+        });
+        return;
+      }
+
+      const rootDomain = getRootDomain();
+
+      // Perform DNS CNAME lookup
+      let verified = false;
+      let dnsResult = 'Could not resolve DNS';
+      try {
+        const dns = await import('node:dns');
+        const records = await dns.promises.resolveCname(tenant.customDomain);
+        if (records.some((r: string) => r.toLowerCase().includes(rootDomain.toLowerCase()))) {
+          verified = true;
+          dnsResult = `CNAME points to ${records[0]}`;
+        } else {
+          dnsResult = `CNAME points to ${records.join(', ')}, expected ${rootDomain}`;
+        }
+      } catch (dnsErr: any) {
+        if (dnsErr.code === 'ENOTFOUND' || dnsErr.code === 'ENODATA') {
+          dnsResult = 'No CNAME record found. Please add a CNAME record pointing to ' + rootDomain;
+        } else {
+          dnsResult = `DNS lookup error: ${dnsErr.message}`;
+        }
+      }
+
+      // Update verification status in config
+      const existingConfig = (tenant.config as any) || {};
+      await prisma.tenant.update({
+        where: { id: req.tenantId },
+        data: {
+          config: {
+            ...existingConfig,
+            domainVerified: verified,
+            domainVerifiedAt: verified ? new Date().toISOString() : null,
+          },
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          domain: tenant.customDomain,
+          verified,
+          dnsResult,
+          cnameTarget: rootDomain,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: 'Failed to verify domain' });
+    }
+  }
+);

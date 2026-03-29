@@ -215,8 +215,11 @@ export const housekeepingApi = {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/housekeeping/tasks${query}`);
   },
+  getStaff: () => apiFetch('/housekeeping/staff'),
   updateStatus: (taskId: string, status: string) =>
     apiFetch(`/housekeeping/tasks/${taskId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateTask: (taskId: string, body: any) =>
+    apiFetch(`/housekeeping/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   createTask: (body: any) =>
     apiFetch('/housekeeping/tasks', { method: 'POST', body: JSON.stringify(body) }),
 };
@@ -276,6 +279,14 @@ export const analyticsApi = {
   },
 };
 
+// Pricing helpers
+export const pricingApi = {
+  getRules: () => apiFetch('/pricing'),
+  createRule: (body: any) => apiFetch('/pricing', { method: 'POST', body: JSON.stringify(body) }),
+  updateRule: (id: string, body: any) => apiFetch(`/pricing/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteRule: (id: string) => apiFetch(`/pricing/${id}`, { method: 'DELETE' }),
+};
+
 // Public helpers (no auth needed)
 export const publicApi = {
   properties: (params?: Record<string, string>) => {
@@ -299,4 +310,20 @@ export const platformApi = {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/platform/tenants${query}`);
   },
+};
+
+// Reviews helpers
+export const reviewsApi = {
+  getReviews: (params?: Record<string, string>) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiFetch(`/reviews${query}`);
+  },
+  replyReview: (id: string, ownerReply: string) =>
+    apiFetch(`/reviews/${id}/reply`, { method: 'PATCH', body: JSON.stringify({ ownerReply }) }),
+  publishReview: (id: string, isPublished: boolean) =>
+    apiFetch(`/reviews/${id}/publish`, { method: 'PATCH', body: JSON.stringify({ isPublished }) }),
+  deleteReview: (id: string) =>
+    apiFetch(`/reviews/${id}`, { method: 'DELETE' }),
+  publicSubmit: (body: any) =>
+    apiFetch('/public/reviews', { method: 'POST', body: JSON.stringify(body) }),
 };

@@ -120,6 +120,7 @@ model Tenant {
   notifications       Notification[]
   auditLogs           AuditLog[]
   tenantStats         TenantStats?
+  pricingRules        PricingRule[]
 
   @@map("tenants")
 }
@@ -232,10 +233,34 @@ model RoomType {
   rooms  Room[]
   photos RoomPhoto[]
   bookingRooms BookingRoom[]
+  pricingRules PricingRule[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
   @@map("room_types")
+}
+
+model PricingRule {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  name            String    @db.VarChar(100)
+  startDate       DateTime? @map("start_date")
+  endDate         DateTime? @map("end_date")
+  daysOfWeek      Json      @default("[]") @map("days_of_week") // e.g. [5, 6] for Fri, Sat
+  roomTypeId      String?   @map("room_type_id")
+  adjustmentType  String    @map("adjustment_type") @db.VarChar(50) // 'percentage', 'fixed_override', 'fixed_addition'
+  adjustmentValue Float     @map("adjustment_value")
+  priority        Int       @default(0)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  roomType RoomType? @relation(fields: [roomTypeId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, startDate, endDate])
+  @@map("pricing_rules")
 }
 
 model Room {
@@ -245,6 +270,7 @@ model Room {
   roomTypeId   String   @map("room_type_id")
   roomNumber   String   @map("room_number") @db.VarChar(20)
   status       String   @default("available") @db.VarChar(20)
+  housekeepingStatus String @default("clean") @map("housekeeping_status") @db.VarChar(20)
   rateOverride Float?   @map("rate_override")
   features     Json     @default("{}")
   isActive     Boolean  @default(true) @map("is_active")
@@ -481,6 +507,8 @@ model HousekeepingTask {
   roomId      String    @map("room_id")
   assignedTo  String?   @map("assigned_to")
   taskDate    DateTime  @map("task_date") @db.Date
+  taskType    String    @default("cleaning") @map("task_type") @db.VarChar(30)
+  priority    String    @default("normal") @db.VarChar(20)
   status      String    @default("pending") @db.VarChar(20)
   checklist   Json      @default("[]")
   notes       String?

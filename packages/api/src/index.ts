@@ -21,7 +21,9 @@ import { notificationsRouter } from './modules/notifications/router';
 import { analyticsRouter } from './modules/analytics/router';
 import { dashboardRouter } from './modules/dashboard/router';
 import { housekeepingRouter } from './modules/housekeeping/router';
+import { pricingRouter } from './modules/pricing/router';
 import { usersRouter } from './modules/users/router';
+import { reviewsRouter } from './modules/reviews/router';
 import { errorHandler } from './middleware/error-handler';
 import { apiLimiter } from './middleware/rate-limit';
 
@@ -72,7 +74,9 @@ app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/housekeeping', housekeepingRouter);
+app.use('/api/v1/pricing', pricingRouter);
 app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/reviews', reviewsRouter);
 
 // Error handler
 app.use(errorHandler);

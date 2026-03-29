@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BedDouble, CalendarDays, Users, ArrowUpRight, ArrowDownRight, TrendingUp, ClipboardList } from 'lucide-react';
-import { dashboardApi } from '@/lib/api';
+import { BedDouble, CalendarDays, Users, ArrowUpRight, ArrowDownRight, TrendingUp, ClipboardList, IndianRupee, PieChart } from 'lucide-react';
+import { dashboardApi, analyticsApi } from '@/lib/api';
 
 interface DashboardData {
   today: string;
@@ -16,13 +16,18 @@ interface DashboardData {
 
 export default function DashboardOverview() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const res = await dashboardApi.get();
-        if (res.success) setData(res.data);
+        const [dashRes, analyticsRes] = await Promise.all([
+          dashboardApi.get(),
+          analyticsApi.getOverview()
+        ]);
+        if (dashRes.success) setData(dashRes.data);
+        if (analyticsRes.success) setAnalytics(analyticsRes.data);
       } catch (err) {
         console.error('Dashboard fetch failed:', err);
       } finally {
@@ -45,7 +50,23 @@ export default function DashboardOverview() {
     );
   }
 
+  // Calculate ADR and RevPAR
+  const totalRevenueThisMonth = analytics?.revenue?.thisMonth || 0;
+  const totalBookingsThisMonth = analytics?.bookings?.thisMonth || 0;
+  
+  // These calculations exist on backend but we can compute safely if missing
+  const adr = totalBookingsThisMonth > 0 ? (totalRevenueThisMonth / totalBookingsThisMonth) : 0;
+  const revPar = data?.rooms.total ? (totalRevenueThisMonth / (data.rooms.total * 30)) : 0; // Approximating 30 days for month
+
   const stats = [
+    {
+      label: 'Monthly Revenue',
+      value: `₹${totalRevenueThisMonth.toLocaleString('en-IN')}`,
+      detail: `${totalBookingsThisMonth} total bookings`,
+      icon: TrendingUp,
+      color: 'text-emerald-400',
+      bgColor: 'bg-emerald-600/20',
+    },
     {
       label: 'Occupancy',
       value: `${data?.rooms.occupancyPercent || 0}%`,
@@ -55,26 +76,18 @@ export default function DashboardOverview() {
       bgColor: 'bg-primary-600/20',
     },
     {
-      label: "Today's Check-ins",
-      value: data?.todayCheckIns || 0,
-      detail: 'Expected arrivals',
-      icon: ArrowUpRight,
-      color: 'text-emerald-400',
-      bgColor: 'bg-emerald-600/20',
-    },
-    {
-      label: "Today's Check-outs",
-      value: data?.todayCheckOuts || 0,
-      detail: 'Expected departures',
-      icon: ArrowDownRight,
+      label: 'Average Daily Rate (ADR)',
+      value: `₹${Math.round(adr).toLocaleString('en-IN')}`,
+      detail: 'Average rate per booking',
+      icon: IndianRupee,
       color: 'text-amber-400',
       bgColor: 'bg-amber-600/20',
     },
     {
-      label: 'Pending Bookings',
-      value: data?.pendingBookings || 0,
-      detail: 'Awaiting confirmation',
-      icon: CalendarDays,
+      label: 'RevPAR',
+      value: `₹${Math.round(revPar).toLocaleString('en-IN')}`,
+      detail: 'Revenue per available room',
+      icon: PieChart,
       color: 'text-accent-400',
       bgColor: 'bg-accent-600/20',
     },
@@ -83,8 +96,8 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-display font-bold mb-1">Dashboard</h1>
-        <p className="text-surface-400">Overview for {data?.today || 'today'}</p>
+        <h1 className="text-2xl font-display font-bold mb-1">Analytics Dashboard</h1>
+        <p className="text-surface-400">Key Performance Indicators & Overview for {data?.today || 'today'}</p>
       </div>
 
       {/* Stats Grid */}
@@ -103,43 +116,75 @@ export default function DashboardOverview() {
         ))}
       </div>
 
-      {/* Quick Actions + Recent Bookings */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
-        <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            {[
-              { label: 'New Walk-in Booking', href: '/dashboard/bookings/new', icon: CalendarDays },
-              { label: 'Check-in Guest', href: '/dashboard/bookings', icon: ArrowUpRight },
-              { label: 'Room Status Board', href: '/dashboard/rooms', icon: BedDouble },
-              { label: 'Housekeeping Tasks', href: '/dashboard/housekeeping', icon: ClipboardList },
-            ].map((action) => (
-              <a key={action.label} href={action.href}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all duration-200 group">
-                <action.icon className="w-5 h-5 text-surface-400 group-hover:text-primary-400 transition-colors" />
-                <span className="text-sm">{action.label}</span>
-              </a>
-            ))}
+        {/* Operations Overview */}
+        <div className="glass-card p-6 border-t-[3px] border-t-primary-500">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-primary-400" /> Daily Operations
+          </h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center p-3 rounded-lg bg-surface-800/50">
+              <span className="text-surface-300">Expected Check-ins</span>
+              <span className="text-lg font-bold text-emerald-400">{data?.todayCheckIns || 0}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-surface-800/50">
+              <span className="text-surface-300">Expected Check-outs</span>
+              <span className="text-lg font-bold text-amber-400">{data?.todayCheckOuts || 0}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-surface-800/50">
+              <span className="text-surface-300">Pending Bookings</span>
+              <span className="text-lg font-bold text-accent-400">{data?.pendingBookings || 0}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-surface-800/50">
+              <span className="text-surface-300">Housekeeping Tasks</span>
+              <span className="text-lg font-bold text-surface-100">{data?.pendingHousekeeping || 0}</span>
+            </div>
           </div>
         </div>
 
-        {/* Recent Bookings */}
-        <div className="glass-card p-6 lg:col-span-2">
+        {/* Booking Sources Distribution */}
+        <div className="glass-card p-6 border-t-[3px] border-t-accent-500">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-accent-400" /> Booking Sources
+          </h2>
+          <div className="space-y-4 mt-2">
+            {Object.keys(analytics?.bookingSources || {}).length > 0 ? (
+              Object.entries(analytics.bookingSources).map(([source, count]: [string, any]) => {
+                const percentage = Math.round((count / totalBookingsThisMonth) * 100) || 0;
+                return (
+                  <div key={source} className="mb-2">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="capitalize">{source.replace(/_/g, ' ')}</span>
+                      <span className="text-surface-400">{count} ({percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-surface-800 rounded-full h-2">
+                      <div className="bg-accent-500 h-2 rounded-full" style={{ width: `${percentage}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-surface-500 text-center py-8">No source data available</p>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="glass-card p-6 min-h-[300px]">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Recent Bookings</h2>
-            <a href="/dashboard/bookings" className="text-sm text-primary-400 hover:text-primary-300">View all →</a>
+            <h2 className="text-lg font-semibold">Recent Operations</h2>
+            <a href="/dashboard/bookings" className="text-sm text-primary-400 hover:text-primary-300">All →</a>
           </div>
           <div className="space-y-3">
             {data?.recentBookings?.length ? data.recentBookings.map((booking: any) => (
-              <div key={booking.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+              <div key={booking.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.02]">
                 <div>
                   <p className="text-sm font-medium">{booking.guestName}</p>
-                  <p className="text-xs text-surface-500">{booking.bookingNumber} · {booking.numRooms} room(s)</p>
+                  <p className="text-xs text-surface-500">{booking.bookingNumber}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium">₹{booking.totalAmount?.toLocaleString('en-IN')}</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${
                     booking.status === 'checked_in' ? 'bg-emerald-500/20 text-emerald-400' :
                     booking.status === 'confirmed' ? 'bg-primary-500/20 text-primary-400' :
                     booking.status === 'pending_confirmation' ? 'bg-amber-500/20 text-amber-400' :
@@ -150,7 +195,7 @@ export default function DashboardOverview() {
                 </div>
               </div>
             )) : (
-              <p className="text-sm text-surface-500 text-center py-8">No bookings yet. Create your first booking!</p>
+              <p className="text-sm text-surface-500 text-center py-8">No bookings yet.</p>
             )}
           </div>
         </div>

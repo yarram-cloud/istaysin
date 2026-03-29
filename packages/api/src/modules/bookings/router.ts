@@ -6,6 +6,7 @@ import { authorize } from '../../middleware/rbac';
 import { bookingSchema } from '@istays/shared';
 import { logAudit } from '../../middleware/audit-log';
 import { sendBookingConfirmation } from '../../services/email';
+import { calculatePricing } from '../../services/pricing';
 
 export const bookingsRouter = Router();
 
@@ -54,20 +55,27 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
       const bookingRoomsData = [];
 
       for (const sel of data.roomSelections) {
-        const roomType = await prisma.roomType.findUnique({ where: { id: sel.roomTypeId } });
-        if (!roomType) {
-          return { error: `Room type ${sel.roomTypeId} not found`, status: 400 };
-        }
-        const ratePerNight = roomType.baseRate;
-        const extraBedCharge = sel.extraBeds * roomType.extraBedCharge;
-        totalAmount += (ratePerNight + extraBedCharge) * nights;
+        const pricing = await calculatePricing(
+          req.tenantId!,
+          sel.roomTypeId,
+          new Date(data.checkInDate),
+          new Date(data.checkOutDate),
+          sel.extraBeds
+        );
+
+        totalAmount += pricing.totalAmount;
+        
+        // Wait till we get the first night's base rate for the legacy ratePerNight field, 
+        // though typically we should save the nightly breakdn. For now, average it or use first night.
+        const firstNightRate = pricing.nightlyRates.length > 0 ? pricing.nightlyRates[0].rate : 0;
+
         bookingRoomsData.push({
           tenantId: req.tenantId!,
           roomId: sel.roomId || null,
           roomTypeId: sel.roomTypeId,
-          ratePerNight,
+          ratePerNight: firstNightRate, // Used for legacy displays
           extraBeds: sel.extraBeds,
-          extraBedCharge,
+          extraBedCharge: 0, // already included in calculatePricing
         });
       }
 

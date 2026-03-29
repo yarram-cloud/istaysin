@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2, LayoutDashboard, BedDouble, CalendarDays, Users, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
-  ClipboardList
+  ClipboardList, TrendingUp, Star
 } from 'lucide-react';
 
 const sidebarLinks = [
@@ -16,7 +16,9 @@ const sidebarLinks = [
   { href: '/dashboard/guests', icon: Users, label: 'Guests' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
   { href: '/dashboard/housekeeping', icon: ClipboardList, label: 'Housekeeping' },
+  { href: '/dashboard/reviews', icon: Star, label: 'Reviews' },
   { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
+  { href: '/dashboard/pricing', icon: TrendingUp, label: 'Revenue' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 

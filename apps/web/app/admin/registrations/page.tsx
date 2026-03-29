@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  CheckCircle2, XCircle, Building2, MapPin, Phone, Mail, Clock, Loader2,
+  CheckCircle2, XCircle, Building2, MapPin, Phone, Mail, Clock, Loader2, ExternalLink,
 } from 'lucide-react';
 import { platformApi } from '@/lib/api';
 
@@ -35,6 +35,7 @@ export default function AdminRegistrationsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<{ id: string; name: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approvedUrl, setApprovedUrl] = useState<{ name: string; url: string } | null>(null);
 
   function fetchList() {
     setLoading(true);
@@ -49,8 +50,13 @@ export default function AdminRegistrationsPage() {
   async function handleApprove(id: string) {
     setActionLoading(id);
     try {
-      await platformApi.approveProperty(id);
+      const res = await platformApi.approveProperty(id);
+      const subdomainUrl = res?.data?.subdomainUrl;
+      const name = tenants.find((t) => t.id === id)?.name || 'Property';
       setTenants((prev) => prev.filter((t) => t.id !== id));
+      if (subdomainUrl) {
+        setApprovedUrl({ name, url: subdomainUrl });
+      }
     } catch (e: any) {
       alert(`Failed: ${e.message}`);
     } finally {
@@ -106,6 +112,33 @@ export default function AdminRegistrationsPage() {
       {/* Error */}
       {error && (
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm">{error}</div>
+      )}
+
+      {/* Approval Success Banner */}
+      {approvedUrl && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-emerald-300 font-medium text-sm">✓ {approvedUrl.name} approved!</p>
+            <p className="text-emerald-400/70 text-xs mt-0.5">Live at: <span className="font-mono">{approvedUrl.url}</span></p>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href={approvedUrl.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-medium hover:bg-emerald-600/30 transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Visit
+            </a>
+            <button
+              onClick={() => setApprovedUrl(null)}
+              className="text-surface-500 hover:text-white text-xs px-2 py-1.5 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Loading */}

@@ -131,13 +131,22 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
         });
       }
 
-      // Release rooms — mark as dirty for housekeeping
+      // Release rooms — mark as available but dirty for housekeeping
       for (const br of booking.bookingRooms) {
         if (br.roomId) {
           await prisma.room.update({
             where: { id: br.roomId },
-            data: { status: 'dirty' },
+            data: { status: 'available', housekeepingStatus: 'dirty' },
           });
+
+          const defaultChecklist = [
+            { id: '1', item: 'Change bed linen', done: false },
+            { id: '2', item: 'Replace towels', done: false },
+            { id: '3', item: 'Clean bathroom', done: false },
+            { id: '4', item: 'Vacuum floor', done: false },
+            { id: '5', item: 'Empty trash', done: false },
+            { id: '6', item: 'Restock amenities', done: false },
+          ];
 
           // Create housekeeping task
           await prisma.housekeepingTask.create({
@@ -146,6 +155,9 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
               roomId: br.roomId,
               taskDate: new Date(),
               status: 'pending',
+              taskType: 'cleaning',
+              priority: 'high',
+              checklist: defaultChecklist,
             },
           });
         }

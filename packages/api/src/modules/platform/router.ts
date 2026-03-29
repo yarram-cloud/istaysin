@@ -4,6 +4,7 @@ import { authenticate } from '../../middleware/auth';
 import { requireGlobalAdmin } from '../../middleware/rbac';
 import { logAudit } from '../../middleware/audit-log';
 import { sendPropertyApprovalEmail } from '../../services/email';
+import { getSubdomainUrl } from '../../services/cloudflare';
 
 export const platformRouter = Router();
 platformRouter.use(authenticate, requireGlobalAdmin);
@@ -32,10 +33,11 @@ platformRouter.post('/approve/:id', async (req: Request, res: Response) => {
       include: { owner: { select: { email: true } } },
     });
 
-    sendPropertyApprovalEmail(tenant.owner.email, { propertyName: tenant.name, status: 'approved' }).catch(console.error);
-    await logAudit(tenant.id, req.userId, 'APPROVE', 'tenant', tenant.id, {}, req.ip || undefined);
+    const subdomainUrl = getSubdomainUrl(tenant.slug);
+    sendPropertyApprovalEmail(tenant.owner.email, { propertyName: tenant.name, status: 'approved', subdomainUrl }).catch(console.error);
+    await logAudit(tenant.id, req.userId, 'APPROVE', 'tenant', tenant.id, { subdomainUrl }, req.ip || undefined);
 
-    res.json({ success: true, data: tenant, message: 'Property approved' });
+    res.json({ success: true, data: { ...tenant, subdomainUrl }, message: 'Property approved' });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to approve property' });
   }

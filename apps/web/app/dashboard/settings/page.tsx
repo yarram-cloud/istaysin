@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe } from 'lucide-react';
 import { tenantsApi } from '@/lib/api';
+import { DomainSettings } from './domain-settings';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   const sections = [
     { id: 'property', icon: Building2, title: 'Property Details', desc: 'Name, address, type, contact info, check-in/out times' },
+    { id: 'domain', icon: Globe, title: 'Domain Settings', desc: 'Subdomain, custom domain, and DNS configuration' },
     { id: 'staff', icon: Users, title: 'Staff Management', desc: 'Invite and manage staff members with role-based access' },
     { id: 'subscription', icon: CreditCard, title: 'Subscription', desc: 'View and manage your istaysin plan' },
   ];
@@ -39,6 +41,11 @@ export default function SettingsPage() {
         </div>
       ) : activeSection === 'property' ? (
         <PropertySettings onBack={() => setActiveSection(null)} />
+      ) : activeSection === 'domain' ? (
+        <div>
+          <button onClick={() => setActiveSection(null)} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
+          <DomainSettings />
+        </div>
       ) : activeSection === 'staff' ? (
         <StaffSettings onBack={() => setActiveSection(null)} />
       ) : activeSection === 'subscription' ? (

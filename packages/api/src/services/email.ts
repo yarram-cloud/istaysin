@@ -87,7 +87,7 @@ export async function sendWelcomeEmail(to: string, fullName: string): Promise<bo
 
 export async function sendPropertyApprovalEmail(
   to: string,
-  data: { propertyName: string; status: 'approved' | 'rejected'; reason?: string },
+  data: { propertyName: string; status: 'approved' | 'rejected'; reason?: string; subdomainUrl?: string },
 ): Promise<boolean> {
   const approved = data.status === 'approved';
   return sendEmail({
@@ -97,6 +97,12 @@ export async function sendPropertyApprovalEmail(
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: ${approved ? '#22543d' : '#c53030'};">${approved ? '✓ Property Approved' : '⚠ Review Required'}</h2>
         <p>Your property <strong>${data.propertyName}</strong> has been ${approved ? 'approved and is now live on iStays!' : 'reviewed and requires some changes.'}</p>
+        ${approved && data.subdomainUrl ? `
+          <div style="margin: 16px 0; padding: 16px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+            <p style="margin: 0; color: #166534; font-size: 14px;"><strong>Your property is live at:</strong></p>
+            <p style="margin: 8px 0 0 0;"><a href="${data.subdomainUrl}" style="color: #15803d; font-size: 16px; font-weight: 600;">${data.subdomainUrl}</a></p>
+          </div>
+        ` : ''}
         ${data.reason ? `<p><strong>Reason:</strong> ${data.reason}</p>` : ''}
       </div>
     `,
