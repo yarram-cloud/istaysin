@@ -10,9 +10,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Building2, Eye, EyeOff, Loader2, ChevronRight, CheckCircle2,
-  MapPin, Phone, Mail, User, Lock, Home, Zap, Sparkles,
+  Phone, Mail, Sparkles,
 } from 'lucide-react';
-import { authApi, tenantsApi } from '@/lib/api';
+import { authApi, tenantsApi, saveAuthData } from '@/lib/api';
 
 const COUNTRY_CODES = [
   { code: '+91', flag: '🇮🇳', label: 'IN' },
@@ -43,17 +43,6 @@ const PROPERTY_TYPES = [
   { value: 'resort', label: 'Resort' },
   { value: 'homestay', label: 'Homestay' },
   { value: 'guest_house', label: 'Guest House' },
-];
-
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Andaman and Nicobar', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
 ];
 
 const PLANS = [
@@ -93,9 +82,13 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleMapClick = useCallback((lat: number, lng: number) => {
-    setLatitude(lat);
-    setLongitude(lng);
+  const handleLocationSelect = useCallback((result: { address: string; city: string; state: string; pincode: string; lat: number; lng: number }) => {
+    setAddress(result.address);
+    if (result.city) setCity(result.city);
+    if (result.state) setState(result.state);
+    if (result.pincode) setPincode(result.pincode);
+    setLatitude(result.lat);
+    setLongitude(result.lng);
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -123,10 +116,11 @@ export default function RegisterPage() {
       });
 
       if (authRes.success) {
-        localStorage.setItem('accessToken', authRes.data.accessToken);
-        localStorage.setItem('refreshToken', authRes.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(authRes.data.user));
-        document.cookie = `accessToken=${authRes.data.accessToken}; path=/; max-age=${15 * 60}`;
+        saveAuthData({
+          accessToken: authRes.data.accessToken,
+          refreshToken: authRes.data.refreshToken,
+          user: authRes.data.user,
+        });
       }
 
       // 2. Register property
@@ -137,7 +131,7 @@ export default function RegisterPage() {
         city,
         state,
         pincode,
-        contactPhone,
+        contactPhone: propertyCountryCode + contactPhone,
         contactEmail: contactEmail || email,
         gstNumber: gstNumber || undefined,
         latitude,
@@ -271,42 +265,64 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Location Search + Map */}
             <div>
-              <label htmlFor="address" className="block text-sm font-medium text-surface-700 mb-1">
-                Address <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-surface-700 mb-1">
+                Property Location <span className="text-red-400">*</span>
               </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 w-4 h-4 text-surface-400" />
-                <input id="address" type="text" required value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Start typing your property address..."
-                  className="input-field pl-9" />
-              </div>
+              <LocationMap
+                lat={latitude ?? 20.5937}
+                lng={longitude ?? 78.9629}
+                onLocationSelect={handleLocationSelect}
+              />
             </div>
 
+            {/* Auto-filled location details */}
+            {(city || state || pincode) && (
+              <div className="p-3 rounded-xl bg-primary-50/50 border border-primary-200/50">
+                <p className="text-xs text-surface-500 mb-2 font-medium">📍 Detected Location</p>
+                <div className="flex flex-wrap gap-2">
+                  {city && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">
+                      🏙️ {city}
+                    </span>
+                  )}
+                  {state && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">
+                      📍 {state}
+                    </span>
+                  )}
+                  {pincode && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">
+                      📮 {pincode}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-surface-400 mt-2">
+                  City, state, and pincode are auto-filled. You can edit them below if needed.
+                </p>
+              </div>
+            )}
+
+            {/* Editable overrides (collapsed by default, shown inline) */}
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label htmlFor="city" className="block text-sm font-medium text-surface-700 mb-1">City <span className="text-red-400">*</span></label>
+                <label htmlFor="city" className="block text-xs font-medium text-surface-500 mb-1">City</label>
                 <input id="city" type="text" required value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="Jaipur" className="input-field" />
+                  placeholder="City" className="input-field text-sm py-2" />
               </div>
               <div>
-                <label htmlFor="state" className="block text-sm font-medium text-surface-700 mb-1">State <span className="text-red-400">*</span></label>
-                <select id="state" required value={state}
+                <label htmlFor="state" className="block text-xs font-medium text-surface-500 mb-1">State</label>
+                <input id="state" type="text" required value={state}
                   onChange={(e) => setState(e.target.value)}
-                  className="input-field">
-                  <option value="">Select</option>
-                  {INDIAN_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                  placeholder="State" className="input-field text-sm py-2" />
               </div>
               <div>
-                <label htmlFor="pincode" className="block text-sm font-medium text-surface-700 mb-1">Pincode <span className="text-red-400">*</span></label>
+                <label htmlFor="pincode" className="block text-xs font-medium text-surface-500 mb-1">Pincode</label>
                 <input id="pincode" type="text" required value={pincode}
                   onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="302001" maxLength={6} className="input-field" />
+                  placeholder="522549" maxLength={6} className="input-field text-sm py-2" />
               </div>
             </div>
 
@@ -317,14 +333,6 @@ export default function RegisterPage() {
               <input type="text" value={gstNumber}
                 onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
                 placeholder="22AAAAA0000A1Z5" className="input-field" />
-            </div>
-
-            {/* Map */}
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1">
-                Location on Map <span className="text-surface-400 font-normal">(click to set pin)</span>
-              </label>
-              <LocationMap lat={latitude ?? 20.5937} lng={longitude ?? 78.9629} onMapClick={handleMapClick} />
             </div>
           </div>
         </div>

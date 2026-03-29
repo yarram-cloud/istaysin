@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { authApi } from '@/lib/api';
+import { authApi, saveAuthData } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,18 +22,18 @@ export default function LoginPage() {
     try {
       const res = await authApi.login({ email, password });
       if (res.success) {
-        localStorage.setItem('accessToken', res.data.accessToken);
-        localStorage.setItem('refreshToken', res.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-
-        // Set cookie for middleware
-        document.cookie = `accessToken=${res.data.accessToken}; path=/; max-age=${15 * 60}`;
-
-        if (res.data.memberships?.length > 0) {
-          localStorage.setItem('tenantId', res.data.memberships[0].tenantId);
+        saveAuthData({
+          accessToken: res.data.accessToken,
+          refreshToken: res.data.refreshToken,
+          user: res.data.user,
+          tenantId: res.data.memberships?.[0]?.tenantId,
+        });
+        // Redirect admin to admin panel, regular users to dashboard
+        if (res.data.user?.isGlobalAdmin) {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
         }
-
-        router.push('/dashboard');
       }
     } catch (err: any) {
       setError(err.message || 'Login failed');

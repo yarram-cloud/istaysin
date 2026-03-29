@@ -152,6 +152,120 @@ roomsRouter.post('/', authorize('property_owner', 'general_manager'), async (req
   }
 });
 
+// PUT /rooms/:id
+roomsRouter.put('/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const { roomNumber, floorId, roomTypeId, baseRate } = req.body;
+    if (!roomNumber?.trim()) {
+      res.status(400).json({ success: false, error: 'Room number is required' });
+      return;
+    }
+
+    await withTenant(req.tenantId!, async () => {
+      // Verify room belongs to this tenant
+      const existing = await prisma.room.findFirst({
+        where: { id: req.params.id, tenantId: req.tenantId! },
+      });
+      if (!existing) {
+        res.status(404).json({ success: false, error: 'Room not found' });
+        return;
+      }
+
+      const room = await prisma.room.update({
+        where: { id: req.params.id },
+        data: {
+          roomNumber: roomNumber.trim(),
+          ...(floorId && { floorId }),
+          ...(roomTypeId && { roomTypeId }),
+          ...(baseRate !== undefined && { baseRate: parseFloat(baseRate) }),
+        },
+        include: {
+          floor: { select: { id: true, name: true } },
+          roomType: { select: { id: true, name: true, baseRate: true } },
+        },
+      });
+      await logAudit(req.tenantId!, req.userId, 'UPDATE', 'room', room.id, req.body, req.ip || undefined);
+      res.json({ success: true, data: room });
+    });
+  } catch (err) {
+    console.error('[ROOMS UPDATE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to update room' });
+  }
+});
+
+// DELETE /rooms/:id (soft-delete)
+roomsRouter.delete('/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      const existing = await prisma.room.findFirst({
+        where: { id: req.params.id, tenantId: req.tenantId! },
+      });
+      if (!existing) {
+        res.status(404).json({ success: false, error: 'Room not found' });
+        return;
+      }
+
+      await prisma.room.update({
+        where: { id: req.params.id },
+        data: { isActive: false },
+      });
+      await logAudit(req.tenantId!, req.userId, 'DELETE', 'room', req.params.id, {}, req.ip || undefined);
+      res.json({ success: true, message: 'Room deleted' });
+    });
+  } catch (err) {
+    console.error('[ROOMS DELETE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete room' });
+  }
+});
+
+// DELETE /rooms/floors/:id
+roomsRouter.delete('/floors/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      // Check if floor has active rooms
+      const roomCount = await prisma.room.count({
+        where: { floorId: req.params.id, tenantId: req.tenantId!, isActive: true },
+      });
+      if (roomCount > 0) {
+        res.status(400).json({ success: false, error: `Cannot delete floor with ${roomCount} active room(s). Remove rooms first.` });
+        return;
+      }
+
+      await prisma.floor.delete({ where: { id: req.params.id } });
+      await logAudit(req.tenantId!, req.userId, 'DELETE', 'floor', req.params.id, {}, req.ip || undefined);
+      res.json({ success: true, message: 'Floor deleted' });
+    });
+  } catch (err) {
+    console.error('[ROOMS DELETE FLOOR ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete floor' });
+  }
+});
+
+// DELETE /rooms/types/:id (soft-delete)
+roomsRouter.delete('/types/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      const roomCount = await prisma.room.count({
+        where: { roomTypeId: req.params.id, tenantId: req.tenantId!, isActive: true },
+      });
+      if (roomCount > 0) {
+        res.status(400).json({ success: false, error: `Cannot delete type with ${roomCount} active room(s). Remove rooms first.` });
+        return;
+      }
+
+      await prisma.roomType.update({
+        where: { id: req.params.id },
+        data: { isActive: false },
+      });
+      await logAudit(req.tenantId!, req.userId, 'DELETE', 'room_type', req.params.id, {}, req.ip || undefined);
+      res.json({ success: true, message: 'Room type deleted' });
+    });
+  } catch (err) {
+    console.error('[ROOMS DELETE TYPE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete room type' });
+  }
+});
+
 // PATCH /rooms/:id/status
 roomsRouter.patch('/:id/status', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {

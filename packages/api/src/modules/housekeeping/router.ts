@@ -63,6 +63,43 @@ housekeepingRouter.patch('/tasks/:id/status', authorize('property_owner', 'gener
   }
 });
 
+// POST /housekeeping/tasks
+housekeepingRouter.post('/tasks', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
+  try {
+    const { roomId, notes, assignedTo } = req.body;
+    if (!roomId) {
+      res.status(400).json({ success: false, error: 'roomId is required' });
+      return;
+    }
+
+    await withTenant(req.tenantId!, async () => {
+      // Verify room belongs to this tenant
+      const room = await prisma.room.findFirst({
+        where: { id: roomId, tenantId: req.tenantId! },
+      });
+      if (!room) {
+        res.status(404).json({ success: false, error: 'Room not found' });
+        return;
+      }
+
+      const task = await prisma.housekeepingTask.create({
+        data: {
+          tenantId: req.tenantId!,
+          roomId,
+          taskDate: new Date(),
+          status: 'pending',
+          notes: notes || null,
+          assignedTo: assignedTo || null,
+        },
+        include: { room: { select: { roomNumber: true, floor: { select: { name: true } } } } },
+      });
+      res.status(201).json({ success: true, data: task });
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to create task' });
+  }
+});
+
 // POST /housekeeping/maintenance
 housekeepingRouter.post('/maintenance', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {

@@ -241,3 +241,66 @@ tenantsRouter.post(
     }
   },
 );
+
+// GET /tenants/staff
+tenantsRouter.get('/staff', authenticate, resolveTenant, requireTenant, authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const memberships = await prisma.tenantMembership.findMany({
+      where: { tenantId: req.tenantId!, isActive: true },
+      include: {
+        user: {
+          select: { id: true, fullName: true, email: true, phone: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    res.json({
+      success: true,
+      data: memberships.map((m) => ({
+        id: m.id,
+        userId: m.userId,
+        role: m.role,
+        user: m.user,
+        fullName: m.user.fullName,
+        email: m.user.email,
+        createdAt: m.createdAt,
+      })),
+    });
+  } catch (err) {
+    console.error('[TENANT STAFF LIST ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch staff' });
+  }
+});
+
+// DELETE /tenants/staff/:userId
+tenantsRouter.delete('/staff/:userId', authenticate, resolveTenant, requireTenant, authorize('property_owner'), async (req: Request, res: Response) => {
+  try {
+    const membership = await prisma.tenantMembership.findFirst({
+      where: { userId: req.params.userId, tenantId: req.tenantId!, isActive: true },
+    });
+
+    if (!membership) {
+      res.status(404).json({ success: false, error: 'Staff member not found' });
+      return;
+    }
+
+    if (membership.role === 'property_owner') {
+      res.status(400).json({ success: false, error: 'Cannot remove the property owner' });
+      return;
+    }
+
+    await prisma.tenantMembership.update({
+      where: { id: membership.id },
+      data: { isActive: false },
+    });
+
+    await logAudit(req.tenantId!, req.userId, 'REMOVE_STAFF', 'tenant_membership', membership.id, { userId: req.params.userId }, req.ip || undefined);
+
+    res.json({ success: true, message: 'Staff member removed' });
+  } catch (err) {
+    console.error('[TENANT STAFF REMOVE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to remove staff' });
+  }
+});
+
