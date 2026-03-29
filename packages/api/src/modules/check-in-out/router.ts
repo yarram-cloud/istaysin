@@ -176,6 +176,44 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
         },
       });
 
+      // Fetch tenant configuration for GST details
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.tenantId! },
+        select: { config: true, gstNumber: true },
+      });
+      const tConfig = (tenant?.config as Record<string, any>) || {};
+
+      // Calculate final invoice sums from folio charges
+      const subtotal = booking.folioCharges.reduce((sum, c) => sum + c.totalPrice, 0);
+      const totalCgst = booking.folioCharges.reduce((sum, c) => sum + c.cgst, 0);
+      const totalSgst = booking.folioCharges.reduce((sum, c) => sum + c.sgst, 0);
+      const totalIgst = booking.folioCharges.reduce((sum, c) => sum + c.igst, 0);
+      const grandTotal = subtotal + totalCgst + totalSgst + totalIgst;
+
+      // Ensure we don't accidentally duplicate Invoices for the same checkout, create if nil
+      const existingInvoice = await prisma.invoice.findFirst({
+        where: { bookingId: booking.id, isProforma: false },
+      });
+
+      if (!existingInvoice) {
+        await prisma.invoice.create({
+          data: {
+            tenantId: req.tenantId!,
+            bookingId: booking.id,
+            invoiceNumber: `INV-${Date.now().toString(36).toUpperCase()}`,
+            guestName: booking.guestName,
+            propertyGstin: tenant?.gstNumber,
+            placeOfSupply: tConfig.state || '',
+            subtotal,
+            totalCgst,
+            totalSgst,
+            totalIgst,
+            grandTotal,
+            isProforma: false,
+          },
+        });
+      }
+
       await logAudit(req.tenantId!, req.userId, 'CHECK_OUT', 'booking', booking.id, {}, req.ip || undefined);
 
       res.json({ success: true, data: updatedBooking, message: 'Guest checked out successfully' });

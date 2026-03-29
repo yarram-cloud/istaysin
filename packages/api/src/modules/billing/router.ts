@@ -85,15 +85,37 @@ billingRouter.post('/charge', authorize('property_owner', 'general_manager', 'fr
     const data = parsed.data;
     const totalPrice = data.quantity * data.unitPrice;
     const gst = calculateGst(data.unitPrice, data.category);
-    const totalGst = (gst.cgst + gst.sgst) * data.quantity;
 
     const result = await withTenant(req.tenantId!, async () => {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.tenantId! },
+        select: { config: true },
+      });
+      const tenantConfig = (tenant?.config as Record<string, any>) || {};
+      const propertyState = tenantConfig.state?.toLowerCase() || '';
+
       // Verify booking exists and belongs to this tenant
       const booking = await prisma.booking.findUnique({
         where: { id: data.bookingId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, guestProfile: { select: { state: true } } },
       });
       if (!booking) return { error: 'Booking not found', status: 404 };
+
+      const guestState = booking.guestProfile?.state?.toLowerCase() || '';
+      const isInterState = propertyState && guestState && propertyState !== guestState;
+
+      let cgst = 0, sgst = 0, igst = 0, rate = 0;
+      if (tenantConfig.gstEnabled) {
+        rate = gst.rate;
+        if (isInterState) {
+          igst = gst.cgst + gst.sgst;
+        } else {
+          cgst = gst.cgst;
+          sgst = gst.sgst;
+        }
+      }
+      
+      const totalGst = (cgst + sgst + igst) * data.quantity;
 
       const charge = await prisma.folioCharge.create({
         data: {
@@ -106,9 +128,10 @@ billingRouter.post('/charge', authorize('property_owner', 'general_manager', 'fr
           quantity: data.quantity,
           unitPrice: data.unitPrice,
           totalPrice,
-          gstRate: gst.rate,
-          cgst: gst.cgst * data.quantity,
-          sgst: gst.sgst * data.quantity,
+          gstRate: rate,
+          cgst: cgst * data.quantity,
+          sgst: sgst * data.quantity,
+          igst: igst * data.quantity,
         },
       });
 
@@ -125,7 +148,7 @@ billingRouter.post('/charge', authorize('property_owner', 'general_manager', 'fr
     });
 
     if ('error' in result) {
-      res.status(result.status).json({ success: false, error: result.error });
+      res.status(result.status || 400).json({ success: false, error: result.error });
       return;
     }
 
@@ -176,7 +199,7 @@ billingRouter.post('/payment', authorize('property_owner', 'general_manager', 'f
     });
 
     if ('error' in result) {
-      res.status(result.status).json({ success: false, error: result.error });
+      res.status(result.status || 400).json({ success: false, error: result.error });
       return;
     }
 

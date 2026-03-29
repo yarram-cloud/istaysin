@@ -98,6 +98,7 @@ export const bookingSchema = z
     guestName: z.string().min(2).max(200),
     guestEmail: z.string().email().optional(),
     guestPhone: z.string().min(10).max(15),
+    guestState: z.string().max(100).optional(),
     checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     numAdults: z.number().int().min(1).max(50).default(1),

@@ -1,12 +1,13 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
 
 export interface PricingResult {
-  totalAmount: number;
+  totalAmount: number; // Base rate without tax (includes extra beds)
+  totalGst: number;    // Tax amount
+  grandTotal: number;  // Base + Tax
   nightlyRates: {
     date: string;
     rate: number;
+    gstAmount: number;
     ruleApplied?: string;
   }[];
 }
@@ -26,11 +27,18 @@ export async function calculatePricing(
     throw new Error('RoomType not found');
   }
 
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { config: true },
+  });
+  
+  const tenantConfig = (tenant?.config as Record<string, any>) || {};
+  const gstEnabled = tenantConfig.gstEnabled === true;
+
   const baseRate = roomType.baseRate;
   const extraBedCharge = (roomType.extraBedCharge || 0) * extraBeds;
 
   // Retrieve all active pricing rules for this tenant that could apply
-  // (Either specific to this room type, or applicable to all room types)
   const rules = await prisma.pricingRule.findMany({
     where: {
       tenantId,
@@ -40,11 +48,11 @@ export async function calculatePricing(
     orderBy: { priority: 'desc' }, // Highest priority first
   });
 
-  const nightlyRates: { date: string; rate: number; ruleApplied?: string }[] = [];
+  const nightlyRates: { date: string; rate: number; gstAmount: number; ruleApplied?: string }[] = [];
   let totalAmount = 0;
+  let totalGst = 0;
 
   // Iterate over each night
-  // We don't charge for the checkOut date itself, so we loop until date < checkOut
   const current = new Date(checkIn);
   current.setHours(0, 0, 0, 0);
 
@@ -68,48 +76,63 @@ export async function calculatePricing(
         
         matchesDate = current >= rStart && current <= rEnd;
       } else {
-        // If no date boundaries are set, it applies to any date
         matchesDate = true;
       }
 
-      // 2. Check Days of Week (if daysOfWeek array is populated)
+      // 2. Check Days of Week
       let matchesDays = true;
       if (rule.daysOfWeek && Array.isArray(rule.daysOfWeek) && rule.daysOfWeek.length > 0) {
         matchesDays = rule.daysOfWeek.includes(current.getDay());
       }
 
       if (matchesDate && matchesDays) {
-        // We found our highest priority matching rule
         appliedRuleName = rule.name;
         
         if (rule.adjustmentType === 'percentage') {
-          // Positive adjustmentValue means markup, negative means markdown
           appliedRate = baseRate * (1 + (rule.adjustmentValue / 100));
         } else if (rule.adjustmentType === 'fixed_addition') {
           appliedRate = baseRate + rule.adjustmentValue;
         } else if (rule.adjustmentType === 'fixed_override') {
           appliedRate = rule.adjustmentValue;
         }
-        
-        break; // Stop looking because the rules are ordered by highest priority
+        break; 
       }
     }
 
-    // Add extra bed charges to the night's rate
-    // Floor the value so we don't end up with wild decimals like 100.000000001
     const finalNightRate = Math.round(appliedRate + extraBedCharge);
+    let gstAmount = 0;
+
+    if (gstEnabled) {
+      // Indian GST Slabs for Hotel Rooms
+      if (finalNightRate > 7500) {
+        gstAmount = finalNightRate * 0.18;
+      } else if (finalNightRate > 1000) {
+        gstAmount = finalNightRate * 0.12;
+      } else {
+        gstAmount = 0;
+      }
+    }
+
+    gstAmount = Math.round(gstAmount);
 
     nightlyRates.push({
       date: current.toISOString().split('T')[0],
       rate: finalNightRate,
+      gstAmount,
       ruleApplied: appliedRuleName,
     });
 
     totalAmount += finalNightRate;
+    totalGst += gstAmount;
 
     // Move to next day
     current.setDate(current.getDate() + 1);
   }
 
-  return { totalAmount, nightlyRates };
+  return { 
+    totalAmount, 
+    totalGst, 
+    grandTotal: totalAmount + totalGst, 
+    nightlyRates 
+  };
 }

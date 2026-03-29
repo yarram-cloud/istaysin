@@ -136,6 +136,17 @@ tenantsRouter.patch(
         }
       }
 
+      // Handle config merging safely
+      if (req.body.config && typeof req.body.config === 'object') {
+        const existingTenant = await prisma.tenant.findUnique({
+          where: { id: req.params.id },
+          select: { config: true },
+        });
+        
+        const existingConfig = (existingTenant?.config as Record<string, any>) || {};
+        updateData.config = { ...existingConfig, ...req.body.config };
+      }
+
       const tenant = await prisma.tenant.update({
         where: { id: req.params.id },
         data: updateData,

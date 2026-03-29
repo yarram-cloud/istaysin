@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt } from 'lucide-react';
 import { tenantsApi } from '@/lib/api';
 import { DomainSettings } from './domain-settings';
 
@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const sections = [
     { id: 'property', icon: Building2, title: 'Property Details', desc: 'Name, address, type, contact info, check-in/out times' },
     { id: 'domain', icon: Globe, title: 'Domain Settings', desc: 'Subdomain, custom domain, and DNS configuration' },
+    { id: 'billing', icon: Receipt, title: 'Billing & Taxes', desc: 'GST settings, invoicing details' },
     { id: 'staff', icon: Users, title: 'Staff Management', desc: 'Invite and manage staff members with role-based access' },
     { id: 'subscription', icon: CreditCard, title: 'Subscription', desc: 'View and manage your istaysin plan' },
   ];
@@ -48,6 +49,8 @@ export default function SettingsPage() {
         </div>
       ) : activeSection === 'staff' ? (
         <StaffSettings onBack={() => setActiveSection(null)} />
+      ) : activeSection === 'billing' ? (
+        <BillingSettings onBack={() => setActiveSection(null)} />
       ) : activeSection === 'subscription' ? (
         <SubscriptionSettings onBack={() => setActiveSection(null)} />
       ) : null}
@@ -340,6 +343,93 @@ function SubscriptionSettings({ onBack }: { onBack: () => void }) {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Billing & Taxes Settings ──────────────────────────────────
+function BillingSettings({ onBack }: { onBack: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [gstEnabled, setGstEnabled] = useState(false);
+  const [gstNumber, setGstNumber] = useState('');
+  const [legalName, setLegalName] = useState('');
+
+  useEffect(() => {
+    tenantsApi.getSettings()
+      .then((res) => {
+        if (res.success && res.data) {
+          const d = res.data;
+          setGstEnabled(d.config?.gstEnabled || false);
+          setGstNumber(d.gstNumber || '');
+          setLegalName(d.config?.legalName || '');
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await tenantsApi.updateSettings({
+        gstNumber,
+        config: { gstEnabled, legalName }
+      });
+      alert('Billing & Tax settings saved!');
+    } catch (err: any) { alert(err.message); }
+    finally { setSaving(false); }
+  }
+
+  if (loading) return <div className="glass-card p-12 text-center animate-pulse"><div className="h-8 bg-white/[0.06] rounded-lg w-48 mx-auto" /></div>;
+
+  return (
+    <div>
+      <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
+      <div className="glass-card p-6 max-w-2xl">
+        <h2 className="text-lg font-display font-bold mb-6">Billing & Tax Configuration</h2>
+        
+        <div className="space-y-6">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+            <div>
+              <p className="font-medium text-white">Enable GST Invoicing</p>
+              <p className="text-sm text-surface-400">Automatically calculate and apply standard Indian GST slabs to room operations on checkout invoices.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={gstEnabled} onChange={(e) => setGstEnabled(e.target.checked)} />
+              <div className="w-11 h-6 bg-surface-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+            </label>
+          </div>
+
+          {gstEnabled && (
+            <div className="space-y-4 pt-2 border-t border-white/[0.08]">
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">GSTIN (Goods and Services Tax Identification Number)</label>
+                <input value={gstNumber} onChange={(e) => setGstNumber(e.target.value.toUpperCase())} className="input-field uppercase" placeholder="e.g. 29ABCDE1234F1Z5" maxLength={15} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">Registered Legal Entity Name</label>
+                <input value={legalName} onChange={(e) => setLegalName(e.target.value)} className="input-field" placeholder="Name as per GST registration" />
+              </div>
+
+              <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 mt-4">
+                <h4 className="text-sm font-medium text-primary-300 mb-2">Automated GST Slabs (Hotel Room Tariff)</h4>
+                <ul className="text-xs text-primary-400 space-y-1 list-disc pl-4">
+                  <li>Up to ₹1,000 / night: <strong>0% GST</strong></li>
+                  <li>₹1,001 to ₹7,500 / night: <strong>12% GST</strong></li>
+                  <li>Above ₹7,500 / night: <strong>18% GST</strong></li>
+                </ul>
+                <p className="text-xs text-primary-400/70 mt-2 italic">Note: The system determines Intra-state vs Inter-state supply based on your Property Address state settings.</p>
+              </div>
+            </div>
+          )}
+
+          <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 mt-4">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Settings
+          </button>
+        </div>
       </div>
     </div>
   );

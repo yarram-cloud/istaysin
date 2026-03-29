@@ -5,9 +5,17 @@ import { CreditCard, Search, IndianRupee, FileText, CheckCircle, Clock, AlertCir
 import { billingApi } from '@/lib/api';
 
 interface Invoice {
-  id: string; invoiceNumber: string; guestName: string; bookingNumber: string;
-  subtotal: number; gstAmount: number; totalAmount: number; status: string;
-  createdAt: string; paidAt?: string;
+  id: string; 
+  invoiceNumber: string; 
+  guestName: string; 
+  booking: { bookingNumber: string };
+  subtotal: number; 
+  totalCgst: number; 
+  totalSgst: number; 
+  totalIgst: number; 
+  grandTotal: number; 
+  status?: string;
+  createdAt: string; 
 }
 
 export default function BillingPage() {
@@ -29,24 +37,21 @@ export default function BillingPage() {
     ? invoices.filter((inv) =>
         inv.guestName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         inv.invoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        inv.bookingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
+        inv.booking?.bookingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : invoices;
 
-  const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((sum, i) => sum + (i.totalAmount || 0), 0);
-  const pendingAmount = invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').reduce((sum, i) => sum + (i.totalAmount || 0), 0);
-
-  const statusIcon = (s: string) => {
-    if (s === 'paid') return <CheckCircle className="w-4 h-4 text-emerald-400" />;
-    if (s === 'overdue') return <AlertCircle className="w-4 h-4 text-red-400" />;
-    return <Clock className="w-4 h-4 text-amber-400" />;
-  };
+  // Since Invoice status doesn't exist natively on our simple Prisma schema yet, 
+  // we assume invoices are issued post-payment or track based on grandTotal. 
+  // Let's dummy sum the grandTotals for now.
+  const totalRevenue = invoices.reduce((sum, i) => sum + (i.grandTotal || 0), 0);
+  const pendingAmount = 0; // Requires linking to Booking balanceDue if needed later
 
   const statusBadge = (s: string) => {
     if (s === 'paid') return 'badge-success';
     if (s === 'overdue') return 'badge-danger';
     if (s === 'cancelled') return 'badge bg-surface-500/20 text-surface-400 border border-surface-500/20';
-    return 'badge-warning';
+    return 'badge-success'; // default to success if no status exists
   };
 
   return (
@@ -63,18 +68,18 @@ export default function BillingPage() {
             <div className="w-10 h-10 rounded-xl bg-emerald-600/20 flex items-center justify-center">
               <IndianRupee className="w-5 h-5 text-emerald-400" />
             </div>
-            <span className="text-sm text-surface-400">Total Revenue</span>
+            <span className="text-sm text-surface-400">Invoiced Revenue</span>
           </div>
           <p className="text-2xl font-display font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p>
         </div>
-        <div className="stat-card">
+        <div className="stat-card hidden md:block opacity-50">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-xl bg-amber-600/20 flex items-center justify-center">
               <Clock className="w-5 h-5 text-amber-400" />
             </div>
             <span className="text-sm text-surface-400">Pending</span>
           </div>
-          <p className="text-2xl font-display font-bold">₹{pendingAmount.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-display font-bold">₹0</p>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-3 mb-3">
@@ -106,35 +111,45 @@ export default function BillingPage() {
           <p className="text-surface-400">Invoices will be generated automatically when bookings are checked out.</p>
         </div>
       ) : (
-        <div className="glass-card overflow-hidden">
-          <table className="w-full">
+        <div className="glass-card overflow-hidden overflow-x-auto">
+          <table className="w-full min-w-[800px]">
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Invoice</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Guest</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Booking</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-surface-400 uppercase">Subtotal</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-surface-400 uppercase">GST</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-surface-400 uppercase">Total</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Date</th>
+              <tr className="border-b border-white/[0.06] bg-surface-900/50">
+                <th className="text-left px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">Invoice / Date</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">Guest & Booking</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">Taxable Amt</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-primary-900/10">CGST</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-emerald-900/10">SGST</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-amber-900/10">IGST</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-white uppercase tracking-wider">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
               {filtered.map((inv) => (
                 <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-6 py-4 text-sm font-mono text-primary-400">{inv.invoiceNumber}</td>
-                  <td className="px-6 py-4 text-sm">{inv.guestName}</td>
-                  <td className="px-6 py-4 text-sm text-surface-400 font-mono">{inv.bookingNumber}</td>
-                  <td className="px-6 py-4 text-sm text-right">₹{inv.subtotal?.toLocaleString('en-IN')}</td>
-                  <td className="px-6 py-4 text-sm text-right text-surface-400">₹{inv.gstAmount?.toLocaleString('en-IN')}</td>
-                  <td className="px-6 py-4 text-sm text-right font-medium">₹{inv.totalAmount?.toLocaleString('en-IN')}</td>
                   <td className="px-6 py-4">
-                    <span className={statusBadge(inv.status)}>
-                      {inv.status?.charAt(0).toUpperCase() + inv.status?.slice(1)}
-                    </span>
+                    <p className="text-sm font-mono text-primary-400 font-medium">{inv.invoiceNumber}</p>
+                    <p className="text-xs text-surface-500">{new Date(inv.createdAt).toLocaleDateString('en-IN')}</p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-surface-400">{new Date(inv.createdAt).toLocaleDateString('en-IN')}</td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm text-surface-200">{inv.guestName}</p>
+                    <p className="text-xs text-surface-500 font-mono">BKG: {inv.booking?.bookingNumber}</p>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right text-surface-300">
+                    ₹{inv.subtotal?.toLocaleString('en-IN')}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right text-surface-400 bg-primary-900/5">
+                    ₹{inv.totalCgst?.toLocaleString('en-IN') || 0}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right text-surface-400 bg-emerald-900/5">
+                    ₹{inv.totalSgst?.toLocaleString('en-IN') || 0}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right text-surface-400 bg-amber-900/5">
+                    ₹{inv.totalIgst?.toLocaleString('en-IN') || 0}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right font-bold text-white">
+                    ₹{inv.grandTotal?.toLocaleString('en-IN')}
+                  </td>
                 </tr>
               ))}
             </tbody>
