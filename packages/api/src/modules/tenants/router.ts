@@ -127,6 +127,7 @@ tenantsRouter.patch(
         'defaultCheckInTime', 'defaultCheckOutTime', 'cancellationPolicyHours',
         'lateCheckoutChargePercent', 'timezone', 'gstNumber', 'contactPhone',
         'contactEmail', 'address', 'city', 'state', 'pincode', 'description',
+        'brandLogo', 'primaryColor', 'secondaryColor', 'tagline', 'heroImage',
       ];
 
       const updateData: Record<string, any> = {};

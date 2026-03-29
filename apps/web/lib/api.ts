@@ -295,6 +295,7 @@ export const publicApi = {
   },
   property: (slug: string) => apiFetch(`/public/properties/${slug}`),
   search: (q: string) => apiFetch(`/public/search?q=${encodeURIComponent(q)}`),
+  createBooking: (body: any) => apiFetch('/public/bookings', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // Platform Admin helpers (requires isGlobalAdmin)
