@@ -6,7 +6,10 @@ import { authorize } from '../../middleware/rbac';
 import { bookingSchema } from '@istays/shared';
 import { logAudit } from '../../middleware/audit-log';
 import { sendBookingConfirmation } from '../../services/email';
+import { sendWhatsAppMessage } from '../../services/whatsapp';
 import { calculatePricing } from '../../services/pricing';
+import { pushInventoryUpdate } from '../../services/channel-manager';
+import { creditLoyaltyPoints } from '../loyalty/router';
 
 export const bookingsRouter = Router();
 
@@ -16,7 +19,7 @@ bookingsRouter.use(authenticate, resolveTenant, requireTenant);
 function generateBookingNumber(): string {
   const prefix = 'IS';
   const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const random = require('crypto').randomInt(1000, 9999).toString();
   return `${prefix}-${timestamp}-${random}`;
 }
 
@@ -57,7 +60,7 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
 
       const tenant = await prisma.tenant.findUnique({
         where: { id: req.tenantId! },
-        select: { config: true },
+        select: { config: true, name: true },
       });
       const tenantConfig = (tenant?.config as Record<string, any>) || {};
       const propertyState = tenantConfig.state?.toLowerCase() || '';
@@ -94,7 +97,7 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
             tenantId: req.tenantId!,
             chargeDate: new Date(night.date),
             category: 'room',
-            description: `Room charge - ${new Date(night.date).toLocaleDateString()} ${night.ruleApplied ? `(${night.ruleApplied})` : ''}`,
+            description: `Room charge - ${new Date(night.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })} ${night.ruleApplied ? `(${night.ruleApplied})` : ''}`,
             sacCode: '996311',
             quantity: 1,
             unitPrice: night.rate,
@@ -130,6 +133,7 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
           specialRequests: data.specialRequests || null,
           createdBy: req.userId,
           bookingRooms: { create: bookingRoomsData },
+          bookingGuests: { create: [{ tenantId: req.tenantId!, fullName: data.guestName || 'Guest' }] },
           folioCharges: { create: folioChargesData },
         },
         include: { bookingRooms: true, folioCharges: true },
@@ -139,7 +143,6 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
 
       // Send confirmation email (async, don't await)
       if (data.guestEmail) {
-        const tenant = await prisma.tenant.findUnique({ where: { id: req.tenantId! }, select: { name: true } });
         sendBookingConfirmation(data.guestEmail, {
           bookingNumber,
           guestName: data.guestName,
@@ -148,6 +151,27 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
           checkOut: data.checkOutDate,
           totalAmount,
         }).catch(console.error);
+      }
+
+      // Send WhatsApp confirmation (async, don't await)
+      if (data.guestPhone && tenantConfig.whatsapp?.enabled !== false) {
+        sendWhatsAppMessage(
+          data.guestPhone,
+          {
+            name: data.guestName,
+            hotel: tenant?.name || 'Our Property',
+            bookingRef: bookingNumber,
+            checkInDate: new Date(data.checkInDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
+          }
+        ).catch(console.error);
+      }
+
+      // Async push inventory to OTAs
+      const bookedRoomTypes = Object.fromEntries(
+        data.roomSelections.map(r => [r.roomTypeId, true])
+      );
+      for (const roomTypeId of Object.keys(bookedRoomTypes)) {
+        pushInventoryUpdate(req.tenantId!, roomTypeId, data.checkInDate, 0).catch(console.error);
       }
 
       return { data: booking };
@@ -159,6 +183,16 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
     }
 
     res.status(201).json({ success: true, data: result.data, message: 'Booking created successfully' });
+
+    // Async: Credit loyalty points (non-blocking)
+    if (result.data?.guestProfileId && result.data?.totalAmount) {
+      creditLoyaltyPoints(
+        result.data.guestProfileId,
+        req.tenantId!,
+        result.data.id,
+        result.data.totalAmount
+      ).catch(console.error);
+    }
   } catch (err) {
     console.error('[BOOKING CREATE ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to create booking' });
@@ -237,6 +271,32 @@ bookingsRouter.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// PUT /bookings/:id/guests/:guestId
+bookingsRouter.post('/:id/guests', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => { try { const result = await withTenant(req.tenantId!, async () => { const booking = await prisma.booking.findUnique({ where: { id: req.params.id } }); if (!booking) return { error: 'Booking not found', status: 404 }; const guest = await prisma.bookingGuest.create({ data: { tenantId: req.tenantId!, bookingId: booking.id, fullName: req.body.fullName || 'Unknown', nationality: req.body.nationality || 'Indian', idProofNumber: req.body.idProofNumber, visaNumber: req.body.visaNumber, visaExpiryDate: req.body.visaExpiryDate ? new Date(req.body.visaExpiryDate) : null, purposeOfVisit: req.body.purposeOfVisit, arrivingFrom: req.body.arrivingFrom, goingTo: req.body.goingTo } }); return { data: guest, status: 201 }; }); res.status(result.status || 200).json(result); } catch (err) { res.status(500).json({ error: 'Internal Error' }); } });
+
+bookingsRouter.put('/:id/guests/:guestId', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+  try {
+    const result = await withTenant(req.tenantId!, async () => {
+      const existing = await prisma.bookingGuest.findUnique({ where: { id: req.params.guestId } });
+      if (!existing || existing.bookingId !== req.params.id) return { error: 'Guest not found on this booking', status: 404 };
+
+      const updated = await prisma.bookingGuest.update({
+        where: { id: req.params.guestId },
+        data: req.body
+      });
+      return { data: updated };
+    });
+
+    if ('error' in result) {
+      res.status(result.status || 400).json({ success: false, error: result.error });
+      return;
+    }
+    res.json({ success: true, data: result.data });
+  } catch(err) {
+    res.status(500).json({ success: false, error: 'Failed' });
+  }
+});
+
 // PATCH /bookings/:id/confirm
 bookingsRouter.patch('/:id/confirm', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
@@ -309,5 +369,73 @@ bookingsRouter.post('/:id/cancel', authorize('property_owner', 'general_manager'
     res.json({ success: true, data: result.data, message: 'Booking cancelled' });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to cancel booking' });
+  }
+});
+
+// GET /bookings/:id/c-form
+// Exports a CSV file for FRRO compliance (only includes Foreign guests)
+bookingsRouter.get('/:id/c-form', async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      const booking = await prisma.booking.findUnique({
+        where: { id: req.params.id },
+        include: {
+          bookingGuests: true,
+          tenant: { select: { name: true, city: true, address: true } }
+        },
+      });
+
+      if (!booking) {
+        res.status(404).json({ success: false, error: 'Booking not found' });
+        return;
+      }
+
+      // Filter only non-Indian guests for C-Form
+      const foreignGuests = booking.bookingGuests.filter(g => 
+        g.nationality && g.nationality.toLowerCase() !== 'indian' && g.nationality.toLowerCase() !== 'india'
+      );
+
+      if (foreignGuests.length === 0) {
+        res.status(400).json({ success: false, error: 'No foreign guests attached to this booking to generate a C-Form.' });
+        return;
+      }
+
+      // FRRO standard CSV Headers
+      const headers = [
+        'Hotel Name', 'Booking Ref', 'Arrival Date', 'Guest Name', 'Nationality', 
+        'Passport Number', 'Visa Number', 'Visa Expiry', 'Arriving From', 'Proceeding To', 'Purpose of Visit'
+      ];
+
+      const rows = foreignGuests.map(g => {
+        return [
+          `"${booking.tenant.name}"`,
+          `"${booking.bookingNumber}"`,
+          `"${new Date(booking.checkInDate).toISOString().split('T')[0]}"`,
+          `"${g.fullName}"`,
+          `"${g.nationality}"`,
+          `"${g.idProofNumber || ''}"`,
+          `"${g.visaNumber || ''}"`,
+          `"${g.visaExpiryDate ? new Date(g.visaExpiryDate).toISOString().split('T')[0] : ''}"`,
+          `"${g.arrivingFrom || ''}"`,
+          `"${g.goingTo || ''}"`,
+          `"${g.purposeOfVisit || ''}"`
+        ].join(',');
+      });
+
+      const csvContent = [headers.join(','), ...rows].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=c-form-${booking.bookingNumber}.csv`);
+      res.status(200).send(csvContent);
+      
+      // Update compliance flag in background
+      await prisma.bookingGuest.updateMany({
+        where: { id: { in: foreignGuests.map(fg => fg.id) } },
+        data: { cFormSubmitted: true, cFormSubmittedAt: new Date() }
+      });
+    });
+  } catch (err) {
+    console.error('[C-FORM GENERATION ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to generate C-Form CSV' });
   }
 });

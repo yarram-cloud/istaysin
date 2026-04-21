@@ -265,7 +265,7 @@ function ManageFloorsModal({ floors, onClose, onUpdated }: {
     if (!name.trim() || !level) return;
     setSaving(true);
     try {
-      await roomsApi.createFloor({ name: name.trim(), level: parseInt(level) });
+      await roomsApi.createFloor({ name: name.trim(), sortOrder: parseInt(level) });
       setName(''); setLevel('');
       onUpdated();
     } catch (err: any) { alert(err.message); }
@@ -330,7 +330,7 @@ function ManageRoomTypesModal({ roomTypes, onClose, onUpdated }: {
     if (!name.trim() || !baseRate) return;
     setSaving(true);
     try {
-      await roomsApi.createRoomType({ name: name.trim(), maxOccupancy: parseInt(maxOcc), baseRate: parseFloat(baseRate) });
+      await roomsApi.createRoomType({ name: name.trim(), maxOccupancy: parseInt(maxOcc), baseRate: parseFloat(baseRate), pricingUnit: 'per_night' });
       setName(''); setMaxOcc('2'); setBaseRate('');
       onUpdated();
     } catch (err: any) { alert(err.message); }

@@ -8,9 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
  * 2. Custom domain: www.myproperty.com (via API lookup)
  * 3. Path-based: istaysin.com/property/[slug] (passthrough)
  *
- * For subdomains and custom domains, rewrites the URL internally to /property/[slug]/...
+ * For subdomains and custom domains, rewrites the URL internally to /[locale]/[slug]/...
  * so existing page components work without duplication.
  */
+
+// Supported locales
+const LOCALES = ['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml', 'ar', 'fr', 'de'];
 
 // Root domain — requests to this domain are NOT subdomains
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'istaysin.com';
@@ -99,12 +102,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 3. For subdomain/custom domain requests: REWRITE to /property/[slug]/...
+  // 3. For subdomain/custom domain requests: REWRITE to /[locale]/[slug]/...
   if (tenantSlug && isSubdomainOrCustomDomain) {
     headers.set('x-tenant-slug', tenantSlug);
 
-    // If already on a /property/ path, don't double-rewrite
-    if (pathname.startsWith('/property/')) {
+    // If already on a locale/slug path, don't double-rewrite
+    const parts = pathname.split('/');
+    if (parts.length >= 3 && LOCALES.includes(parts[1]) && parts[2] === tenantSlug) {
       return NextResponse.next({ request: { headers } });
     }
 
@@ -124,19 +128,31 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next({ request: { headers } });
     }
 
-    // Rewrite: / → /property/[slug], /rooms → /property/[slug]/rooms, etc.
-    const rewritePath = pathname === '/' ? `/property/${tenantSlug}` : `/property/${tenantSlug}${pathname}`;
+    // Extract locale from path (e.g. /hi/book)
+    let localePart = request.cookies.get('istays_locale')?.value || 'en';
+    if (!LOCALES.includes(localePart)) localePart = 'en';
+    let restOfPath = pathname;
+
+    if (parts.length > 1 && LOCALES.includes(parts[1])) {
+      localePart = parts[1];
+      restOfPath = '/' + parts.slice(2).join('/');
+    }
+
+    // Rewrite: / → /[locale]/[slug], /book → /[locale]/[slug]/book, etc.
+    const rewritePath = restOfPath === '/' || restOfPath === '' 
+      ? `/${localePart}/${tenantSlug}` 
+      : `/${localePart}/${tenantSlug}${restOfPath}`;
 
     const url = request.nextUrl.clone();
     url.pathname = rewritePath;
     return NextResponse.rewrite(url, { request: { headers } });
   }
 
-  // 4. Path-based: /property/[slug] — just set the header
+  // 4. Path-based: /[locale]/[slug] — just set the header
   if (!tenantSlug) {
-    const match = pathname.match(/^\/property\/([a-z0-9-]+)/);
-    if (match) {
-      tenantSlug = match[1];
+    const parts = pathname.split('/');
+    if (parts.length >= 3 && LOCALES.includes(parts[1])) {
+      tenantSlug = parts[2];
     }
   }
 

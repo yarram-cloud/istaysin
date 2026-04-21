@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4100/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window === 'undefined' ? 'http://localhost:4100/api/v1' : '/api/v1');
 
 interface FetchOptions extends RequestInit {
   token?: string;
@@ -26,6 +27,7 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, {
+    cache: 'no-store',
     ...fetchOptions,
     headers,
   });
@@ -33,6 +35,17 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
   const data = await response.json();
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('tenantId');
+      document.cookie = 'accessToken=; path=/; max-age=0';
+      
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?reason=timeout';
+      }
+    }
     throw new Error(data.error || `API error: ${response.status}`);
   }
 
@@ -59,16 +72,22 @@ export function saveAuthData(data: { accessToken: string; refreshToken: string; 
 
 // Auth helpers
 export const authApi = {
-  register: (body: { email: string; password: string; fullName: string; phone?: string }) =>
+  register: (body: { email: string; password: string; fullName: string; phone: string; otpCode: string }) =>
     apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
-  login: (body: { email: string; password: string }) =>
+  sendWhatsappOtp: (body: { phone: string }) =>
+    apiFetch('/auth/send-whatsapp-otp', { method: 'POST', body: JSON.stringify(body) }),
+
+  login: (body: { identifier: string; password: string }) =>
     apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
 
   me: () => apiFetch('/auth/me'),
 
   refreshToken: (refreshToken: string) =>
     apiFetch('/auth/refresh-token', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+
+  updateLanguage: (language: string) =>
+    apiFetch('/auth/me/language', { method: 'PUT', body: JSON.stringify({ language }) }),
 };
 
 // Tenants helpers
@@ -81,12 +100,8 @@ export const tenantsApi = {
 
   getSettings: () => {
     const id = getTenantId();
-    // Backend has PATCH /:id/settings but no GET /:id/settings
-    // We use my-properties which returns tenant data including settings
-    return apiFetch('/tenants/my-properties').then((res: any) => {
-      const tenant = res.data?.find((t: any) => t.id === id) || res.data?.[0];
-      return { success: true, data: tenant || {} };
-    });
+    if (!id) return apiFetch('/tenants/my-properties').then((res: any) => ({ success: true, data: res.data?.[0] || {} }));
+    return apiFetch(`/tenants/${id}/settings`);
   },
 
   updateSettings: (body: any) => {
@@ -107,9 +122,14 @@ export const tenantsApi = {
     return apiFetch(`/tenants/${id}/branding`, { method: 'PATCH', body: JSON.stringify(body) });
   },
 
-  inviteStaff: (body: { email: string; role: string; fullName: string }) => {
+  inviteStaff: (body: { phone: string; passcode: string; role: string; fullName: string }) => {
     const id = getTenantId();
     return apiFetch(`/tenants/${id}/invite-staff`, { method: 'POST', body: JSON.stringify(body) });
+  },
+
+  updateStaffStatus: (userId: string, body: { isActive: boolean }) => {
+    const id = getTenantId();
+    return apiFetch(`/tenants/${id}/staff/${userId}/status`, { method: 'PUT', body: JSON.stringify(body) });
   },
 
   // No dedicated GET staff endpoint in backend - we need to add one
@@ -129,14 +149,16 @@ export const dashboardApi = {
 export const roomsApi = {
   // Floors
   getFloors: () => apiFetch('/rooms/floors'),
-  createFloor: (body: { name: string; level: number }) =>
+  createFloor: (body: { name: string; sortOrder: number }) =>
     apiFetch('/rooms/floors', { method: 'POST', body: JSON.stringify(body) }),
+  updateFloor: (id: string, body: { name: string; sortOrder: number }) =>
+    apiFetch(`/rooms/floors/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   // No DELETE /floors/:id in backend - we need to add it
   deleteFloor: (id: string) => apiFetch(`/rooms/floors/${id}`, { method: 'DELETE' }),
 
   // Room Types
   getRoomTypes: () => apiFetch('/rooms/types'),
-  createRoomType: (body: { name: string; maxOccupancy: number; baseRate: number; description?: string }) =>
+  createRoomType: (body: { name: string; maxOccupancy: number; baseRate: number; pricingUnit: string; description?: string }) =>
     apiFetch('/rooms/types', { method: 'POST', body: JSON.stringify(body) }),
   // No DELETE /types/:id in backend - we need to add it
   deleteRoomType: (id: string) => apiFetch(`/rooms/types/${id}`, { method: 'DELETE' }),
@@ -206,6 +228,15 @@ export const billingApi = {
     apiFetch('/billing/charge', { method: 'POST', body: JSON.stringify(body) }),
   recordPayment: (body: any) =>
     apiFetch('/billing/payment', { method: 'POST', body: JSON.stringify(body) }),
+};
+
+// Payment gateway helpers
+export const paymentsApi = {
+  getUpiQr: (bookingId: string) => apiFetch(`/payments/upi/qr?bookingId=${bookingId}`),
+  createRazorpayOrder: (body: { bookingId: string; amount: number }) => 
+    apiFetch('/payments/razorpay/order', { method: 'POST', body: JSON.stringify(body) }),
+  verifyRazorpayPayment: (body: { bookingId: string; amount: number; paymentId: string; orderId: string; signature: string }) => 
+    apiFetch('/payments/razorpay/verify', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // Housekeeping helpers
@@ -296,6 +327,10 @@ export const publicApi = {
   property: (slug: string) => apiFetch(`/public/properties/${slug}`),
   search: (q: string) => apiFetch(`/public/search?q=${encodeURIComponent(q)}`),
   createBooking: (body: any) => apiFetch('/public/bookings', { method: 'POST', body: JSON.stringify(body) }),
+  createRazorpayOrder: (body: { bookingId: string; amount: number }) => 
+    apiFetch('/public/payments/razorpay/order', { method: 'POST', body: JSON.stringify(body) }),
+  verifyRazorpayPayment: (body: { bookingId: string; amount: number; paymentId: string; orderId: string; signature: string }) => 
+    apiFetch('/public/payments/razorpay/verify', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // Platform Admin helpers (requires isGlobalAdmin)
@@ -327,4 +362,55 @@ export const reviewsApi = {
     apiFetch(`/reviews/${id}`, { method: 'DELETE' }),
   publicSubmit: (body: any) =>
     apiFetch('/public/reviews', { method: 'POST', body: JSON.stringify(body) }),
+};
+
+// Shifts helpers
+export const shiftsApi = {
+  list: (params?: Record<string, string>) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiFetch(`/shifts${query}`);
+  },
+  create: (body: any) => apiFetch('/shifts', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: string, body: any) => apiFetch(`/shifts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: (id: string) => apiFetch(`/shifts/${id}`, { method: 'DELETE' }),
+};
+
+// Channels helpers
+export const channelsApi = {
+  list: () => apiFetch('/channels'),
+  create: (body: any) => apiFetch('/channels', { method: 'POST', body: JSON.stringify(body) }),
+  delete: (id: string) => apiFetch(`/channels/${id}`, { method: 'DELETE' }),
+  addMapping: (id: string, body: any) => apiFetch(`/channels/${id}/mappings`, { method: 'POST', body: JSON.stringify(body) }),
+};
+
+// Loyalty helpers
+export const loyaltyApi = {
+  getAccount: () => apiFetch('/loyalty/account'),
+  getTransactions: (page = 1) => apiFetch(`/loyalty/transactions?page=${page}`),
+  listRewards: () => apiFetch('/loyalty/rewards'),
+  createReward: (body: any) => apiFetch('/loyalty/rewards', { method: 'POST', body: JSON.stringify(body) }),
+  updateReward: (id: string, body: any) => apiFetch(`/loyalty/rewards/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteReward: (id: string) => apiFetch(`/loyalty/rewards/${id}`, { method: 'DELETE' }),
+  redeem: (body: { rewardId: string; bookingId?: string }) =>
+    apiFetch('/loyalty/redeem', { method: 'POST', body: JSON.stringify(body) }),
+};
+
+// Next.js internal helpers (bypasses default API_URL pointing to port 4100)
+export const uploadApi = {
+  uploadFile: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Explicitly call the Next.js internal /api route handlers
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+      // Note: do not set Content-Type header manually, let the browser set it with boundary
+    });
+    
+    if (!res.ok) {
+      throw new Error('Upload failed');
+    }
+    return res.json();
+  }
 };

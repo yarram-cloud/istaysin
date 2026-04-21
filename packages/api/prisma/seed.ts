@@ -8,7 +8,7 @@
  *
  * Default admin credentials (change password after first login!):
  *   Email:    admin@istaysin.com
- *   Password: Admin@2026
+ *   Password: 12345678
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -21,7 +21,7 @@ async function main() {
 
   // ── 1. Global Admin ──────────────────────────────────────
   const adminEmail = 'admin@istaysin.com';
-  const adminPassword = 'Admin@2026';
+  const adminPassword = '12345678';
 
   const existingAdmin = await prisma.globalUser.findUnique({
     where: { email: adminEmail },

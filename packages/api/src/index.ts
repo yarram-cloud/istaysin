@@ -19,11 +19,20 @@ import { publicRouter } from './modules/public/router';
 import { platformRouter } from './modules/platform/router';
 import { notificationsRouter } from './modules/notifications/router';
 import { analyticsRouter } from './modules/analytics/router';
+import { complianceRouter } from './modules/compliance/router';
 import { dashboardRouter } from './modules/dashboard/router';
 import { housekeepingRouter } from './modules/housekeeping/router';
 import { pricingRouter } from './modules/pricing/router';
 import { usersRouter } from './modules/users/router';
 import { reviewsRouter } from './modules/reviews/router';
+import { shiftsRouter } from './modules/shifts/router';
+import { channelsRouter } from './modules/channels/router';
+import { loyaltyRouter } from './modules/loyalty/router';
+import { groupsRouter } from './modules/groups/router';
+import { posRouter } from './modules/pos/router';
+import { nightAuditRouter } from './modules/night-audit/router';
+import { guestPortalRouter } from './modules/guest-portal/router';
+import { paymentsRouter } from './modules/payments/router';
 import { errorHandler } from './middleware/error-handler';
 import { apiLimiter } from './middleware/rate-limit';
 
@@ -75,19 +84,51 @@ app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/housekeeping', housekeepingRouter);
 app.use('/api/v1/pricing', pricingRouter);
+app.use('/api/v1/payments', paymentsRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/reviews', reviewsRouter);
+app.use('/api/v1/shifts', shiftsRouter);
+app.use('/api/v1/channels', channelsRouter);
+app.use('/api/v1/loyalty', loyaltyRouter);
+app.use('/api/v1/compliance', complianceRouter);
+app.use('/api/v1/groups', groupsRouter);
+app.use('/api/v1/pos', posRouter);
+app.use('/api/v1/night-audit', nightAuditRouter);
+app.use('/api/v1/guest-portal', guestPortalRouter);
 
 // Error handler
 app.use(errorHandler);
 
+// Socket.IO authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace('Bearer ', '');
+  if (!token) {
+    return next(new Error('Authentication required'));
+  }
+  try {
+    const jwtLib = require('jsonwebtoken');
+    const jwtConfig = require('./config/jwt');
+    const payload = jwtLib.verify(token, jwtConfig.getJwtSecret());
+    (socket as any).user = payload;
+    next();
+  } catch {
+    next(new Error('Invalid or expired token'));
+  }
+});
+
 // Socket.IO connection
 io.on('connection', (socket) => {
-  console.log(`[Socket.IO] Client connected: ${socket.id}`);
+  const user = (socket as any).user;
+  console.log(`[Socket.IO] Client connected: ${socket.id} (user: ${user?.email || 'unknown'})`);
 
   socket.on('join-property', (propertyId: string) => {
-    socket.join(`property:${propertyId}`);
-    console.log(`[Socket.IO] ${socket.id} joined property:${propertyId}`);
+    // Only allow joining if the user's JWT contains this tenantId
+    if (user?.tenantId === propertyId || user?.role === 'global_admin') {
+      socket.join(`property:${propertyId}`);
+      console.log(`[Socket.IO] ${socket.id} joined property:${propertyId}`);
+    } else {
+      socket.emit('error', { message: 'Not authorized for this property' });
+    }
   });
 
   socket.on('disconnect', () => {

@@ -4,33 +4,28 @@ import { z } from 'zod';
 // Auth Validators
 // ============================================================
 
+export const passcodeValidator = z.string().regex(/^[0-9]+$/, 'Passcode must contain only numbers').min(6, 'Passcode must be at least 6 characters').max(8, 'Passcode must not exceed 8 characters');
+export const passwordValidator = z.string().min(6, 'Password must be at least 6 characters').max(100);
+
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Must contain at least one number'),
+  email: z.string().email('Invalid email address').optional(),
+  password: passwordValidator,
   fullName: z.string().min(2, 'Full name is required').max(100),
-  phone: z.string().optional(),
+  phone: z.string().min(10, 'Phone is required').max(15),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  identifier: z.string().min(5, 'Email or Phone is required').max(200),
+  password: passwordValidator,
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  identifier: z.string().min(5, 'Email or Phone is required').max(200),
 });
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Must contain at least one number'),
+  password: passwordValidator,
 });
 
 export const verifyEmailSchema = z.object({
@@ -77,6 +72,7 @@ export const roomTypeSchema = z.object({
   extraBedCharge: z.number().min(0).default(0),
   baseRate: z.number().min(0, 'Base rate is required'),
   weekendRate: z.number().min(0).optional(),
+  pricingUnit: z.enum(['nightly', 'monthly']).default('nightly'),
   amenities: z.array(z.string()).default([]),
 });
 
@@ -109,10 +105,12 @@ export const bookingSchema = z
           roomTypeId: z.string().uuid(),
           roomId: z.string().uuid().optional(),
           extraBeds: z.number().int().min(0).max(5).default(0),
+          extraBedCharge: z.number().min(0).default(0),
+          baseRateOverride: z.number().min(0).optional(),
         }),
       )
       .min(1, 'At least one room must be selected'),
-    source: z.enum(['online', 'walkin', 'ota', 'phone']).default('online'),
+    source: z.enum(['online', 'walkin', 'ota', 'phone', 'email', 'website', 'ota_booking_com', 'ota_makemytrip', 'ota_goibibo', 'agent']).default('online'),
     specialRequests: z.string().max(1000).optional(),
     advanceAmount: z.number().min(0).optional(),
   })
@@ -127,7 +125,7 @@ export const bookingSchema = z
 
 export const guestSchema = z.object({
   fullName: z.string().min(2, 'Name is required').max(200),
-  phone: z.string().min(10).max(15).optional(),
+  phone: z.string().min(10, 'Phone number is mandatory').max(15),
   email: z.string().email().optional(),
   nationality: z.string().max(50).default('Indian'),
   dateOfBirth: z.string().optional(),
@@ -149,7 +147,7 @@ export const checkInSchema = z.object({
     .array(
       z.object({
         bookingRoomId: z.string().uuid(),
-        roomId: z.string().uuid(),
+        roomId: z.string(), // Allowing roomNumber to be typed by frontdesk
       }),
     )
     .optional(),
@@ -160,6 +158,11 @@ export const checkInSchema = z.object({
         idProofType: z.enum(['aadhaar', 'pan', 'passport', 'driving_license', 'voter_id']),
         idProofNumber: z.string().min(4).max(50),
         nationality: z.string().default('Indian'),
+        visaNumber: z.string().optional(),
+        visaExpiryDate: z.string().optional(),
+        arrivingFrom: z.string().optional(),
+        goingTo: z.string().optional(),
+        purposeOfVisit: z.string().optional()
       }),
     )
     .optional(),
@@ -196,7 +199,8 @@ export const paymentSchema = z.object({
 // ============================================================
 
 export const staffInviteSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  phone: z.string().min(10, 'Phone is required').max(15),
+  passcode: passcodeValidator,
   role: z.enum([
     'general_manager',
     'front_desk',
@@ -204,6 +208,10 @@ export const staffInviteSchema = z.object({
     'accountant',
   ]),
   fullName: z.string().min(2).max(100),
+});
+
+export const updateStaffStatusSchema = z.object({
+  isActive: z.boolean(),
 });
 
 // ============================================================

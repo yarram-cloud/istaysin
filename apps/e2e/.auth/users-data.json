@@ -1,0 +1,288 @@
+{
+  "owner-free@e2e.com": {
+    "id": "8ea43f71-18c0-43d1-8633-ba7c6d67b2b9",
+    "email": "owner-free@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Free Owner",
+    "phone": "+919200019980",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:23.463Z",
+    "updatedAt": "2026-04-20T15:56:55.927Z",
+    "memberships": [
+      {
+        "id": "73962eb2-3c34-4f04-8066-e82d7049cf94",
+        "isActive": true,
+        "role": "property_owner",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:25.942Z",
+        "userId": "8ea43f71-18c0-43d1-8633-ba7c6d67b2b9",
+        "tenantId": "724a4744-9337-47e2-96b3-2a486c65a3d9",
+        "tenant": {
+          "name": "Sample Lodge Free",
+          "slug": "sample-lodge-free",
+          "status": "active",
+          "plan": "free",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "staff-free@e2e.com": {
+    "id": "f7b64bed-b2f0-449c-b360-f8acee7458ea",
+    "email": "staff-free@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Free Front Desk",
+    "phone": "+915395443313",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:23.867Z",
+    "updatedAt": "2026-04-20T15:56:56.194Z",
+    "memberships": [
+      {
+        "id": "9018599a-eb16-4456-83fb-cf58c423a1b9",
+        "isActive": true,
+        "role": "front_desk",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:26.756Z",
+        "userId": "f7b64bed-b2f0-449c-b360-f8acee7458ea",
+        "tenantId": "724a4744-9337-47e2-96b3-2a486c65a3d9",
+        "tenant": {
+          "name": "Sample Lodge Free",
+          "slug": "sample-lodge-free",
+          "status": "active",
+          "plan": "free",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "owner-basic@e2e.com": {
+    "id": "38e77210-080e-4496-8230-6ebd266bebf7",
+    "email": "owner-basic@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Basic Owner",
+    "phone": "+913716037946",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:27.433Z",
+    "updatedAt": "2026-04-20T15:57:09.693Z",
+    "memberships": [
+      {
+        "id": "3a0310e9-feda-48e3-8330-28bd7343fe50",
+        "isActive": true,
+        "role": "property_owner",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:28.883Z",
+        "userId": "38e77210-080e-4496-8230-6ebd266bebf7",
+        "tenantId": "44f96ba9-4330-40e9-aa11-86f38db0cfee",
+        "tenant": {
+          "name": "Budget Hotel Basic",
+          "slug": "budget-hotel-basic",
+          "status": "active",
+          "plan": "basic",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "manager-basic@e2e.com": {
+    "id": "da740369-ad12-48ae-8636-c70b03b97fa2",
+    "email": "manager-basic@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Basic GM",
+    "phone": "+918988052777",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:27.593Z",
+    "updatedAt": "2026-04-20T15:57:09.895Z",
+    "memberships": [
+      {
+        "id": "02289aa9-00c6-43aa-8993-f29e089386fb",
+        "isActive": true,
+        "role": "general_manager",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:31.238Z",
+        "userId": "da740369-ad12-48ae-8636-c70b03b97fa2",
+        "tenantId": "44f96ba9-4330-40e9-aa11-86f38db0cfee",
+        "tenant": {
+          "name": "Budget Hotel Basic",
+          "slug": "budget-hotel-basic",
+          "status": "active",
+          "plan": "basic",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "owner-premium@e2e.com": {
+    "id": "b0014862-5243-4692-abe2-791e2de3e92b",
+    "email": "owner-premium@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Premium Owner",
+    "phone": "+911746492813",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:33.184Z",
+    "updatedAt": "2026-04-20T15:57:20.298Z",
+    "memberships": [
+      {
+        "id": "5fe3ba04-2d16-4d14-b6ac-0c3ba8b2c64b",
+        "isActive": true,
+        "role": "property_owner",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:36.326Z",
+        "userId": "b0014862-5243-4692-abe2-791e2de3e92b",
+        "tenantId": "ce138de3-3ce5-4fa6-a0ad-a587a0b5b491",
+        "tenant": {
+          "name": "Premium Resort Pro",
+          "slug": "premium-resort-pro",
+          "status": "active",
+          "plan": "professional",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "manager-premium@e2e.com": {
+    "id": "7f42a493-3a65-4f88-af81-1cca59dfd1c0",
+    "email": "manager-premium@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Premium GM",
+    "phone": "+919956417359",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:33.696Z",
+    "updatedAt": "2026-04-20T15:57:20.806Z",
+    "memberships": [
+      {
+        "id": "49af4445-d8a9-4bb5-930c-aa91bdc7388f",
+        "isActive": true,
+        "role": "general_manager",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:37.146Z",
+        "userId": "7f42a493-3a65-4f88-af81-1cca59dfd1c0",
+        "tenantId": "ce138de3-3ce5-4fa6-a0ad-a587a0b5b491",
+        "tenant": {
+          "name": "Premium Resort Pro",
+          "slug": "premium-resort-pro",
+          "status": "active",
+          "plan": "professional",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "desk-premium@e2e.com": {
+    "id": "c37ff592-b68b-4d00-96c6-ad41760d967d",
+    "email": "desk-premium@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Premium Front Desk",
+    "phone": "+917132565432",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:34.172Z",
+    "updatedAt": "2026-04-20T15:57:21.318Z",
+    "memberships": [
+      {
+        "id": "baea9604-5203-4ac2-a330-6742a56b3d72",
+        "isActive": true,
+        "role": "front_desk",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:37.989Z",
+        "userId": "c37ff592-b68b-4d00-96c6-ad41760d967d",
+        "tenantId": "ce138de3-3ce5-4fa6-a0ad-a587a0b5b491",
+        "tenant": {
+          "name": "Premium Resort Pro",
+          "slug": "premium-resort-pro",
+          "status": "active",
+          "plan": "professional",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "housekeeping-premium@e2e.com": {
+    "id": "3e05889c-49d1-4ca0-aced-76c58518767f",
+    "email": "housekeeping-premium@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Premium Housekeeping",
+    "phone": "+916028578503",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:34.689Z",
+    "updatedAt": "2026-04-20T15:57:21.831Z",
+    "memberships": [
+      {
+        "id": "41964297-be64-47e6-ac10-31425c597a21",
+        "isActive": true,
+        "role": "housekeeping",
+        "permissions": {},
+        "createdAt": "2026-04-17T02:13:38.831Z",
+        "userId": "3e05889c-49d1-4ca0-aced-76c58518767f",
+        "tenantId": "ce138de3-3ce5-4fa6-a0ad-a587a0b5b491",
+        "tenant": {
+          "name": "Premium Resort Pro",
+          "slug": "premium-resort-pro",
+          "status": "active",
+          "plan": "professional",
+          "featureOverrides": {}
+        }
+      }
+    ]
+  },
+  "global-admin@e2e.com": {
+    "id": "ecb592d7-409e-49b6-9c93-601a1c4f5a77",
+    "email": "global-admin@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Global Super Admin",
+    "phone": "+919999999999",
+    "isActive": true,
+    "isGlobalAdmin": true,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:39.462Z",
+    "updatedAt": "2026-04-20T15:57:43.300Z",
+    "memberships": []
+  },
+  "guest@e2e.com": {
+    "id": "4a3262e5-d7d6-4a94-b316-61fc7953cce2",
+    "email": "guest@e2e.com",
+    "passwordHash": "$2a$12$INjldmVUmaDk6qGjVCnzj.nal6zGc277vTZH5k.83T9ybcNGqozqe",
+    "fullName": "Frequent Guest",
+    "phone": "+918888888888",
+    "isActive": true,
+    "isGlobalAdmin": false,
+    "emailVerified": true,
+    "twoFactorEnabled": false,
+    "avatarUrl": null,
+    "createdAt": "2026-04-17T02:13:39.614Z",
+    "updatedAt": "2026-04-20T15:57:43.748Z",
+    "memberships": []
+  }
+}

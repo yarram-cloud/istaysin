@@ -1,0 +1,25 @@
+{
+  "name": "iStays Staff",
+  "short_name": "iStays",
+  "description": "Hospitality management staff interface",
+  "start_url": "/dashboard",
+  "id": "/dashboard",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#0f161c",
+  "theme_color": "#0f161c",
+  "icons": [
+    {
+      "src": "/images/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

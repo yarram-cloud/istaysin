@@ -5,6 +5,7 @@ import { resolveTenant, requireTenant } from '../../middleware/tenant-resolver';
 import { authorize } from '../../middleware/rbac';
 import { checkInSchema, checkOutSchema } from '@istays/shared';
 import { logAudit } from '../../middleware/audit-log';
+import { sendWhatsAppMessage } from '../../services/whatsapp';
 
 export const checkInOutRouter = Router();
 checkInOutRouter.use(authenticate, resolveTenant, requireTenant);
@@ -19,6 +20,9 @@ checkInOutRouter.post('/:bookingId/check-in', authorize('property_owner', 'gener
     }
 
     await withTenant(req.tenantId!, async () => {
+      const tenant = await prisma.tenant.findUnique({ where: { id: req.tenantId! }});
+      const tenantConfig = (tenant?.config as Record<string, any>) || {};
+
       const booking = await prisma.booking.findUnique({
         where: { id: req.params.bookingId },
         include: { bookingRooms: true },
@@ -37,13 +41,23 @@ checkInOutRouter.post('/:bookingId/check-in', authorize('property_owner', 'gener
       // Assign rooms if provided
       if (parsed.data.roomAssignments) {
         for (const assignment of parsed.data.roomAssignments) {
+          let actualRoomId = assignment.roomId;
+          // Check if it looks like a valid UUID, otherwise treat it as roomNumber
+          if (actualRoomId.length !== 36) {
+            const roomMatch = await prisma.room.findFirst({
+              where: { tenantId: req.tenantId!, roomNumber: actualRoomId }
+            });
+            if (!roomMatch) throw new Error(`Invalid room number: ${actualRoomId}`);
+            actualRoomId = roomMatch.id;
+          }
+
           await prisma.bookingRoom.update({
             where: { id: assignment.bookingRoomId },
-            data: { roomId: assignment.roomId },
+            data: { roomId: actualRoomId },
           });
           // Mark room as occupied
           await prisma.room.update({
-            where: { id: assignment.roomId },
+            where: { id: actualRoomId },
             data: { status: 'occupied' },
           });
         }
@@ -59,7 +73,7 @@ checkInOutRouter.post('/:bookingId/check-in', authorize('property_owner', 'gener
         }
       }
 
-      // Record guest details for Form-B
+      // Record guest details for Form-B & C-Form
       if (parsed.data.guestDetails) {
         for (const guest of parsed.data.guestDetails) {
           await prisma.bookingGuest.create({
@@ -70,6 +84,11 @@ checkInOutRouter.post('/:bookingId/check-in', authorize('property_owner', 'gener
               idProofType: guest.idProofType,
               idProofNumber: guest.idProofNumber,
               nationality: guest.nationality,
+              visaNumber: guest.visaNumber || null,
+              visaExpiryDate: guest.visaExpiryDate ? new Date(guest.visaExpiryDate) : null,
+              arrivingFrom: guest.arrivingFrom || null,
+              goingTo: guest.goingTo || null,
+              purposeOfVisit: guest.purposeOfVisit || null,
               isFormBRecorded: true,
             },
           });
@@ -84,6 +103,18 @@ checkInOutRouter.post('/:bookingId/check-in', authorize('property_owner', 'gener
       });
 
       await logAudit(req.tenantId!, req.userId, 'CHECK_IN', 'booking', booking.id, {}, req.ip || undefined);
+
+      if (booking.guestPhone && tenantConfig.whatsapp?.enabled !== false) {
+        sendWhatsAppMessage(
+          booking.guestPhone,
+          {
+            name: booking.guestName,
+            hotel: tenant?.name || 'Our Property',
+            bookingRef: booking.bookingNumber,
+            checkInDate: new Date(booking.checkInDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
+          }
+        ).catch(console.error);
+      }
 
       res.json({ success: true, data: updatedBooking, message: 'Guest checked in successfully' });
     });
@@ -179,7 +210,7 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
       // Fetch tenant configuration for GST details
       const tenant = await prisma.tenant.findUnique({
         where: { id: req.tenantId! },
-        select: { config: true, gstNumber: true },
+        select: { config: true, gstNumber: true, name: true },
       });
       const tConfig = (tenant?.config as Record<string, any>) || {};
 
@@ -215,6 +246,18 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
       }
 
       await logAudit(req.tenantId!, req.userId, 'CHECK_OUT', 'booking', booking.id, {}, req.ip || undefined);
+
+      if (booking.guestPhone && tConfig.whatsapp?.enabled !== false) {
+        sendWhatsAppMessage(
+          booking.guestPhone,
+          {
+            name: booking.guestName,
+            hotel: tenant?.name || 'Our Property',
+            bookingRef: booking.bookingNumber,
+            checkInDate: new Date(booking.checkInDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
+          }
+        ).catch(console.error);
+      }
 
       res.json({ success: true, data: updatedBooking, message: 'Guest checked out successfully' });
     });

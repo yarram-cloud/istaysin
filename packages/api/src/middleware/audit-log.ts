@@ -22,7 +22,7 @@ export async function logAudit(
         action,
         resource,
         resourceId,
-        changes: changes || {},
+        changes: (changes as any) || {},
         ipAddress,
       },
     });

@@ -20,7 +20,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await authApi.login({ email, password });
+      const res = await authApi.login({ identifier: email, password });
       if (res.success) {
         saveAuthData({
           accessToken: res.data.accessToken,

@@ -44,7 +44,8 @@ export function authLimiter(req: Request, res: Response, next: NextFunction): vo
   const key = `auth:${getRateLimitKey(req)}`;
   const now = Date.now();
   const windowMs = 15 * 60 * 1000; // 15 minutes
-  const maxRequests = 10;
+  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.E2E_MODE === 'true';
+  const maxRequests = isTestEnv ? 1000 : 10; // Strict in production, relaxed for E2E tests
 
   const entry = requestCounts.get(key);
 

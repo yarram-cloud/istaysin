@@ -161,6 +161,11 @@ housekeepingRouter.post('/tasks', authorize('property_owner', 'general_manager',
 
       res.status(201).json({ success: true, data: task });
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to create task' });
+  }
+});
+
 // POST /housekeeping/maintenance
 housekeepingRouter.post('/maintenance', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {

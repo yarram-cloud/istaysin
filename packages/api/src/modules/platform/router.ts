@@ -34,7 +34,7 @@ platformRouter.post('/approve/:id', async (req: Request, res: Response) => {
     });
 
     const subdomainUrl = getSubdomainUrl(tenant.slug);
-    sendPropertyApprovalEmail(tenant.owner.email, { propertyName: tenant.name, status: 'approved', subdomainUrl }).catch(console.error);
+    sendPropertyApprovalEmail(tenant.owner.email || '', { propertyName: tenant.name, status: 'approved', subdomainUrl }).catch(console.error);
     await logAudit(tenant.id, req.userId, 'APPROVE', 'tenant', tenant.id, { subdomainUrl }, req.ip || undefined);
 
     res.json({ success: true, data: { ...tenant, subdomainUrl }, message: 'Property approved' });
@@ -53,7 +53,7 @@ platformRouter.post('/reject/:id', async (req: Request, res: Response) => {
       include: { owner: { select: { email: true } } },
     });
 
-    sendPropertyApprovalEmail(tenant.owner.email, { propertyName: tenant.name, status: 'rejected', reason }).catch(console.error);
+    sendPropertyApprovalEmail(tenant.owner.email || '', { propertyName: tenant.name, status: 'rejected', reason }).catch(console.error);
 
     res.json({ success: true, data: tenant, message: 'Property rejected' });
   } catch (err) {

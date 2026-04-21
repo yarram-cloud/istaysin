@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt } from 'lucide-react';
 import { tenantsApi } from '@/lib/api';
 import { DomainSettings } from './domain-settings';
+import dynamic from 'next/dynamic';
+
+const LocationPicker = dynamic(() => import('./location-picker'), { ssr: false });
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -72,6 +75,16 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState('');
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutTime, setCheckOutTime] = useState('11:00');
+  
+  const [lat, setLat] = useState(20.5937);
+  const [lng, setLng] = useState(78.9629);
+  const [languages, setLanguages] = useState<string[]>(['en']);
+
+  const SUPPORTED_LANGS = [
+    { code: 'en', label: 'English' }, { code: 'hi', label: 'Hindi' }, { code: 'te', label: 'Telugu' },
+    { code: 'ta', label: 'Tamil' }, { code: 'kn', label: 'Kannada' }, { code: 'mr', label: 'Marathi' },
+    { code: 'bn', label: 'Bengali' }, { code: 'gu', label: 'Gujarati' }, { code: 'ml', label: 'Malayalam' }
+  ];
 
   useEffect(() => {
     tenantsApi.getSettings()
@@ -81,6 +94,8 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
           setName(d.name || ''); setAddress(d.address || ''); setCity(d.city || '');
           setState(d.state || ''); setPhone(d.contactPhone || ''); setEmail(d.contactEmail || '');
           setCheckInTime(d.checkInTime || '14:00'); setCheckOutTime(d.checkOutTime || '11:00');
+          setLat(d.latitude || 20.5937); setLng(d.longitude || 78.9629);
+          setLanguages(d.config?.languages || ['en']);
           setSettings(d);
         }
       })
@@ -94,11 +109,20 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
       await tenantsApi.updateSettings({
         name, address, city, state,
         contactPhone: phone, contactEmail: email,
-        checkInTime, checkOutTime,
+        checkInTime, checkOutTime, latitude: lat, longitude: lng,
+        config: { ...settings?.config, languages }
       });
       alert('Settings saved!');
     } catch (err: any) { alert(err.message); }
     finally { setSaving(false); }
+  }
+
+  function toggleLanguage(code: string) {
+    if (languages.includes(code)) {
+      if (languages.length > 1) setLanguages(languages.filter(l => l !== code));
+    } else {
+      setLanguages([...languages, code]);
+    }
   }
 
   if (loading) return <div className="glass-card p-12 text-center animate-pulse"><div className="h-8 bg-white/[0.06] rounded-lg w-48 mx-auto" /></div>;
@@ -106,51 +130,134 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
   return (
     <div>
       <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
-      <div className="glass-card p-6">
-        <h2 className="text-lg font-display font-bold mb-6">Property Details</h2>
-        <div className="space-y-4 max-w-lg">
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Property Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="input-field" />
+      <div className="grid md:grid-cols-2 gap-6 items-start">
+        <div className="glass-card p-6">
+          <h2 className="text-lg font-display font-bold mb-6">Property Details</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">Property Name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">Address</label>
+              <input value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">City</label>
+                <input value={city} onChange={(e) => setCity(e.target.value)} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">State</label>
+                <input value={state} onChange={(e) => setState(e.target.value)} className="input-field" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">Contact Phone</label>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">Contact Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">Check-in Time</label>
+                <input type="time" value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1">Check-out Time</label>
+                <input type="time" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} className="input-field" />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Address</label>
-            <input value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" />
+        </div>
+
+        <div className="space-y-6">
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-display font-bold mb-2">Location Coordinates</h2>
+            <p className="text-surface-400 text-sm mb-4">Click to drop a pin at your property location.</p>
+            <LocationPicker lat={lat} lng={lng} onChange={(l, lg) => { setLat(l); setLng(lg); }} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">City</label>
-              <input value={city} onChange={(e) => setCity(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">State</label>
-              <input value={state} onChange={(e) => setState(e.target.value)} className="input-field" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Contact Phone</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Contact Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Check-in Time</label>
-              <input type="time" value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Check-out Time</label>
-              <input type="time" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} className="input-field" />
+
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-display font-bold mb-2">Website Languages</h2>
+            <p className="text-surface-400 text-sm mb-4">Select the languages available on your public booking page.</p>
+            <div className="flex flex-wrap gap-2">
+              {SUPPORTED_LANGS.map(l => (
+                <button
+                  key={l.code}
+                  onClick={() => toggleLanguage(l.code)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${languages.includes(l.code) ? 'bg-primary-500 text-white' : 'bg-white/[0.04] text-surface-300 hover:bg-white/[0.08]'}`}
+                >
+                  {l.label}
+                </button>
+              ))}
             </div>
           </div>
-          <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 mt-4">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
+
+          <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center justify-center gap-2 w-full mt-4">
+            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} Save Property Settings
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Subscription Settings ─────────────────────────────────────
+function SubscriptionSettings({ onBack }: { onBack: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any>(null);
+
+  useEffect(() => {
+    tenantsApi.getSettings().then((res) => {
+      if (res.success && res.data) {
+         setSubscription(res.data.subscriptions?.[0] || null);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <div className="glass-card p-12 text-center animate-pulse"><div className="h-8 bg-white/[0.06] rounded-lg w-48 mx-auto" /></div>;
+
+  return (
+    <div>
+      <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
+      <div className="glass-card p-6 max-w-2xl">
+        <h2 className="text-xl font-display font-bold mb-6">Your Subscription Plan</h2>
+        {!subscription ? (
+          <div className="p-6 bg-surface-50 text-surface-900 rounded-xl text-center">
+            <h3 className="font-bold mb-2">No Active Subscription</h3>
+            <p className="text-sm">Please upgrade to a paid plan to unlock features.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center p-6 bg-primary-900/40 rounded-xl border border-primary-500/20">
+              <div>
+                <p className="text-sm text-primary-400">Current Plan</p>
+                <p className="text-3xl font-bold font-display uppercase tracking-wider">{subscription.plan}</p>
+                <div className="mt-2 text-sm text-surface-300">
+                  Renews on: <span className="text-white font-medium">{new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="px-3 py-1 bg-green-500/20 text-green-400 font-medium rounded-full text-xs uppercase border border-green-500/20">Active</span>
+                <p className="mt-4 font-medium text-surface-300 capitalize">{subscription.billingCycle} Billing</p>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl flex items-center justify-between">
+               <div>
+                 <h4 className="font-medium text-white mb-1">Looking for more?</h4>
+                 <p className="text-sm text-surface-400">Upgrade to unlock WhatsApp automation, custom domain, and advanced analytics.</p>
+               </div>
+               <button className="btn-primary">View Upgrades</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -237,7 +344,7 @@ function StaffSettings({ onBack }: { onBack: () => void }) {
 }
 
 function InviteStaffModal({ onClose, onInvited }: { onClose: () => void; onInvited: () => void }) {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('front_desk');
   const [saving, setSaving] = useState(false);
@@ -245,10 +352,10 @@ function InviteStaffModal({ onClose, onInvited }: { onClose: () => void; onInvit
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || !fullName.trim()) { setError('All fields required'); return; }
+    if (!phone.trim() || !fullName.trim()) { setError('All fields required'); return; }
     setSaving(true); setError('');
     try {
-      await tenantsApi.inviteStaff({ email: email.trim(), fullName: fullName.trim(), role });
+      await tenantsApi.inviteStaff({ phone: phone.trim(), fullName: fullName.trim(), role, passcode: '123456' });
       onInvited();
     } catch (err: any) { setError(err.message); }
     finally { setSaving(false); }
@@ -268,8 +375,8 @@ function InviteStaffModal({ onClose, onInvited }: { onClose: () => void; onInvit
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="input-field" required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" required />
+            <label className="block text-sm font-medium text-surface-300 mb-1">Phone Number</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field" required />
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">Role</label>
@@ -292,61 +399,6 @@ function InviteStaffModal({ onClose, onInvited }: { onClose: () => void; onInvit
   );
 }
 
-
-// ── Subscription Settings ────────────────────────────────────
-function SubscriptionSettings({ onBack }: { onBack: () => void }) {
-  const plans = [
-    { name: 'Starter', price: 'Free', rooms: '5 rooms', features: ['Basic booking', 'Guest check-in', 'GST billing'] },
-    { name: 'Basic', price: '₹999/mo', rooms: '20 rooms', features: ['Everything in Starter', 'Analytics', 'Branded website', 'Email notifications'] },
-    { name: 'Professional', price: '₹2,499/mo', rooms: '100 rooms', features: ['Everything in Basic', 'OTA integration', 'Staff management', 'Advanced reports'] },
-    { name: 'Enterprise', price: 'Custom', rooms: 'Unlimited', features: ['Everything in Professional', 'Custom integrations', 'Dedicated support', 'SLA guarantee'] },
-  ];
-
-  const currentPlan = 'Starter'; // TODO: fetch from API
-
-  return (
-    <div>
-      <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
-      <div className="glass-card p-6 mb-6">
-        <h2 className="text-lg font-display font-bold mb-2">Current Plan</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold text-primary-400">{currentPlan}</span>
-          <span className="text-sm text-surface-400">(Free tier)</span>
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {plans.map((plan) => (
-          <div key={plan.name} className={`rounded-xl border p-5 transition-all ${
-            plan.name === currentPlan
-              ? 'border-primary-500/30 bg-primary-500/5'
-              : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]'
-          }`}>
-            <h3 className="text-lg font-semibold mb-1">{plan.name}</h3>
-            <p className="text-xl font-bold text-primary-400 mb-1">{plan.price}</p>
-            <p className="text-xs text-surface-500 mb-4">{plan.rooms}</p>
-            <ul className="space-y-1.5">
-              {plan.features.map((f) => (
-                <li key={f} className="text-xs text-surface-400 flex items-start gap-1.5">
-                  <span className="text-emerald-400 mt-0.5">&#10003;</span> {f}
-                </li>
-              ))}
-            </ul>
-            {plan.name !== currentPlan && plan.name !== 'Enterprise' && (
-              <button className="btn-secondary text-sm w-full mt-4">Upgrade</button>
-            )}
-            {plan.name === 'Enterprise' && (
-              <a href="mailto:sales@istaysin.com" className="btn-secondary text-sm w-full mt-4 text-center block">Contact Sales</a>
-            )}
-            {plan.name === currentPlan && (
-              <span className="block text-center text-xs text-primary-400 font-medium mt-4">Current Plan</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── Billing & Taxes Settings ──────────────────────────────────
 function BillingSettings({ onBack }: { onBack: () => void }) {

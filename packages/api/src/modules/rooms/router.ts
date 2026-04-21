@@ -52,6 +52,29 @@ roomsRouter.post('/floors', authorize('property_owner', 'general_manager'), asyn
   }
 });
 
+// PUT /rooms/floors/:id
+roomsRouter.put('/floors/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const parsed = floorSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+      return;
+    }
+
+    await withTenant(req.tenantId!, async () => {
+      const floor = await prisma.floor.update({
+        where: { id: req.params.id, tenantId: req.tenantId! },
+        data: { ...parsed.data },
+      });
+      await logAudit(req.tenantId!, req.userId, 'UPDATE', 'floor', floor.id, parsed.data, req.ip || undefined);
+      res.json({ success: true, data: floor });
+    });
+  } catch (err) {
+    console.error('[ROOMS UPDATE FLOOR ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to update floor' });
+  }
+});
+
 // ── Room Types ──
 
 // GET /rooms/types
@@ -137,7 +160,7 @@ roomsRouter.post('/', authorize('property_owner', 'general_manager'), async (req
 
     await withTenant(req.tenantId!, async () => {
       const room = await prisma.room.create({
-        data: { ...parsed.data, tenantId: req.tenantId! },
+        data: { ...parsed.data, features: parsed.data.features as any, tenantId: req.tenantId! },
         include: {
           floor: { select: { id: true, name: true } },
           roomType: { select: { id: true, name: true, baseRate: true } },

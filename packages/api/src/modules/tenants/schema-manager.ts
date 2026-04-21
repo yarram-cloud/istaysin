@@ -4,6 +4,7 @@ import { prisma } from '../../config/database';
 const TENANT_TABLES = [
   'floors',
   'room_types',
+  'pricing_rules',
   'rooms',
   'room_photos',
   'rate_seasons',
@@ -20,6 +21,11 @@ const TENANT_TABLES = [
   'notifications',
   'audit_logs',
   'tenant_stats',
+  'staff_shifts',
+  'channel_connections',
+  'point_transactions',
+  'loyalty_rewards',
+  'group_blocks'
 ] as const;
 
 /**
@@ -54,7 +60,7 @@ export async function setupRLSPolicies(): Promise<void> {
           ) THEN
             EXECUTE format(
               'CREATE POLICY %I ON %I FOR ALL USING (
-                tenant_id = current_setting(''app.current_tenant_id'', true)::uuid
+                tenant_id = current_setting(''app.current_tenant_id'', true)
               )',
               '${table}_tenant_isolation',
               '${table}'

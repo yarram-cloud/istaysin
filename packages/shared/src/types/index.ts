@@ -8,6 +8,7 @@ export const ROLES = {
   PROPERTY_OWNER: 'property_owner',
   GENERAL_MANAGER: 'general_manager',
   FRONT_DESK: 'front_desk',
+  FNB_MANAGER: 'fnb_manager',
   HOUSEKEEPING: 'housekeeping',
   ACCOUNTANT: 'accountant',
   GUEST: 'guest',
@@ -89,6 +90,19 @@ export const DEFAULT_PERMISSIONS: Record<Role, Record<string, boolean>> = {
     canViewAnalytics: false,
     canManageBranding: false,
   },
+  fnb_manager: {
+    canManageRooms: false,
+    canManageStaff: false,
+    canViewFinancials: false,
+    canProcessRefunds: false,
+    canAccessHousekeeping: false,
+    canManageSubscription: false,
+    canManageBookings: false,
+    canCheckInOut: false,
+    canViewAnalytics: false,
+    canManageBranding: false,
+    canManagePos: true,
+  },
   accountant: {
     canManageRooms: false,
     canManageStaff: false,
@@ -162,6 +176,12 @@ export const BOOKING_SOURCE = {
   WALKIN: 'walkin',
   OTA: 'ota',
   PHONE: 'phone',
+  EMAIL: 'email',
+  WEBSITE: 'website',
+  OTA_BOOKING_COM: 'ota_booking_com',
+  OTA_MAKEMYTRIP: 'ota_makemytrip',
+  OTA_GOIBIBO: 'ota_goibibo',
+  AGENT: 'agent',
 } as const;
 
 export type BookingSource = (typeof BOOKING_SOURCE)[keyof typeof BOOKING_SOURCE];
@@ -201,8 +221,10 @@ export type HousekeepingStatus = (typeof HOUSEKEEPING_STATUS)[keyof typeof HOUSE
 export const PAYMENT_METHOD = {
   CASH: 'cash',
   UPI: 'upi',
+  UPI_QR: 'upi_qr',
   CARD: 'card',
   BANK_TRANSFER: 'bank_transfer',
+  RAZORPAY: 'razorpay',
 } as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
@@ -303,6 +325,233 @@ export interface TenantInfo {
   status: TenantStatus;
   propertyType: PropertyType;
   plan: PlanTier;
+}
+
+export interface WebsiteBuilderContent {
+  // ── Promo Banner ─────────────────────────────────────────────
+  promotionalBanner?: {
+    text: string;
+    link: string;
+    linkLabel: string;
+    backgroundColor: string; // hex override OR 'primary' | 'accent' | 'dark'
+    dismissible: boolean;
+  };
+
+  // ── Hero / Slider ─────────────────────────────────────────────
+  hero?: {
+    images: string[];            // ordered carousel URLs
+    title: string;
+    subtitle: string;
+    overlayOpacity: number;      // 0-100
+    ctaStyle: 'filled' | 'outline' | 'ghost';
+    primaryCta?: { label: string; link: string };
+    secondaryCta?: { label: string; link: string };
+    whatsappNumber?: string;     // shows floating WhatsApp CTA
+    videoUrl?: string;           // YouTube/Vimeo embed for video-hero
+  };
+
+  // ── About Us ──────────────────────────────────────────────────
+  aboutUs?: {
+    title: string;
+    description: string;         // rich text paragraph
+    highlights: Array<{ icon: string; label: string; value: string }>; // e.g. Est. 1995 | 200 Rooms
+    image: string;               // feature image URL
+    ownerName?: string;
+    ownerMessage?: string;
+    ownerPhoto?: string;
+    layout: 'image-left' | 'image-right' | 'full-width';
+  };
+
+  // ── Quick Stats / Trust Bar ───────────────────────────────────
+  stats?: {
+    title?: string;
+    items: Array<{ icon: string; value: string; label: string }>;      // e.g. 500+ | Happy Guests
+  };
+
+  // ── Featured Rooms ────────────────────────────────────────────
+  featuredRooms?: Array<{
+    linkedRoomTypeId: string;
+    marketingTitleOverride?: string;
+    marketingPriceOverride?: string;
+    featuresOverride?: string[];
+    badgeText?: string;           // e.g. "Best Seller", "New"
+    imageOverride?: string;
+  }>;
+
+  // ── Amenities ─────────────────────────────────────────────────
+  amenities?: {
+    title: string;
+    subtitle?: string;
+    layout: 'grid' | 'list' | 'icon-only';
+    items: Array<{ name: string; icon: string; description: string }>;
+  };
+
+  // ── Photo Gallery / Masonry ───────────────────────────────────
+  photoGallery?: {
+    title: string;
+    subtitle?: string;
+    layout: 'masonry' | 'grid-2' | 'grid-3' | 'lightbox-strip';
+    images: Array<{ url: string; caption?: string; category?: string }>;
+    categories?: string[];       // filter tabs e.g. "Rooms", "Pool", "Dining"
+  };
+
+  // ── Nearby Attractions ────────────────────────────────────────
+  nearbyAttractions?: {
+    title: string;
+    subtitle?: string;
+    items: Array<{ name: string; distance: string; icon?: string; category?: string }>;
+  };
+
+  // ── Location Map ─────────────────────────────────────────────
+  locationMap?: {
+    title: string;
+    subtitle?: string;
+    googleMapsEmbedUrl: string;
+    address: string;
+    landmark?: string;           // e.g. "Opposite MG Road Metro"
+    directionsUrl?: string;      // Google Maps directions deep-link
+    transportTips?: string;      // brief text about how to reach
+  };
+
+  // ── Testimonials / Reviews ────────────────────────────────────
+  testimonials?: {
+    title: string;
+    subtitle?: string;
+    layout: 'cards' | 'carousel' | 'list';
+    showRating: boolean;
+    items: Array<{
+      guestName: string;
+      location?: string;
+      rating: number;
+      reviewText: string;
+      platform?: 'google' | 'tripadvisor' | 'booking' | 'makemytrip' | 'agoda' | 'direct';
+      date?: string;
+      avatarUrl?: string;
+    }>;
+    aggregateRating?: { score: number; count: number; platform: string };
+  };
+
+  // ── FAQ ───────────────────────────────────────────────────────
+  faq?: {
+    title: string;
+    subtitle?: string;
+    items: Array<{ q: string; a: string; category?: string }>;
+  };
+
+  // ── Call to Action (Mid-page CTA) ─────────────────────────────
+  callToAction?: {
+    title: string;
+    subtitle?: string;
+    ctaLabel: string;
+    ctaLink: string;
+    style: 'centered' | 'split' | 'banner';
+    backgroundType: 'solid' | 'gradient' | 'image';
+    backgroundValue: string;    // hex, gradient string, or image URL
+    secondaryCta?: { label: string; link: string };
+  };
+
+  // ── Policies / House Rules ────────────────────────────────────
+  policies?: {
+    title: string;
+    checkInTime: string;
+    checkOutTime: string;
+    cancellationPolicy: string;
+    petPolicy?: string;
+    smokingPolicy?: string;
+    additionalRules?: string[];
+  };
+
+  // ── Awards & Certifications ───────────────────────────────────
+  awards?: {
+    title?: string;
+    items: Array<{ name: string; year?: string; logoUrl?: string; issuer?: string }>;
+  };
+
+  // ── Footer / Contact ──────────────────────────────────────────
+  contactFooter?: {
+    addressHtml: string;
+    googleMapsEmbedUrl: string;
+    email?: string;
+    phone?: string;
+    whatsapp?: string;
+    socialLinks: {
+      facebook?: string;
+      instagram?: string;
+      twitter?: string;
+      youtube?: string;
+      whatsapp?: string;
+      tripadvisor?: string;
+      makemytrip?: string;
+      goibibo?: string;
+    };
+    copyrightText: string;
+    checkInRules: string;
+    tagline?: string;
+      footerColumns?: Array<{ heading: string; links: Array<{ label: string; url: string }> }>;
+  };
+}
+
+export type ThemePreset =
+  | 'corporate'          // Clean white, blue accents – B2B / business hotels
+  | 'luxury_gold'        // Deep navy/black + gold – 5-star / boutique luxury
+  | 'ocean_breeze'       // Aqua + sand – beach resorts, backwater lodges
+  | 'forest_wellness'    // Deep greens + earthy browns – eco lodges, spa retreats
+  | 'royal_heritage'     // Maroon + antique gold – heritage havelis, palace hotels
+  | 'sunrise_desert'     // Terracotta + amber – Rajasthan desert camps, dry retreats
+  | 'himalayan_snow'     // Ice-blue + white + slate – hill stations, mountain resorts
+  | 'tropical_bloom'     // Coral + lush green – Kerala homestays, tropical resorts
+  | 'urban_chic'         // Charcoal + electric teal – city boutique hotels, serviced apts
+  | 'rosewater_spa'      // Blush pink + soft gold – spa resorts, women-centric retreats
+  | 'midnight_modern'    // Pure dark mode, neon-accent – modern minimalist properties
+  | 'saffron_festivities'; // Saffron + deep purple – wedding venues, event resorts
+
+export interface WebsiteBuilderConfig {
+  theme: ThemePreset;
+  colorPalette?: {
+    primaryColor: string;     // main brand color (hex)
+    secondaryColor: string;   // complementary (hex)
+    accentColor: string;      // CTA highlight colour (hex)
+    textColor: string;        // body text override (hex)
+    bgColor: string;          // page background override (hex)
+  };
+  typography?: {
+    headingFont: 'playfair' | 'raleway' | 'poppins' | 'lora' | 'montserrat' | 'cormorant' | 'dm_sans';
+    bodyFont: 'inter' | 'nunito' | 'open_sans' | 'roboto' | 'source_sans';
+  };
+  layout?: {
+    headerStyle: 'transparent_hero' | 'solid_bar' | 'minimal_top' | 'sidebar';
+    footerStyle: 'full' | 'compact' | 'minimal';
+    contentWidth: 'full' | 'boxed' | 'wide';
+    borderRadius: 'sharp' | 'rounded' | 'pill';
+  };
+  componentsEnabled: {
+    promotionalBanner: boolean;
+    hero: boolean;
+    aboutUs: boolean;
+    stats: boolean;
+    featuredRooms: boolean;
+    amenities: boolean;
+    photoGallery: boolean;
+    nearbyAttractions: boolean;
+    locationMap: boolean;
+    testimonials: boolean;
+    callToAction: boolean;
+    faq: boolean;
+    policies: boolean;
+    awards: boolean;
+    contactFooter: boolean;
+  };
+  componentOrder: string[];  // ordered list of component IDs for drag-sort
+  content: Record<string, WebsiteBuilderContent>;
+}
+
+export interface TenantConfig {
+  fnbGstRate?: number;
+  razorpayKeyId?: string;
+  razorpaySecret?: string;
+  upiId?: string;
+  websiteBuilder?: WebsiteBuilderConfig;
+  [key: string]: any;
 }
 
 export interface UserInfo {

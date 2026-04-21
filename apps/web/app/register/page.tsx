@@ -112,7 +112,8 @@ export default function RegisterPage() {
         email,
         password,
         fullName,
-        phone: phone || undefined,
+        phone: phone || '',
+        otpCode: '000000',
       });
 
       if (authRes.success) {

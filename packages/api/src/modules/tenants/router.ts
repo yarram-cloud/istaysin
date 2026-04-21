@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
+import bcrypt from 'bcryptjs';
 import { resolveTenant, requireTenant } from '../../middleware/tenant-resolver';
 import { authorize } from '../../middleware/rbac';
 import { propertyRegistrationSchema, brandingSchema, staffInviteSchema } from '@istays/shared';
@@ -87,7 +88,7 @@ tenantsRouter.get('/my-properties', authenticate, async (req: Request, res: Resp
           select: {
             id: true, name: true, slug: true, status: true, plan: true,
             propertyType: true, city: true, state: true, brandLogo: true,
-            contactPhone: true, contactEmail: true, createdAt: true,
+            contactPhone: true, contactEmail: true, createdAt: true, config: true,
           },
         },
       },
@@ -105,6 +106,55 @@ tenantsRouter.get('/my-properties', authenticate, async (req: Request, res: Resp
   } catch (err) {
     console.error('[TENANT MY-PROPERTIES ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch properties' });
+  }
+});
+
+// GET /tenants/:id/settings
+tenantsRouter.get('/:id/settings', authenticate, resolveTenant, requireTenant, async (req: Request, res: Response) => {
+  try {
+    const membership = await prisma.tenantMembership.findFirst({
+      where: { userId: req.userId!, tenantId: req.params.id, isActive: true },
+    });
+
+    if (!membership || (membership.role !== 'property_owner' && membership.role !== 'general_manager')) {
+      res.status(403).json({ success: false, error: 'Unauthorized to view settings' });
+      return;
+    }
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: req.params.id },
+      include: { subscriptions: { where: { status: 'active' } } }
+    });
+
+    if (!tenant) {
+      res.status(404).json({ success: false, error: 'Tenant not found' });
+      return;
+    }
+
+    const saasPlans = await prisma.saasPlan.findMany({
+      where: { isActive: true },
+      orderBy: { actualPrice: 'asc' }
+    });
+
+    let safeConfig = (tenant.config as Record<string, any>) || {};
+    if (safeConfig.razorpaySecret) {
+      safeConfig = {
+        ...safeConfig,
+        razorpaySecret: '••••••••••••••••'
+      };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...tenant,
+        config: safeConfig,
+        saasPlans
+      }
+    });
+  } catch (err) {
+    console.error('[TENANT GET SETTINGS ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch settings' });
   }
 });
 
@@ -128,6 +178,7 @@ tenantsRouter.patch(
         'lateCheckoutChargePercent', 'timezone', 'gstNumber', 'contactPhone',
         'contactEmail', 'address', 'city', 'state', 'pincode', 'description',
         'brandLogo', 'primaryColor', 'secondaryColor', 'tagline', 'heroImage',
+        'latitude', 'longitude'
       ];
 
       const updateData: Record<string, any> = {};
@@ -145,7 +196,14 @@ tenantsRouter.patch(
         });
         
         const existingConfig = (existingTenant?.config as Record<string, any>) || {};
-        updateData.config = { ...existingConfig, ...req.body.config };
+        const incomingConfig = { ...req.body.config };
+        
+        // Preserve masked secret
+        if (incomingConfig.razorpaySecret === '••••••••••••••••') {
+          incomingConfig.razorpaySecret = existingConfig.razorpaySecret;
+        }
+
+        updateData.config = { ...existingConfig, ...incomingConfig };
       }
 
       const tenant = await prisma.tenant.update({
@@ -211,24 +269,27 @@ tenantsRouter.post(
         return;
       }
 
-      const { role, fullName } = parsed.data;
-      const email = parsed.data.email.toLowerCase().trim();
+      const { role, fullName, passcode } = parsed.data;
+      const phone = parsed.data.phone.trim();
 
-      // Check if user already exists
       let user = await prisma.globalUser.findFirst({
-        where: { email: { equals: email, mode: 'insensitive' } },
+        where: { phone: { equals: phone } },
       });
 
+      const newPasswordHash = await bcrypt.hash(passcode, 12);
+
       if (!user) {
-        // Create a stub user with random password (they'll need to reset)
-        const bcryptModule = await import('bcryptjs');
-        const tempPassword = await bcryptModule.hash(Math.random().toString(36), 10);
         user = await prisma.globalUser.create({
-          data: { email, passwordHash: tempPassword, fullName },
+          data: { phone, email: `${phone}@istays.local`, passwordHash: newPasswordHash, fullName },
+        });
+      } else {
+        // Option to reset passcode if user exists but owner is re-inviting. For safety, let's update passcode if they are not active or just let it be. We will just update the passcode.
+        await prisma.globalUser.update({
+          where: { id: user.id },
+          data: { passwordHash: newPasswordHash, fullName }
         });
       }
 
-      // Check if membership already exists
       const existing = await prisma.tenantMembership.findFirst({
         where: { userId: user.id, tenantId: req.params.id },
       });
@@ -246,14 +307,53 @@ tenantsRouter.post(
         },
       });
 
-      await logAudit(req.tenantId!, req.userId, 'INVITE_STAFF', 'tenant_membership', user.id, { email, role }, req.ip || undefined);
+      await logAudit(req.tenantId!, req.userId, 'INVITE_STAFF', 'tenant_membership', user.id, { phone, role }, req.ip || undefined);
 
-      res.status(201).json({ success: true, message: `Staff invited: ${email} as ${role}` });
-    } catch (err) {
+      res.status(201).json({ success: true, message: `Staff invited: ${phone} as ${role}` });
+    } catch (err: any) {
       console.error('[TENANT INVITE ERROR]', err);
-      res.status(500).json({ success: false, error: 'Failed to invite staff' });
+      res.status(500).json({ success: false, error: err.message || 'Failed to invite staff' });
     }
   },
+);
+
+// PUT /tenants/:id/staff/:userId/status
+tenantsRouter.put(
+  '/:id/staff/:userId/status',
+  authenticate,
+  resolveTenant,
+  requireTenant,
+  authorize('property_owner'),
+  async (req: Request, res: Response) => {
+    try {
+      const { isActive } = req.body;
+      const membership = await prisma.tenantMembership.findFirst({
+        where: { userId: req.params.userId, tenantId: req.tenantId! },
+      });
+
+      if (!membership) {
+        res.status(404).json({ success: false, error: 'Staff member not found' });
+        return;
+      }
+
+      if (membership.role === 'property_owner') {
+        res.status(400).json({ success: false, error: 'Cannot modify property owner status' });
+        return;
+      }
+
+      await prisma.tenantMembership.update({
+        where: { id: membership.id },
+        data: { isActive },
+      });
+
+      await logAudit(req.tenantId!, req.userId, 'UPDATE_STAFF_STATUS', 'tenant_membership', membership.id, { isActive }, req.ip || undefined);
+
+      res.json({ success: true, message: `Staff status updated` });
+    } catch (err) {
+      console.error('[TENANT UPDATE STAFF ERROR]', err);
+      res.status(500).json({ success: false, error: 'Failed to update staff status' });
+    }
+  }
 );
 
 // GET /tenants/staff
