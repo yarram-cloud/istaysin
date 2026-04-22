@@ -235,7 +235,10 @@ export const bookingGuestSchema = z.object({
   nationality: z.string().optional(),
   idProofNumber: z.string().optional(),
   visaNumber: z.string().optional(),
-  visaExpiryDate: z.string().datetime().or(z.date()).optional(),
+  visaExpiryDate: z.string().refine(
+    (v) => !isNaN(Date.parse(v)),
+    { message: 'Invalid date format' }
+  ).optional().nullable(),
   purposeOfVisit: z.string().optional(),
   arrivingFrom: z.string().optional(),
   goingTo: z.string().optional(),

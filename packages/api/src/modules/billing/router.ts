@@ -215,6 +215,7 @@ billingRouter.get('/invoices', authorize('property_owner', 'general_manager', 'a
     await withTenant(req.tenantId!, async () => {
       const invoices = await prisma.invoice.findMany({
         where: { tenantId: req.tenantId! },
+        include: { booking: { select: { bookingNumber: true } } },
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
@@ -233,11 +234,15 @@ billingRouter.get('/invoices/:id/pdf', authorize('property_owner', 'general_mana
         where: { id: req.params.id, tenantId: req.tenantId! },
         include: {
           booking: {
-            include: {
-              folioCharges: true
-            }
-          }
-        }
+            select: {
+              checkInDate: true,
+              checkOutDate: true,
+              folioCharges: {
+                orderBy: { chargeDate: 'asc' as const },
+              },
+            },
+          },
+        },
       });
 
       if (!invoice) {
@@ -247,6 +252,10 @@ billingRouter.get('/invoices/:id/pdf', authorize('property_owner', 'general_mana
 
       const tenant = await prisma.tenant.findUnique({
         where: { id: req.tenantId! },
+        select: {
+          name: true, address: true, city: true, state: true,
+          pincode: true, gstNumber: true, contactPhone: true, contactEmail: true,
+        },
       });
 
       // Lazy import the generator so we don't block API boot unnecessarily

@@ -271,8 +271,44 @@ bookingsRouter.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /bookings/:id/guests/:guestId
-bookingsRouter.post('/:id/guests', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => { try { const result = await withTenant(req.tenantId!, async () => { const booking = await prisma.booking.findUnique({ where: { id: req.params.id } }); if (!booking) return { error: 'Booking not found', status: 404 }; const guest = await prisma.bookingGuest.create({ data: { tenantId: req.tenantId!, bookingId: booking.id, fullName: req.body.fullName || 'Unknown', nationality: req.body.nationality || 'Indian', idProofNumber: req.body.idProofNumber, visaNumber: req.body.visaNumber, visaExpiryDate: req.body.visaExpiryDate ? new Date(req.body.visaExpiryDate) : null, purposeOfVisit: req.body.purposeOfVisit, arrivingFrom: req.body.arrivingFrom, goingTo: req.body.goingTo } }); return { data: guest, status: 201 }; }); res.status(result.status || 200).json(result); } catch (err) { res.status(500).json({ error: 'Internal Error' }); } });
+// POST /bookings/:id/guests — Add a guest to a booking
+bookingsRouter.post('/:id/guests', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+  try {
+    const result = await withTenant(req.tenantId!, async () => {
+      const parsed = bookingGuestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return { error: 'Invalid guest data', status: 400, details: parsed.error.format() };
+      }
+
+      const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+      if (!booking) return { error: 'Booking not found', status: 404 };
+
+      const guest = await prisma.bookingGuest.create({
+        data: {
+          tenantId: req.tenantId!,
+          bookingId: booking.id,
+          fullName: parsed.data.fullName,
+          nationality: parsed.data.nationality || 'Indian',
+          idProofNumber: parsed.data.idProofNumber,
+          visaNumber: parsed.data.visaNumber,
+          visaExpiryDate: parsed.data.visaExpiryDate ? new Date(parsed.data.visaExpiryDate) : null,
+          purposeOfVisit: parsed.data.purposeOfVisit,
+          arrivingFrom: parsed.data.arrivingFrom,
+          goingTo: parsed.data.goingTo,
+        },
+      });
+      return { data: guest, status: 201 };
+    });
+
+    if ('error' in result) {
+      res.status(result.status || 400).json({ success: false, error: result.error });
+      return;
+    }
+    res.status(result.status || 201).json({ success: true, data: result.data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Internal Error' });
+  }
+});
 
 bookingsRouter.put('/:id/guests/:guestId', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
