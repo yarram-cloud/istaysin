@@ -3,7 +3,7 @@ import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { resolveTenant, requireTenant } from '../../middleware/tenant-resolver';
 import { authorize } from '../../middleware/rbac';
-import { bookingSchema } from '@istays/shared';
+import { bookingSchema, bookingGuestSchema } from '@istays/shared';
 import { logAudit } from '../../middleware/audit-log';
 import { sendBookingConfirmation } from '../../services/email';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
@@ -277,12 +277,17 @@ bookingsRouter.post('/:id/guests', authorize('property_owner', 'general_manager'
 bookingsRouter.put('/:id/guests/:guestId', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const result = await withTenant(req.tenantId!, async () => {
+      const parsed = bookingGuestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return { error: 'Invalid guest data', status: 400, details: parsed.error.format() };
+      }
+
       const existing = await prisma.bookingGuest.findUnique({ where: { id: req.params.guestId } });
       if (!existing || existing.bookingId !== req.params.id) return { error: 'Guest not found on this booking', status: 404 };
 
       const updated = await prisma.bookingGuest.update({
         where: { id: req.params.guestId },
-        data: req.body
+        data: parsed.data
       });
       return { data: updated };
     });

@@ -65,7 +65,7 @@ This platform is built **exclusively for the Indian hospitality market**. Every 
 - **Currency & Formatting:** All monetary values must display in **₹ INR** with Indian numbering using `.toLocaleString('en-IN')` (lakhs/crores grouping e.g., ₹1,23,456.00 not ₹123,456.00). This pattern is already used extensively across the codebase — follow it consistently.
 - **Indian Phone Numbers:** Validate for 10-digit Indian mobile numbers. Support `+91` prefix. Many users may not have email addresses—design flows where phone number is the primary identifier.
 - **Low-Bandwidth Optimization:** Many Indian hotels operate on 3G/4G connections. Aggressively optimize bundle sizes, lazy-load heavy modules, compress images via Cloudinary transformations, and minimize API payload sizes. Target < 3 second initial load on a mid-range Android device.
-- **Date & Time:** Use IST (`Asia/Kolkata`, UTC+5:30) as the default timezone. The project already uses `date-utils.ts` and `format-time.ts` with `en-IN` locale. Follow these established utilities rather than arbitrarily hardcoding standard offsets.
+- **Date & Time:** Use IST (`Asia/Kolkata`, UTC+5:30) as the default timezone. Use `new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })` for all date formatting. When a centralized utility is needed, create `packages/shared/src/utils/date-utils.ts` with reusable IST formatting helpers — do not hardcode timezone offsets.
 
 ---
 
@@ -109,7 +109,7 @@ For every code change or feature delivered, verify each applicable item:
 | 9  | ✅ Migration file generated via `migrate dev`, NOT `db push` | Schema Changes |
 | 10 | ✅ API endpoints return `PaginatedResponse<T>` for lists, no unbounded queries | Backend |
 | 11 | ✅ RBAC enforced via `authorize()` middleware — endpoint respects role hierarchy | Backend |
-| 12 | ✅ Dates use `date-utils.ts` / `format-time.ts` with `Asia/Kolkata` timezone | All |
+| 12 | ✅ Dates use IST (`Asia/Kolkata`) via `toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })` — never hardcode UTC offsets | All |
 | 13 | ✅ Playwright E2E test added or updated for new features, bug fixes, and behavioral changes (not required for cosmetic, config, or documentation-only changes) | Features & Bugs |
 
 ### Confidence Rating

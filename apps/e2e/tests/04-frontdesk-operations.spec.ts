@@ -85,4 +85,43 @@ test.describe('Front Desk Operations', () => {
     // Verify Final Status Transition in Datatable
     await expect(frontdeskPage.page.locator('tr', { hasText: testBookingNumber }).locator('td', { hasText: 'Checked Out' })).toBeVisible();
   });
+
+  test('Security: Prevents Mass Assignment on Guest Update', async ({ request }) => {
+    // 1. Create a guest on the booking
+    const addGuestRes = await request.post(`/api/v1/bookings/${testBookingId}/guests`, {
+      data: {
+        fullName: 'Test Guest',
+        nationality: 'Indian',
+      }
+    });
+    const addGuestData = await addGuestRes.json();
+    const guestId = addGuestData.data.id;
+
+    // 2. Attempt a malicious update targeting protected DB fields
+    const maliciousTenantId = 'hacker-tenant-999';
+    const maliciousBookingId = 'hacker-booking-888';
+    
+    const updateRes = await request.put(`/api/v1/bookings/${testBookingId}/guests/${guestId}`, {
+      data: {
+        fullName: 'Secured Guest',
+        tenantId: maliciousTenantId,
+        bookingId: maliciousBookingId,
+        cFormSubmitted: true,
+      }
+    });
+
+    const updateData = await updateRes.json();
+    
+    // Zod .safeParse() implicitly strips extra schema fields when passing to Prisma
+    expect(updateData.success).toBe(true);
+
+    // Verify protected fields were completely ignored by reading the response object
+    // (Pertaining to Prisma returning the updated record from the DB)
+    expect(updateData.data.tenantId).not.toBe(maliciousTenantId);
+    expect(updateData.data.bookingId).not.toBe(maliciousBookingId);
+    expect(updateData.data.cFormSubmitted).toBe(false); // cFormSubmitted was not in our Zod schema
+    
+    // Ensure the legitimate field WAS updated
+    expect(updateData.data.fullName).toBe('Secured Guest');
+  });
 });

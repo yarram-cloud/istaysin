@@ -225,3 +225,18 @@ export const brandingSchema = z.object({
   tagline: z.string().max(200).optional(),
   heroImage: z.string().url().optional(),
 });
+
+// ============================================================
+// Booking Guest Validators
+// ============================================================
+
+export const bookingGuestSchema = z.object({
+  fullName: z.string().min(2).max(100),
+  nationality: z.string().optional(),
+  idProofNumber: z.string().optional(),
+  visaNumber: z.string().optional(),
+  visaExpiryDate: z.string().datetime().or(z.date()).optional(),
+  purposeOfVisit: z.string().optional(),
+  arrivingFrom: z.string().optional(),
+  goingTo: z.string().optional(),
+});
