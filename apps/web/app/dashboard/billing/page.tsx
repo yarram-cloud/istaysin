@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { CreditCard, Search, IndianRupee, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { CreditCard, Search, IndianRupee, FileText, Printer, Download, Clock } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { billingApi } from '@/lib/api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 interface Invoice {
   id: string; 
@@ -19,6 +23,7 @@ interface Invoice {
 }
 
 export default function BillingPage() {
+  const t = useTranslations('Dashboard');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,14 +60,25 @@ export default function BillingPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 print-container">
+      {/* 
+        Print styling: We use global print styles to hide headers/navigation in layout component,
+        but we can also use tailwind's print: modifier to force simple layouts.
+      */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          body * { visibility: hidden; }
+          .print-container, .print-container * { visibility: visible; }
+          .print-container { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+      `}} />
+      <div className="print:hidden">
         <h1 className="text-2xl font-display font-bold mb-1">Billing & Invoices</h1>
         <p className="text-surface-400">Manage guest folios, payments, and GST invoicing</p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
         <div className="stat-card">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-600/20 flex items-center justify-center">
@@ -122,6 +138,7 @@ export default function BillingPage() {
                 <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-emerald-900/10">SGST</th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-amber-900/10">IGST</th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-white uppercase tracking-wider">Total</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider print:hidden">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
@@ -149,6 +166,40 @@ export default function BillingPage() {
                   </td>
                   <td className="px-6 py-4 text-sm text-right font-bold text-white">
                     ₹{inv.grandTotal?.toLocaleString('en-IN')}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right print:hidden">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        className="p-2 hover:bg-surface-800 rounded-lg text-surface-400 hover:text-white transition-colors"
+                        title="Download PDF"
+                        onClick={() => {
+                          const token = localStorage.getItem('token');
+                          // Direct redirect doesn't pass Bearer Token easily via URL without exposing it
+                          // But we can trigger a programmatic fetch + blob download, or open a window if API manages token in cookie
+                          fetch(`${API_BASE_URL}/billing/invoices/${inv.id}/pdf`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          })
+                          .then(res => res.blob())
+                          .then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `Invoice-${inv.invoiceNumber}.pdf`;
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                          }).catch(err => toast.error(t('downloadFailed') || 'Failed to download PDF'));
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button 
+                        title="Print"
+                        className="p-2 hover:bg-surface-800 rounded-lg text-surface-400 hover:text-white transition-colors"
+                        onClick={() => window.print()}
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

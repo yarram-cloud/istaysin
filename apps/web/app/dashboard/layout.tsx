@@ -9,6 +9,7 @@ import {
   ClipboardList, TrendingUp, Star, Globe, Clock, Network
 } from 'lucide-react';
 import { Toaster } from 'sonner';
+import { NextIntlClientProvider } from 'next-intl';
 
 const sidebarGroups = [
   {
@@ -71,6 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <NextIntlClientProvider locale="en" messages={{}} getMessageFallback={({key}) => ''}>
     <div className="min-h-screen bg-surface-50 flex">
       {/* Sidebar */}
       <aside className={`
@@ -176,5 +178,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
     </div>
+    </NextIntlClientProvider>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { BedDouble, Plus, X, Trash2, Edit2, Layers, Tag, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { roomsApi } from '@/lib/api';
 
 interface Floor { id: string; name: string; level: number; }
@@ -9,6 +11,7 @@ interface RoomType { id: string; name: string; maxOccupancy: number; baseRate: n
 interface Room { id: string; roomNumber: string; status: string; baseRate: number; floor?: Floor; roomType?: RoomType; floorId: string; roomTypeId: string; }
 
 export default function RoomsPage() {
+  const t = useTranslations('Dashboard');
   const [rooms, setRooms] = useState<Room[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
@@ -49,14 +52,23 @@ export default function RoomsPage() {
     cleaning: 'bg-cyan-500/20 border-cyan-500/30 text-cyan-400',
   };
 
-  async function handleDeleteRoom(id: string) {
-    if (!confirm('Delete this room?')) return;
-    try {
-      await roomsApi.deleteRoom(id);
-      setRooms((prev) => prev.filter((r) => r.id !== id));
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete room');
-    }
+  function handleDeleteRoom(id: string) {
+    toast(t('confirmDeleteRoom') || 'Delete this room?', {
+      description: t('actionCannotBeUndone') || 'This action cannot be undone.',
+      action: {
+        label: t('confirm') || 'Confirm',
+        onClick: async () => {
+          try {
+            await roomsApi.deleteRoom(id);
+            setRooms((prev) => prev.filter((r) => r.id !== id));
+            toast.success(t('roomDeleted') || 'Room deleted successfully');
+          } catch (err: any) {
+            toast.error(err.message || t('deleteFailed') || 'Failed to delete room');
+          }
+        }
+      },
+      cancel: { label: t('cancel') || 'Cancel', onClick: () => {} }
+    });
   }
 
   return (
@@ -193,6 +205,7 @@ function RoomFormModal({ room, floors, roomTypes, onClose, onSaved }: {
   room: Room | null; floors: Floor[]; roomTypes: RoomType[];
   onClose: () => void; onSaved: () => void;
 }) {
+  const t = useTranslations('Dashboard');
   const [roomNumber, setRoomNumber] = useState(room?.roomNumber || '');
   const [floorId, setFloorId] = useState(room?.floorId || floors[0]?.id || '');
   const [roomTypeId, setRoomTypeId] = useState(room?.roomTypeId || roomTypes[0]?.id || '');
@@ -284,6 +297,7 @@ function RoomFormModal({ room, floors, roomTypes, onClose, onSaved }: {
 function ManageFloorsModal({ floors, onClose, onUpdated }: {
   floors: Floor[]; onClose: () => void; onUpdated: () => void;
 }) {
+  const t = useTranslations('Dashboard');
   const [name, setName] = useState('');
   const [level, setLevel] = useState('');
   const [saving, setSaving] = useState(false);
@@ -296,14 +310,27 @@ function ManageFloorsModal({ floors, onClose, onUpdated }: {
       await roomsApi.createFloor({ name: name.trim(), sortOrder: parseInt(level) });
       setName(''); setLevel('');
       onUpdated();
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('floorAdded') || 'Floor added successfully');
+    } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this floor? Rooms on this floor will need to be reassigned.')) return;
-    try { await roomsApi.deleteFloor(id); onUpdated(); }
-    catch (err: any) { alert(err.message); }
+  function handleDelete(id: string) {
+    toast(t('confirmDeleteFloor') || 'Delete this floor? Rooms on this floor will need to be reassigned.', {
+      description: t('actionCannotBeUndone') || 'This action cannot be undone.',
+      action: {
+        label: t('confirm') || 'Confirm',
+        onClick: async () => {
+          try { 
+            await roomsApi.deleteFloor(id); 
+            onUpdated(); 
+            toast.success(t('floorDeleted') || 'Floor deleted successfully');
+          }
+          catch (err: any) { toast.error(err.message); }
+        }
+      },
+      cancel: { label: t('cancel') || 'Cancel', onClick: () => {} }
+    });
   }
 
   return (
@@ -355,6 +382,7 @@ function ManageFloorsModal({ floors, onClose, onUpdated }: {
 function ManageRoomTypesModal({ roomTypes, onClose, onUpdated }: {
   roomTypes: RoomType[]; onClose: () => void; onUpdated: () => void;
 }) {
+  const t = useTranslations('Dashboard');
   const [name, setName] = useState('');
   const [maxOcc, setMaxOcc] = useState('2');
   const [baseRate, setBaseRate] = useState('');
@@ -368,14 +396,27 @@ function ManageRoomTypesModal({ roomTypes, onClose, onUpdated }: {
       await roomsApi.createRoomType({ name: name.trim(), maxOccupancy: parseInt(maxOcc), baseRate: parseFloat(baseRate), pricingUnit: 'per_night' });
       setName(''); setMaxOcc('2'); setBaseRate('');
       onUpdated();
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('roomTypeAdded') || 'Room type added successfully');
+    } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this room type? Rooms of this type will need to be reassigned.')) return;
-    try { await roomsApi.deleteRoomType(id); onUpdated(); }
-    catch (err: any) { alert(err.message); }
+  function handleDelete(id: string) {
+    toast(t('confirmDeleteRoomType') || 'Delete this room type? Rooms of this type will need to be reassigned.', {
+      description: t('actionCannotBeUndone') || 'This action cannot be undone.',
+      action: {
+        label: t('confirm') || 'Confirm',
+        onClick: async () => {
+          try { 
+            await roomsApi.deleteRoomType(id); 
+            onUpdated(); 
+            toast.success(t('roomTypeDeleted') || 'Room type deleted successfully');
+          }
+          catch (err: any) { toast.error(err.message); }
+        }
+      },
+      cancel: { label: t('cancel') || 'Cancel', onClick: () => {} }
+    });
   }
 
   return (

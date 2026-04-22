@@ -224,3 +224,47 @@ billingRouter.get('/invoices', authorize('property_owner', 'general_manager', 'a
     res.status(500).json({ success: false, error: 'Failed to fetch invoices' });
   }
 });
+
+// GET /billing/invoices/:id/pdf
+billingRouter.get('/invoices/:id/pdf', authorize('property_owner', 'general_manager', 'front_desk', 'accountant'), async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: req.params.id, tenantId: req.tenantId! },
+        include: {
+          booking: {
+            include: {
+              charges: true
+            }
+          }
+        }
+      });
+
+      if (!invoice) {
+        res.status(404).json({ success: false, error: 'Invoice not found' });
+        return;
+      }
+
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.tenantId! },
+      });
+
+      // Lazy import the generator so we don't block API boot unnecessarily
+      const { buildInvoicePdf } = await import('../../services/pdf-generator');
+      
+      const pdfBuffer = await buildInvoicePdf(
+        invoice, 
+        invoice.booking?.charges || [], 
+        tenant || {}
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.send(pdfBuffer);
+    });
+  } catch (err) {
+    console.error('PDF Generation Error:', err);
+    res.status(500).json({ success: false, error: 'Failed to generate PDF' });
+  }
+});

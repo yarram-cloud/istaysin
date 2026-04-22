@@ -2,9 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Star, MessageSquareQuote, CheckCircle, XCircle, Trash2, Reply, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { reviewsApi } from '@/lib/api';
 
 export default function ReviewsPage() {
+  const t = useTranslations('Dashboard');
   const [reviews, setReviews] = useState<any[]>([]);
   const [meta, setMeta] = useState({ averageRating: 0, totalReviews: 0 });
   const [loading, setLoading] = useState(true);
@@ -46,7 +49,7 @@ export default function ReviewsPage() {
       const res = await reviewsApi.publishReview(id, !currentStatus);
       if (res.success) fetchReviews();
     } catch (err: any) {
-      alert(err.message || 'Failed to update visibility');
+      toast.error(err.message || t('actionFailed') || 'Failed to update visibility');
     }
   };
 
@@ -61,20 +64,31 @@ export default function ReviewsPage() {
         fetchReviews();
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to submit reply');
+      toast.error(err.message || t('replyFailed') || 'Failed to submit reply');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const deleteReview = async (id: string) => {
-    if (!confirm('Are you sure you want to permanently delete this review?')) return;
-    try {
-      const res = await reviewsApi.deleteReview(id);
-      if (res.success) fetchReviews();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete review');
-    }
+  const deleteReview = (id: string) => {
+    toast(t('confirmDeleteReview') || 'Are you sure you want to permanently delete this review?', {
+      description: t('actionCannotBeUndone') || 'This action cannot be undone.',
+      action: {
+        label: t('confirm') || 'Confirm',
+        onClick: async () => {
+          try {
+            const res = await reviewsApi.deleteReview(id);
+            if (res.success) {
+               fetchReviews();
+               toast.success(t('reviewDeleted') || 'Review deleted successfully');
+            }
+          } catch (err: any) {
+            toast.error(err.message || t('deleteFailed') || 'Failed to delete review');
+          }
+        }
+      },
+      cancel: { label: t('cancel') || 'Cancel', onClick: () => {} }
+    });
   };
 
   // Render stars

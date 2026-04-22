@@ -32,3 +32,9 @@ uploads/
 # Debug
 npm-debug.log*
 yarn-error.log*
+
+# Playwright E2E Tests
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

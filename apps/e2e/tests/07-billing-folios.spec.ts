@@ -95,5 +95,28 @@ test.describe('Billing & Folios Operations', () => {
     // Validate the total matches the exact checked-out balance
     const expectedDisplayedTotal = `₹${Number(rawBalance).toLocaleString('en-IN')}`;
     await expect(invoiceRow).toContainText(expectedDisplayedTotal, { ignoreCase: true });
+
+    // PDF EXPORT VALIDATION
+    // 1. Fetch the latest invoices via API to get the Invoice ID
+    const invoicesRes = await request.get('/api/v1/billing/invoices', {
+      headers: { 'Authorization': `Bearer ${tokenRes}` }
+    });
+    const invoicesBody = await invoicesRes.json();
+    const guestInvoice = invoicesBody.data.find((inv: any) => inv.guestName === 'E2E Folio Guest');
+    expect(guestInvoice).toBeDefined();
+
+    // 2. Hit the PDF Endpoint
+    const pdfRes = await request.get(`/api/v1/billing/invoices/${guestInvoice.id}/pdf`, {
+      headers: { 'Authorization': `Bearer ${tokenRes}` }
+    });
+
+    // 3. Verify PDF response signature
+    expect(pdfRes.status()).toBe(200);
+    expect(pdfRes.headers()['content-type']).toBe('application/pdf');
+    expect(pdfRes.headers()['content-disposition']).toContain(`attachment; filename="Invoice-${guestInvoice.invoiceNumber}.pdf"`);
+    
+    // 4. Verify PDF Buffer has data
+    const buffer = await pdfRes.body();
+    expect(buffer.length).toBeGreaterThan(1000); // A generated PDF should definitely be > 1KB
   });
 });

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { ClipboardList, Plus, X, Loader2, CheckCircle, Clock, AlertTriangle, CheckSquare, Square, User } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { housekeepingApi, roomsApi } from '@/lib/api';
 
 interface TaskChecklistItem {
@@ -26,6 +28,7 @@ interface StaffMember {
 }
 
 export default function HousekeepingPage() {
+  const t = useTranslations('Dashboard');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,14 +57,16 @@ export default function HousekeepingPage() {
     try {
       await housekeepingApi.updateStatus(taskId, newStatus);
       fetchData();
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('taskStatusUpdated') || 'Task status updated');
+    } catch (err: any) { toast.error(err.message || t('actionFailed')); }
   }
 
   async function handleAssign(taskId: string, staffId: string) {
     try {
       await housekeepingApi.updateTask(taskId, { assignedTo: staffId || null });
       fetchData();
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('taskAssigned') || 'Task assigned');
+    } catch (err: any) { toast.error(err.message || t('actionFailed')); }
   }
 
   async function handleToggleChecklist(task: Task, itemId: string) {
@@ -72,7 +77,7 @@ export default function HousekeepingPage() {
     try {
       await housekeepingApi.updateTask(task.id, { checklist: updatedChecklist });
       setTasks(tasks.map(t => t.id === task.id ? { ...t, checklist: updatedChecklist } : t));
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast.error(err.message || t('actionFailed')); }
   }
 
   const statusStyles: Record<string, { bg: string; text: string; icon: any }> = {
@@ -250,6 +255,7 @@ export default function HousekeepingPage() {
 }
 
 function AddTaskModal({ onClose, onCreated, staff }: { onClose: () => void; onCreated: () => void; staff: StaffMember[] }) {
+  const t = useTranslations('Dashboard');
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomId, setRoomId] = useState('');
   const [taskType, setTaskType] = useState('cleaning');
@@ -277,7 +283,8 @@ function AddTaskModal({ onClose, onCreated, staff }: { onClose: () => void; onCr
         notes: notes.trim() || undefined 
       });
       onCreated();
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('taskCreated') || 'Task created successfully');
+    } catch (err: any) { toast.error(err.message || t('actionFailed')); }
     finally { setSaving(false); }
   }
 

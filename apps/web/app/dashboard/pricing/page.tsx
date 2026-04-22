@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, X, Loader2, CalendarRange, Trash2, Edit2, TrendingUp, Filter } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { pricingApi, roomsApi } from '@/lib/api';
 
 interface PricingRule {
@@ -24,6 +26,7 @@ interface RoomType {
 }
 
 export default function PricingPage() {
+  const t = useTranslations('Dashboard');
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,19 +50,29 @@ export default function PricingPage() {
 
   useEffect(() => { Object.assign(window, { pricingApi }); fetchData(); }, [fetchData]);
 
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this pricing rule?')) return;
-    try {
-      await pricingApi.deleteRule(id);
-      fetchData();
-    } catch (err: any) { alert(err.message); }
+  function handleDelete(id: string) {
+    toast(t('confirmDeleteRule') || 'Are you sure you want to delete this pricing rule?', {
+      description: t('actionCannotBeUndone') || 'This action cannot be undone.',
+      action: {
+        label: t('confirm') || 'Confirm',
+        onClick: async () => {
+          try {
+            await pricingApi.deleteRule(id);
+            fetchData();
+            toast.success(t('ruleDeleted') || 'Pricing rule deleted');
+          } catch (err: any) { toast.error(err.message || t('deleteFailed')); }
+        }
+      },
+      cancel: { label: t('cancel') || 'Cancel', onClick: () => {} }
+    });
   }
 
   async function handleToggleActive(rule: PricingRule) {
     try {
       await pricingApi.updateRule(rule.id, { isActive: !rule.isActive });
       fetchData();
-    } catch (err: any) { alert(err.message); }
+      toast.success(rule.isActive ? (t('rulePaused') || 'Rule paused') : (t('ruleActivated') || 'Rule activated'));
+    } catch (err: any) { toast.error(err.message); }
   }
 
   const formatAdjustment = (type: string, val: number) => {
@@ -174,6 +187,7 @@ export default function PricingPage() {
 }
 
 function RuleModal({ onClose, onSaved, roomTypes, editingRule }: { onClose: () => void; onSaved: () => void; roomTypes: RoomType[]; editingRule: PricingRule | null }) {
+  const t = useTranslations('Dashboard');
   const [formData, setFormData] = useState({
     name: editingRule?.name || '',
     startDate: editingRule?.startDate ? new Date(editingRule.startDate).toISOString().split('T')[0] : '',
@@ -211,11 +225,13 @@ function RuleModal({ onClose, onSaved, roomTypes, editingRule }: { onClose: () =
 
       if (editingRule) {
         await pricingApi.updateRule(editingRule.id, payload);
+        toast.success(t('ruleUpdated') || 'Rule updated successfully');
       } else {
         await pricingApi.createRule(payload);
+        toast.success(t('ruleCreated') || 'Rule created successfully');
       }
       onSaved();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   }
 

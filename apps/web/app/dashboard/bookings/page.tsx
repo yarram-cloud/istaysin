@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { bookingsApi, roomsApi } from '@/lib/api';
 
 interface Booking {
@@ -12,6 +14,7 @@ interface Booking {
 }
 
 export default function BookingsPage() {
+  const t = useTranslations('Dashboard');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -56,16 +59,17 @@ export default function BookingsPage() {
       await bookingsApi.confirm(id);
       fetchBookings();
       setSelectedBooking(null);
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('bookingConfirmed') || 'Booking confirmed');
+    } catch (err: any) { toast.error(err.message || t('actionFailed')); }
   }
 
-  async function handleCancel(id: string) {
-    const reason = prompt('Cancellation reason (optional):');
+  async function handleCancel(id: string, reason?: string) {
     try {
       await bookingsApi.cancel(id, reason || undefined);
       fetchBookings();
       setSelectedBooking(null);
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('bookingCancelled') || 'Booking cancelled');
+    } catch (err: any) { toast.error(err.message || t('actionFailed')); }
   }
 
   return (
@@ -190,6 +194,7 @@ export default function BookingsPage() {
 
 // ── New Booking Modal ─────────────────────────────────────────
 function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const t = useTranslations('Dashboard');
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
@@ -269,8 +274,9 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
         notes: notes.trim() || undefined,
       });
       onCreated();
+      toast.success(t('bookingCreated') || 'Booking created successfully');
     } catch (err: any) {
-      setError(err.message || 'Failed to create booking');
+      setError(err.message || t('actionFailed') || 'Failed to create booking');
     } finally {
       setSaving(false);
     }
@@ -396,8 +402,11 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
 // ── Booking Detail Slide-over ─────────────────────────────────
 function BookingDetail({ booking, onClose, onConfirm, onCancel }: {
   booking: Booking; onClose: () => void;
-  onConfirm: (id: string) => void; onCancel: (id: string) => void;
+  onConfirm: (id: string) => void; onCancel: (id: string, reason?: string) => void;
 }) {
+  const t = useTranslations('Dashboard');
+  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   const nights = Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / (1000 * 60 * 60 * 24));
 
   return (
@@ -474,9 +483,22 @@ function BookingDetail({ booking, onClose, onConfirm, onCancel }: {
               </button>
             )}
             {['pending_confirmation', 'confirmed'].includes(booking.status) && (
-              <button onClick={() => onCancel(booking.id)} className="w-full px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2 text-sm font-medium">
-                <XCircle className="w-4 h-4" /> Cancel Booking
-              </button>
+              !showCancelPrompt ? (
+                <button onClick={() => setShowCancelPrompt(true)} className="w-full px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2 text-sm font-medium">
+                  <XCircle className="w-4 h-4" /> Cancel Booking
+                </button>
+              ) : (
+                <div className="space-y-3 p-4 rounded-xl bg-red-500/5 border border-red-500/20">
+                  <label className="block text-sm font-medium text-red-400 mb-1">{t('cancellationReason') || 'Cancellation Reason (Optional)'}</label>
+                  <input value={cancelReason} onChange={e => setCancelReason(e.target.value)} className="input-field w-full text-sm" placeholder={t('enterReason') || 'Enter reason...'} autoFocus />
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowCancelPrompt(false)} className="btn-secondary flex-1 py-2 text-sm">{t('cancel') || 'Cancel'}</button>
+                    <button onClick={() => onCancel(booking.id, cancelReason)} className="w-full flex-1 px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors text-sm font-medium">
+                      {t('confirmCancel') || 'Confirm Cancel'}
+                    </button>
+                  </div>
+                </div>
+              )
             )}
           </div>
         </div>

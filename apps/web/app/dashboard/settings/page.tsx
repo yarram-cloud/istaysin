@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { tenantsApi } from '@/lib/api';
 import { DomainSettings } from './domain-settings';
 import dynamic from 'next/dynamic';
@@ -64,6 +66,7 @@ export default function SettingsPage() {
 
 // ── Property Settings ────────────────────────────────────────
 function PropertySettings({ onBack }: { onBack: () => void }) {
+  const t = useTranslations('Dashboard');
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,8 +115,8 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
         checkInTime, checkOutTime, latitude: lat, longitude: lng,
         config: { ...settings?.config, languages }
       });
-      alert('Settings saved!');
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('settingsSaved') || 'Settings saved!');
+    } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   }
 
@@ -266,6 +269,7 @@ function SubscriptionSettings({ onBack }: { onBack: () => void }) {
 
 // ── Staff Settings ────────────────────────────────────────────
 function StaffSettings({ onBack }: { onBack: () => void }) {
+  const t = useTranslations('Dashboard');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
@@ -277,12 +281,21 @@ function StaffSettings({ onBack }: { onBack: () => void }) {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleRemove(userId: string) {
-    if (!confirm('Remove this staff member?')) return;
-    try {
-      await tenantsApi.removeStaff(userId);
-      setStaff((prev) => prev.filter((s) => s.userId !== userId));
-    } catch (err: any) { alert(err.message); }
+  function handleRemove(userId: string) {
+    toast(t('confirmRemoveStaff') || 'Remove this staff member?', {
+      description: t('actionCannotBeUndone') || 'This action cannot be undone.',
+      action: {
+        label: t('confirm') || 'Confirm',
+        onClick: async () => {
+          try {
+            await tenantsApi.removeStaff(userId);
+            setStaff((prev) => prev.filter((s) => s.userId !== userId));
+            toast.success(t('staffRemoved') || 'Staff member removed');
+          } catch (err: any) { toast.error(err.message); }
+        }
+      },
+      cancel: { label: t('cancel') || 'Cancel', onClick: () => {} }
+    });
   }
 
   const roleLabels: Record<string, string> = {
@@ -402,6 +415,7 @@ function InviteStaffModal({ onClose, onInvited }: { onClose: () => void; onInvit
 
 // ── Billing & Taxes Settings ──────────────────────────────────
 function BillingSettings({ onBack }: { onBack: () => void }) {
+  const t = useTranslations('Dashboard');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -430,8 +444,8 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
         gstNumber,
         config: { gstEnabled, legalName }
       });
-      alert('Billing & Tax settings saved!');
-    } catch (err: any) { alert(err.message); }
+      toast.success(t('billingSettingsSaved') || 'Billing & Tax settings saved!');
+    } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   }
 
