@@ -148,108 +148,124 @@ export default function BookingsPage() {
             exit={{ height: 0, opacity: 0, marginBottom: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card mb-6 p-4 md:p-6 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-white/[0.08] relative shadow-sm">
+            <div className="glass-card mb-6 p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/[0.08] relative shadow-lg overflow-hidden group/card animate-fade-in">
+              {/* Premium Glow Effect */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary-500/5 blur-[80px] rounded-full group-hover/card:bg-primary-500/10 transition-colors duration-700" />
+              
               <button 
                 onClick={() => setShowWalkInCard(false)}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-200 dark:hover:bg-white/[0.04] text-surface-500 dark:text-surface-400 transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-xl hover:bg-surface-100 dark:hover:bg-white/[0.04] text-surface-400 hover:text-surface-600 transition-all z-10"
                 type="button"
               >
                 <X className="w-4 h-4" />
               </button>
               
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+              <div className="flex items-center gap-4 mb-8 relative">
+                <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
                   <Zap className="w-5 h-5 flex-shrink-0" />
                 </div>
                 <div>
-                  <h3 className="font-display font-semibold text-lg text-surface-900 dark:text-white leading-tight">Express Walk-in</h3>
-                  <p className="text-sm text-surface-500 dark:text-surface-400">Instantly book & check-in an arriving guest</p>
+                  <h3 className="font-display font-bold text-xl text-surface-900 dark:text-white leading-tight">Express Walk-in</h3>
+                  <p className="text-sm text-surface-500 dark:text-surface-400">Rapid check-in system for immediate arrivals</p>
                 </div>
               </div>
 
-              <form onSubmit={handleWalkInSubmit} className="flex flex-col md:flex-row flex-wrap gap-4 md:items-end">
-                <div className="space-y-1.5 flex-1 min-w-[180px]">
-                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Guest Name</label>
-                  <input required placeholder="Full Name" className="input-field py-2.5" 
-                    value={walkInForm.guestName} onChange={e => setWalkInForm({...walkInForm, guestName: e.target.value})} />
-                </div>
-                
-                 <div className="space-y-1.5 flex-1 min-w-[220px]">
-                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Phone</label>
-                  <div className="flex">
-                    <div className="relative">
+              <form onSubmit={handleWalkInSubmit} className="relative space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5">
+                  {/* Guest Name */}
+                  <div className="space-y-2 lg:col-span-1">
+                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Guest Name</label>
+                    <input required placeholder="eg. John Doe" className="input-field !py-2.5 text-sm" 
+                      value={walkInForm.guestName} onChange={e => setWalkInForm({...walkInForm, guestName: e.target.value})} />
+                  </div>
+                  
+                  {/* Phone with Country Code */}
+                  <div className="space-y-2 lg:col-span-1">
+                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Phone Number</label>
+                    <div className="flex group/phone focus-within:ring-2 focus-within:ring-primary-500/30 rounded-xl transition-all">
                       <select 
                         value={walkInForm.countryCode} 
                         onChange={e => setWalkInForm({...walkInForm, countryCode: e.target.value})}
-                        className="w-[90px] h-full rounded-l-xl border border-r-0 border-surface-200 dark:border-white/[0.1] bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 text-sm px-2 outline-none focus:ring-2 focus:ring-primary-500 appearance-none cursor-pointer"
+                        className="w-[75px] h-[45px] rounded-l-xl border border-r-0 border-surface-200 dark:border-white/[0.1] bg-surface-50 dark:bg-surface-800 text-surface-600 dark:text-surface-300 text-sm px-2.5 outline-none cursor-pointer hover:bg-surface-100 transition-colors"
                       >
                         {COUNTRY_CODES.map((c) => (
                           <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
                         ))}
                       </select>
-                      <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none text-surface-400">
-                        <Globe className="w-3 h-3" />
-                      </div>
+                      <input 
+                        required 
+                        type="tel" 
+                        placeholder="Mobile" 
+                        className="input-field !rounded-l-none !py-2.5 flex-1 text-sm border-l-0" 
+                        value={walkInForm.guestPhone} 
+                        onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value.replace(/\D/g, '')})} 
+                      />
                     </div>
-                    <input 
-                      required 
-                      type="tel" 
-                      placeholder="Mobile Number" 
-                      className="input-field rounded-l-none py-2.5 flex-1" 
-                      value={walkInForm.guestPhone} 
-                      onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value})} 
-                    />
                   </div>
-                </div>
 
-                <div className="space-y-1.5 flex-1 min-w-[200px]">
-                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Room Selection</label>
-                  <input 
-                    required
-                    list="walkin-rooms"
-                    placeholder="Search 100+ rooms..."
-                    className="input-field py-2.5"
-                    value={roomSearch}
-                    onChange={e => {
-                      setRoomSearch(e.target.value);
-                      const match = availableRooms.find(r => `${r.roomNumber} - ${r.roomType?.name}` === e.target.value);
-                      setWalkInForm(prev => ({ ...prev, roomId: match ? match.id : '' }));
-                    }}
-                  />
-                  <datalist id="walkin-rooms">
-                    {availableRooms.filter(r => r.status === 'available').map(r => (
-                      <option key={r.id} value={`${r.roomNumber} - ${r.roomType?.name}`} />
-                    ))}
-                  </datalist>
-                </div>
+                  {/* Room Selection */}
+                  <div className="space-y-2 lg:col-span-1">
+                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Room Selection</label>
+                    <div className="relative group/room">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-400 group-focus-within/room:text-primary-500 transition-colors" />
+                      <input 
+                        required
+                        list="walkin-rooms"
+                        placeholder="Room #"
+                        className="input-field !pl-10 !py-2.5 text-sm"
+                        value={roomSearch}
+                        onChange={e => {
+                          setRoomSearch(e.target.value);
+                          const match = availableRooms.find(r => `${r.roomNumber} - ${r.roomType?.name}` === e.target.value);
+                          setWalkInForm(prev => ({ ...prev, roomId: match ? match.id : '' }));
+                        }}
+                      />
+                      <datalist id="walkin-rooms">
+                        {availableRooms.filter(r => r.status === 'available').map(r => (
+                          <option key={r.id} value={`${r.roomNumber} - ${r.roomType?.name}`} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
 
-                <div className="space-y-1.5 w-full md:w-auto min-w-[140px]">
-                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Duration</label>
-                  <div className="flex gap-2">
-                    <input required type="number" min="1" max="365" className="input-field py-2.5 w-20 px-2 text-center" 
-                      value={walkInForm.durationValue} onChange={e => setWalkInForm({...walkInForm, durationValue: parseInt(e.target.value) || 1})} />
-                    <select required className="input-field py-2.5 flex-1" 
-                      value={walkInForm.durationUnit} onChange={e => setWalkInForm({...walkInForm, durationUnit: e.target.value})}>
-                      <option value="days">Days</option>
-                      <option value="months">Months</option>
+                  {/* Duration */}
+                  <div className="space-y-2 lg:col-span-1">
+                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Stay Duration</label>
+                    <div className="flex focus-within:ring-2 focus-within:ring-primary-500/30 rounded-xl transition-all">
+                      <input required type="number" min="1" max="365" className="w-[65px] h-[45px] rounded-l-xl border border-r-0 border-surface-200 dark:border-white/[0.1] bg-surface-50 dark:bg-surface-800 text-center text-sm outline-none font-medium" 
+                        value={walkInForm.durationValue} onChange={e => setWalkInForm({...walkInForm, durationValue: parseInt(e.target.value) || 1})} />
+                      <select 
+                        className="flex-1 h-[45px] rounded-r-xl border border-surface-200 dark:border-white/[0.1] bg-surface-50 dark:bg-surface-800 text-xs px-3 outline-none cursor-pointer hover:bg-surface-100 border-l"
+                        value={walkInForm.durationUnit} onChange={e => setWalkInForm({...walkInForm, durationUnit: e.target.value as 'days' | 'months'})}
+                      >
+                        <option value="days">Nights</option>
+                        <option value="months">Months</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Payment Mode */}
+                  <div className="space-y-2 lg:col-span-1">
+                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Payment Method</label>
+                    <select required className="input-field !py-2.5 text-sm appearance-none cursor-pointer" 
+                      value={walkInForm.paymentMode} onChange={e => setWalkInForm({...walkInForm, paymentMode: e.target.value})}>
+                      <option value="cash">Cash Payment</option>
+                      <option value="upi">UPI / Scanner</option>
+                      <option value="card">Credit/Debit Card</option>
                     </select>
                   </div>
-                </div>
-
-                <div className="space-y-1.5 flex-1 min-w-[130px]">
-                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Payment</label>
-                  <select required className="input-field py-2.5" 
-                    value={walkInForm.paymentMode} onChange={e => setWalkInForm({...walkInForm, paymentMode: e.target.value})}>
-                    <option value="cash">Cash</option>
-                    <option value="upi">UPI</option>
-                    <option value="card">Card</option>
-                  </select>
-                </div>
-                
-                <div className="w-full md:w-auto md:ml-auto pt-4 md:pt-0">
-                  <button type="submit" disabled={submittingWalkIn} className="btn-primary w-full md:w-auto py-2.5 px-8 h-[42px] whitespace-nowrap shadow-lg shadow-primary-500/20">
-                    {submittingWalkIn ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Check In'}
-                  </button>
+                  
+                  {/* Action Button */}
+                  <div className="lg:col-span-1 pt-1">
+                    <button type="submit" disabled={submittingWalkIn} className="btn-primary w-full !py-2.5 h-[45px] flex items-center justify-center gap-2 shadow-xl shadow-primary-500/20 active:scale-95 transition-all">
+                      {submittingWalkIn ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="tracking-tight">Complete Check-in</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

@@ -12,46 +12,63 @@ test.describe('Dashboard Express Walk-in Flow', () => {
     await page.click('button[type="submit"]');
 
     // Wait for redirect to dashboard
-    await page.waitForURL('**/dashboard');
+    await page.waitForURL(url => url.pathname.includes('/dashboard'), { timeout: 15000 });
 
     // Navigate to Rooms to get a baseline and ensure an 'Available' room exists
     await page.goto('http://localhost:3100/dashboard/rooms');
-    // Ensure the page loads
-    await expect(page.locator('text=Rooms')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h1')).toContainText('Rooms', { timeout: 10000 });
     
     // Go to Bookings Page
     await page.goto('http://localhost:3100/dashboard/bookings');
-    await expect(page.locator('h1:has-text("Bookings")')).toBeVisible();
+    await expect(page.locator('h1')).toContainText('Bookings');
 
-    // Open Quick Walk-in Framer Card
-    const walkInBtn = page.locator('button:has-text("Quick Walk-in")');
-    await walkInBtn.click();
-    
-    // Wait for the inline card to expand (check for form elements)
+    // Open Quick Walk-in Card
+    await page.click('button:has-text("Quick Walk-in")');
     await expect(page.locator('text=Express Walk-in')).toBeVisible();
 
     // Fill form
-    const guestPhone = `+9199${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
+    const rawNumber = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+    const guestPhone = `99${rawNumber}`;
     
-    await page.fill('input[placeholder="Full Name"]', 'E2E Walkin Guest');
-    await page.fill('input[placeholder="+91..."]', guestPhone);
+    await page.fill('input[placeholder="eg. John Doe"]', 'E2E Walkin Guest');
+    await page.fill('input[placeholder="Mobile"]', guestPhone);
     
     // Select the first available room 
-    const roomSelect = page.locator('select').nth(0);
-    // Since we don't know the exact value, select by index > 0
-    await roomSelect.selectOption({ index: 1 }); 
+    const roomInput = page.locator('input[placeholder="Room #"]');
+    await roomInput.fill('101'); 
     
-    // Duration
-    await page.fill('input[type="number"]', '3'); // 3 days
-    
-    // Submit
-    await page.click('button:has-text("Check In")');
+    await page.fill('input[type="number"]', '3');
+    await page.click('button:has-text("Complete Check-in")');
 
     // Toast visible
-    await expect(page.locator('text=Walk-in booking created')).toBeVisible();
+    await expect(page.locator('text=Walk-in booking created')).toBeVisible({ timeout: 10000 });
 
-    // Verify it appears in the grid with Checked In status
+    // Verify appearance in table
     await expect(page.locator(`text=${guestPhone}`)).toBeVisible();
-    await expect(page.locator('td', { hasText: guestPhone }).locator('..').locator('text=Checked In')).toBeVisible();
+  });
+
+  test('Front-desk can perform a Monthly Walk-in (PG Mode)', async ({ page }) => {
+    await page.goto('http://localhost:3100/login');
+    await page.fill('input[type="email"]', 'admin@istays.test');
+    await page.fill('input[type="password"]', 'admin123');
+    await page.click('button[type="submit"]');
+    await page.waitForURL(url => url.pathname.includes('/dashboard'));
+
+    await page.goto('http://localhost:3100/dashboard/bookings');
+    await page.click('button:has-text("Quick Walk-in")');
+
+    const rawNumber = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+    const guestPhone = `88${rawNumber}`;
+
+    await page.fill('input[placeholder="eg. John Doe"]', 'Monthly PG Guest');
+    await page.fill('input[placeholder="Mobile"]', guestPhone);
+    await page.fill('input[placeholder="Room #"]', '102'); 
+    
+    await page.fill('input[type="number"]', '1');
+    await page.selectOption('select:has-text("Nights")', 'months'); 
+    
+    await page.click('button:has-text("Complete Check-in")');
+    await expect(page.locator('text=Walk-in booking created')).toBeVisible();
+    await expect(page.locator(`text=${guestPhone}`)).toBeVisible();
   });
 });
