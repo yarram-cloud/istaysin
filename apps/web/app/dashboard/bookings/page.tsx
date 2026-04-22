@@ -131,11 +131,19 @@ export default function BookingsPage() {
           <p className="text-surface-400">Manage all reservations and walk-ins</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowWalkInCard(!showWalkInCard)} className="btn-surface flex items-center gap-2 font-semibold">
-            <Zap className="w-4 h-4 text-amber-500" /> Quick Walk-in
+          <button 
+            onClick={() => setShowWalkInCard(!showWalkInCard)} 
+            className={`btn-secondary flex items-center gap-2.5 font-semibold !px-5 !py-2.5 ${
+              showWalkInCard 
+                ? '!bg-amber-50 !border-amber-200 !text-amber-700' 
+                : 'hover:!bg-amber-50 hover:!border-amber-200 hover:!text-amber-700'
+            } transition-all duration-300`}
+          >
+            <Zap className={`w-4 h-4 ${showWalkInCard ? 'text-amber-500' : 'text-amber-500'}`} />
+            {t('quickWalkIn') || 'Quick Walk-in'}
           </button>
           <button onClick={() => setShowNewBooking(true)} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> New Booking
+            <Plus className="w-4 h-4" /> {t('newBooking') || 'New Booking'}
           </button>
         </div>
       </div>
@@ -143,50 +151,69 @@ export default function BookingsPage() {
       <AnimatePresence>
         {showWalkInCard && (
           <motion.div
-            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-            animate={{ height: 'auto', opacity: 1, marginBottom: 24 }}
-            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="glass-card mb-6 p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/[0.08] relative shadow-lg overflow-hidden group/card animate-fade-in">
-              {/* Premium Glow Effect */}
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary-500/5 blur-[80px] rounded-full group-hover/card:bg-primary-500/10 transition-colors duration-700" />
-              
-              <button 
-                onClick={() => setShowWalkInCard(false)}
-                className="absolute top-4 right-4 p-2 rounded-xl hover:bg-surface-100 dark:hover:bg-white/[0.04] text-surface-400 hover:text-surface-600 transition-all z-10"
-                type="button"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              
-              <div className="flex items-center gap-4 mb-8 relative">
-                <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
-                  <Zap className="w-5 h-5 flex-shrink-0" />
+            <div className="glass-card relative overflow-hidden mb-6" style={{ borderTop: '3px solid', borderImage: 'linear-gradient(90deg, #f59e0b, #f97316, #ef4444) 1' }}>
+              {/* Ambient Glow */}
+              <div className="absolute -top-32 -right-32 w-64 h-64 bg-amber-400/[0.06] blur-[100px] rounded-full pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-primary-400/[0.04] blur-[80px] rounded-full pointer-events-none" />
+
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 md:p-6 pb-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg text-surface-900 leading-tight tracking-tight">
+                      {t('expressWalkIn') || 'Express Walk-in'}
+                    </h3>
+                    <p className="text-xs text-surface-400 mt-0.5">
+                      {t('rapidCheckin') || 'Book & check-in a guest in under 30 seconds'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-display font-bold text-xl text-surface-900 dark:text-white leading-tight">Express Walk-in</h3>
-                  <p className="text-sm text-surface-500 dark:text-surface-400">Rapid check-in system for immediate arrivals</p>
-                </div>
+                <button 
+                  onClick={() => setShowWalkInCard(false)}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-surface-200 hover:border-surface-300 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all duration-200"
+                  type="button"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <form onSubmit={handleWalkInSubmit} className="relative space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5">
+              {/* Form */}
+              <form onSubmit={handleWalkInSubmit} className="p-5 md:p-6 pt-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4 md:gap-5">
                   {/* Guest Name */}
-                  <div className="space-y-2 lg:col-span-1">
-                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Guest Name</label>
-                    <input required placeholder="eg. John Doe" className="input-field !py-2.5 text-sm" 
-                      value={walkInForm.guestName} onChange={e => setWalkInForm({...walkInForm, guestName: e.target.value})} />
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">
+                      {t('guestName') || 'Guest Name'} <span className="text-red-400">*</span>
+                    </label>
+                    <input 
+                      required 
+                      placeholder={t('guestNamePlaceholder') || 'e.g. Rajesh Kumar'}
+                      className="input-field !h-11 text-sm" 
+                      value={walkInForm.guestName} 
+                      onChange={e => setWalkInForm({...walkInForm, guestName: e.target.value})} 
+                    />
                   </div>
                   
                   {/* Phone with Country Code */}
-                  <div className="space-y-2 lg:col-span-1">
-                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Phone Number</label>
-                    <div className="flex group/phone focus-within:ring-2 focus-within:ring-primary-500/30 rounded-xl transition-all">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">
+                      {t('phoneNumber') || 'Phone Number'} <span className="text-red-400">*</span>
+                    </label>
+                    <div className="flex rounded-xl border border-surface-200 bg-surface-50 focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-400 transition-all duration-200 overflow-hidden">
                       <select 
                         value={walkInForm.countryCode} 
                         onChange={e => setWalkInForm({...walkInForm, countryCode: e.target.value})}
-                        className="w-[75px] h-[45px] rounded-l-xl border border-r-0 border-surface-200 dark:border-white/[0.1] bg-surface-50 dark:bg-surface-800 text-surface-600 dark:text-surface-300 text-sm px-2.5 outline-none cursor-pointer hover:bg-surface-100 transition-colors"
+                        className="h-11 w-[78px] bg-transparent border-r border-surface-200 text-surface-600 text-sm px-2 outline-none cursor-pointer hover:bg-surface-100/50 transition-colors shrink-0"
                       >
                         {COUNTRY_CODES.map((c) => (
                           <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
@@ -195,78 +222,120 @@ export default function BookingsPage() {
                       <input 
                         required 
                         type="tel" 
-                        placeholder="Mobile" 
-                        className="input-field !rounded-l-none !py-2.5 flex-1 text-sm border-l-0" 
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder={t('mobilePlaceholder') || '98765 43210'}
+                        className="flex-1 h-11 px-3 bg-transparent text-sm text-surface-800 placeholder:text-surface-400 outline-none" 
                         value={walkInForm.guestPhone} 
-                        onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value.replace(/\D/g, '')})} 
+                        onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
                       />
                     </div>
                   </div>
 
-                  {/* Room Selection */}
-                  <div className="space-y-2 lg:col-span-1">
-                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Room Selection</label>
-                    <div className="relative group/room">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-400 group-focus-within/room:text-primary-500 transition-colors" />
+                  {/* Room Selection — Custom styled dropdown */}
+                  <div className="space-y-1.5 relative">
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">
+                      {t('roomSelection') || 'Assign Room'} <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none z-[1]" />
                       <input 
                         required
                         list="walkin-rooms"
-                        placeholder="Room #"
-                        className="input-field !pl-10 !py-2.5 text-sm"
+                        placeholder={t('roomPlaceholder') || 'Search room...'}
+                        className="input-field !h-11 !pl-9 text-sm"
                         value={roomSearch}
                         onChange={e => {
                           setRoomSearch(e.target.value);
-                          const match = availableRooms.find(r => `${r.roomNumber} - ${r.roomType?.name}` === e.target.value);
+                          const match = availableRooms.find(r => `${r.roomNumber} — ${r.roomType?.name}` === e.target.value);
                           setWalkInForm(prev => ({ ...prev, roomId: match ? match.id : '' }));
                         }}
                       />
                       <datalist id="walkin-rooms">
                         {availableRooms.filter(r => r.status === 'available').map(r => (
-                          <option key={r.id} value={`${r.roomNumber} - ${r.roomType?.name}`} />
+                          <option key={r.id} value={`${r.roomNumber} — ${r.roomType?.name}`} />
                         ))}
                       </datalist>
+                      {walkInForm.roomId && (
+                        <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                      )}
                     </div>
                   </div>
 
                   {/* Duration */}
-                  <div className="space-y-2 lg:col-span-1">
-                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Stay Duration</label>
-                    <div className="flex focus-within:ring-2 focus-within:ring-primary-500/30 rounded-xl transition-all">
-                      <input required type="number" min="1" max="365" className="w-[65px] h-[45px] rounded-l-xl border border-r-0 border-surface-200 dark:border-white/[0.1] bg-surface-50 dark:bg-surface-800 text-center text-sm outline-none font-medium" 
-                        value={walkInForm.durationValue} onChange={e => setWalkInForm({...walkInForm, durationValue: parseInt(e.target.value) || 1})} />
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">
+                      {t('stayDuration') || 'Stay Duration'}
+                    </label>
+                    <div className="flex rounded-xl border border-surface-200 bg-surface-50 focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-400 transition-all duration-200 overflow-hidden">
+                      <input 
+                        required 
+                        type="number" 
+                        min="1" 
+                        max="365"
+                        inputMode="numeric"
+                        className="w-16 h-11 text-center text-sm font-semibold text-surface-800 bg-transparent border-r border-surface-200 outline-none shrink-0" 
+                        value={walkInForm.durationValue} 
+                        onChange={e => setWalkInForm({...walkInForm, durationValue: Math.max(1, parseInt(e.target.value) || 1)})} 
+                      />
                       <select 
-                        className="flex-1 h-[45px] rounded-r-xl border border-surface-200 dark:border-white/[0.1] bg-surface-50 dark:bg-surface-800 text-xs px-3 outline-none cursor-pointer hover:bg-surface-100 border-l"
-                        value={walkInForm.durationUnit} onChange={e => setWalkInForm({...walkInForm, durationUnit: e.target.value as 'days' | 'months'})}
+                        className="flex-1 h-11 bg-transparent text-sm px-3 outline-none cursor-pointer text-surface-700 hover:bg-surface-100/50 transition-colors"
+                        value={walkInForm.durationUnit} 
+                        onChange={e => setWalkInForm({...walkInForm, durationUnit: e.target.value as 'days' | 'months'})}
                       >
-                        <option value="days">Nights</option>
-                        <option value="months">Months</option>
+                        <option value="days">{t('nights') || 'Nights'}</option>
+                        <option value="months">{t('months') || 'Months'}</option>
                       </select>
                     </div>
                   </div>
 
                   {/* Payment Mode */}
-                  <div className="space-y-2 lg:col-span-1">
-                    <label className="text-xs font-bold text-surface-500 uppercase tracking-widest px-1">Payment Method</label>
-                    <select required className="input-field !py-2.5 text-sm appearance-none cursor-pointer" 
-                      value={walkInForm.paymentMode} onChange={e => setWalkInForm({...walkInForm, paymentMode: e.target.value})}>
-                      <option value="cash">Cash Payment</option>
-                      <option value="upi">UPI / Scanner</option>
-                      <option value="card">Credit/Debit Card</option>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">
+                      {t('paymentMethod') || 'Payment'}
+                    </label>
+                    <select 
+                      required 
+                      className="input-field !h-11 text-sm cursor-pointer" 
+                      value={walkInForm.paymentMode} 
+                      onChange={e => setWalkInForm({...walkInForm, paymentMode: e.target.value})}
+                    >
+                      <option value="cash">💵 {t('cash') || 'Cash'}</option>
+                      <option value="upi">📱 {t('upi') || 'UPI'}</option>
+                      <option value="card">💳 {t('card') || 'Card'}</option>
                     </select>
                   </div>
                   
-                  {/* Action Button */}
-                  <div className="lg:col-span-1 pt-1">
-                    <button type="submit" disabled={submittingWalkIn} className="btn-primary w-full !py-2.5 h-[45px] flex items-center justify-center gap-2 shadow-xl shadow-primary-500/20 active:scale-95 transition-all">
-                      {submittingWalkIn ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                  {/* CTA Button */}
+                  <div className="flex items-end">
+                    <button 
+                      type="submit" 
+                      disabled={submittingWalkIn || !walkInForm.roomId} 
+                      className="w-full h-11 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.97] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                        boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)',
+                      }}
+                    >
+                      {submittingWalkIn ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
                         <>
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="tracking-tight">Complete Check-in</span>
+                          <Zap className="w-4 h-4" />
+                          <span>{t('bookAndCheckin') || 'Book & Check-in'}</span>
                         </>
                       )}
                     </button>
                   </div>
                 </div>
+
+                {/* Available rooms count indicator */}
+                {availableRooms.length > 0 && (
+                  <p className="text-xs text-surface-400 mt-4 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                    {availableRooms.filter(r => r.status === 'available').length} {t('roomsAvailable') || 'rooms available for immediate check-in'}
+                  </p>
+                )}
               </form>
             </div>
           </motion.div>
