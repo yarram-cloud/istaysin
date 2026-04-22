@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2, LayoutDashboard, BedDouble, CalendarDays, Users, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
-  ClipboardList, TrendingUp, Star, Globe, Clock, Network
+  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { NextIntlClientProvider } from 'next-intl';
@@ -36,6 +36,7 @@ const sidebarGroups = [
     links: [
       { href: '/dashboard/channels', icon: Network, label: 'Channel Manager' },
       { href: '/dashboard/pricing', icon: TrendingUp, label: 'Pricing Engine' },
+      { href: '/dashboard/coupons', icon: Tag, label: 'Coupons' },
       { href: '/dashboard/website', icon: Globe, label: 'Website Builder' },
     ]
   },

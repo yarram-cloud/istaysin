@@ -1,0 +1,9 @@
+{
+  "code": "TEST100",
+  "discountType": "percentage",
+  "discountValue": 10,
+  "maxUses": null,
+  "minBookingAmount": 0,
+  "isActive": true,
+  "applicableRoomTypes": []
+}

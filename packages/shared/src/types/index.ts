@@ -225,6 +225,7 @@ export const PAYMENT_METHOD = {
   CARD: 'card',
   BANK_TRANSFER: 'bank_transfer',
   RAZORPAY: 'razorpay',
+  PAY_AT_HOTEL: 'pay_at_hotel',
 } as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
@@ -550,6 +551,7 @@ export interface TenantConfig {
   razorpayKeyId?: string;
   razorpaySecret?: string;
   upiId?: string;
+  allowPayAtHotel?: boolean;
   websiteBuilder?: WebsiteBuilderConfig;
   [key: string]: any;
 }

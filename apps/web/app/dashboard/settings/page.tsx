@@ -30,35 +30,40 @@ export default function SettingsPage() {
 
       {!activeSection ? (
         <div className="grid md:grid-cols-2 gap-6">
-          {sections.map((section) => (
-            <button key={section.id} onClick={() => setActiveSection(section.id)}
-              className="glass-card p-6 hover:bg-white/[0.08] transition-all cursor-pointer group text-left">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <section.icon className="w-5 h-5 text-primary-400" />
+          {sections.map((section) => {
+            const Icon = section.icon;
+            return (
+              <button key={section.id} onClick={() => setActiveSection(section.id)}
+                className="glass-card p-6 border border-white/[0.06] hover:bg-white/[0.08] transition-all cursor-pointer group text-left">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Icon className="w-5 h-5 text-primary-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">{section.title}</h3>
+                    <p className="text-sm text-surface-400">{section.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-1">{section.title}</h3>
-                  <p className="text-sm text-surface-400">{section.desc}</p>
-                </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
-      ) : activeSection === 'property' ? (
-        <PropertySettings onBack={() => setActiveSection(null)} />
-      ) : activeSection === 'domain' ? (
-        <div>
-          <button onClick={() => setActiveSection(null)} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
-          <DomainSettings />
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <button onClick={() => setActiveSection(null)} className="flex items-center gap-2 text-sm text-primary-400 hover:text-primary-300 mb-6 group transition-colors">
+            <div className="w-6 h-6 rounded-full bg-primary-400/10 flex items-center justify-center group-hover:bg-primary-400/20">
+              <Plus className="w-3 h-3 rotate-45" />
+            </div>
+            Back to Settings
+          </button>
+          
+          {activeSection === 'property' && <PropertySettings onBack={() => setActiveSection(null)} />}
+          {activeSection === 'domain' && <DomainSettings />}
+          {activeSection === 'staff' && <StaffSettings onBack={() => setActiveSection(null)} />}
+          {activeSection === 'billing' && <BillingSettings onBack={() => setActiveSection(null)} />}
+          {activeSection === 'subscription' && <SubscriptionSettings onBack={() => setActiveSection(null)} />}
         </div>
-      ) : activeSection === 'staff' ? (
-        <StaffSettings onBack={() => setActiveSection(null)} />
-      ) : activeSection === 'billing' ? (
-        <BillingSettings onBack={() => setActiveSection(null)} />
-      ) : activeSection === 'subscription' ? (
-        <SubscriptionSettings onBack={() => setActiveSection(null)} />
-      ) : null}
+      )}
     </div>
   );
 }
@@ -422,6 +427,7 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
   const [gstEnabled, setGstEnabled] = useState(false);
   const [gstNumber, setGstNumber] = useState('');
   const [legalName, setLegalName] = useState('');
+  const [allowPayAtHotel, setAllowPayAtHotel] = useState(true);
 
   useEffect(() => {
     tenantsApi.getSettings()
@@ -431,6 +437,7 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
           setGstEnabled(d.config?.gstEnabled || false);
           setGstNumber(d.gstNumber || '');
           setLegalName(d.config?.legalName || '');
+          setAllowPayAtHotel(d.config?.allowPayAtHotel !== false);
         }
       })
       .catch((err) => console.error(err))
@@ -442,7 +449,7 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
     try {
       await tenantsApi.updateSettings({
         gstNumber,
-        config: { gstEnabled, legalName }
+        config: { gstEnabled, legalName, allowPayAtHotel }
       });
       toast.success(t('billingSettingsSaved') || 'Billing & Tax settings saved!');
     } catch (err: any) { toast.error(err.message); }
@@ -491,6 +498,18 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           )}
+
+          {/* Pay at Hotel Toggle */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+            <div>
+              <p className="font-medium text-white">Allow Pay at Hotel</p>
+              <p className="text-sm text-surface-400">Let guests book via your website without making an advance payment. Payment is collected on arrival.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={allowPayAtHotel} onChange={(e) => setAllowPayAtHotel(e.target.checked)} />
+              <div className="w-11 h-6 bg-surface-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+            </label>
+          </div>
 
           <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 mt-4">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Settings

@@ -33,6 +33,7 @@ import { posRouter } from './modules/pos/router';
 import { nightAuditRouter } from './modules/night-audit/router';
 import { guestPortalRouter } from './modules/guest-portal/router';
 import { paymentsRouter } from './modules/payments/router';
+import { couponsRouter } from './modules/coupons/router';
 import { errorHandler } from './middleware/error-handler';
 import { apiLimiter } from './middleware/rate-limit';
 
@@ -95,6 +96,7 @@ app.use('/api/v1/groups', groupsRouter);
 app.use('/api/v1/pos', posRouter);
 app.use('/api/v1/night-audit', nightAuditRouter);
 app.use('/api/v1/guest-portal', guestPortalRouter);
+app.use('/api/v1/coupons', couponsRouter);
 
 // Error handler
 app.use(errorHandler);

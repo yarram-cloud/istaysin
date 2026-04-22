@@ -415,3 +415,11 @@ export const uploadApi = {
     return res.json();
   }
 };
+export const couponsApi = {
+  list: () => apiFetch('/coupons'),
+  create: (body: any) => apiFetch('/coupons', { method: 'POST', body: JSON.stringify(body) }),
+  patch: (id: string, body: any) => apiFetch(`/coupons/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  delete: (id: string) => apiFetch(`/coupons/${id}`, { method: 'DELETE' }),
+  validate: (body: { code: string; bookingAmount: number; roomTypeId: string; checkIn: string }, tenantId?: string) => 
+    apiFetch('/coupons/validate', { method: 'POST', body: JSON.stringify(body), tenantId }),
+};

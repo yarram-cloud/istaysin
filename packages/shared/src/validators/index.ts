@@ -92,8 +92,8 @@ export const bookingSchema = z
   .object({
     guestProfileId: z.string().uuid().optional(),
     guestName: z.string().min(2).max(200),
-    guestEmail: z.string().email().optional(),
-    guestPhone: z.string().min(10).max(15),
+    guestEmail: z.string().email().optional().or(z.literal('')),
+    guestPhone: z.string().min(8).max(20),
     guestState: z.string().max(100).optional(),
     checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -113,6 +113,8 @@ export const bookingSchema = z
     source: z.enum(['online', 'walkin', 'ota', 'phone', 'email', 'website', 'ota_booking_com', 'ota_makemytrip', 'ota_goibibo', 'agent']).default('online'),
     specialRequests: z.string().max(1000).optional(),
     advanceAmount: z.number().min(0).optional(),
+    paymentMode: z.enum(['online', 'pay_at_hotel']).default('online'),
+    promoCode: z.string().max(50).optional(),
   })
   .refine((data) => new Date(data.checkOutDate) > new Date(data.checkInDate), {
     message: 'Check-out date must be after check-in date',
@@ -125,8 +127,8 @@ export const bookingSchema = z
 
 export const guestSchema = z.object({
   fullName: z.string().min(2, 'Name is required').max(200),
-  phone: z.string().min(10, 'Phone number is mandatory').max(15),
-  email: z.string().email().optional(),
+  phone: z.string().min(8, 'Phone number is too short').max(20),
+  email: z.string().email().optional().or(z.literal('')),
   nationality: z.string().max(50).default('Indian'),
   dateOfBirth: z.string().optional(),
   gender: z.enum(['male', 'female', 'other']).optional(),
@@ -251,4 +253,27 @@ export const walkInBookingSchema = z.object({
   durationValue: z.number().int().min(1).max(365),
   durationUnit: z.enum(['days', 'months']),
   paymentMode: z.enum(['cash', 'upi', 'card']).optional(),
+});
+
+// ============================================================
+// Coupon Validators
+// ============================================================
+
+export const couponSchema = z.object({
+  code: z.string().min(3).max(50).regex(/^[A-Z0-9_-]+$/, 'Code must be uppercase alphanumeric'),
+  discountType: z.enum(['percentage', 'flat']),
+  discountValue: z.number().positive(),
+  maxUses: z.number().int().positive().optional().nullable(),
+  minBookingAmount: z.number().min(0).default(0),
+  validFrom: z.string().optional().nullable(),
+  validUntil: z.string().optional().nullable(),
+  applicableRoomTypes: z.array(z.string().uuid()).default([]),
+  isActive: z.boolean().default(true),
+});
+
+export const validateCouponSchema = z.object({
+  code: z.string().min(1),
+  bookingAmount: z.number().positive(),
+  roomTypeId: z.string().uuid(),
+  checkIn: z.string(),
 });

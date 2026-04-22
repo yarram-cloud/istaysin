@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { publicApi } from '@/lib/api';
-import { Calendar, Users, CreditCard, ChevronRight, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
+import { publicApi, couponsApi } from '@/lib/api';
+import { Calendar, Users, CreditCard, ChevronRight, CheckCircle2, Loader2, ArrowLeft, Building2, Banknote } from 'lucide-react';
 import Link from 'next/link';
 
 function formatDisplayDate(dateString: string | Date) {
@@ -33,12 +33,22 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
   const [guestPhone, setGuestPhone] = useState('');
   const [guestState, setGuestState] = useState('');
   
   // Booking Submission State
   const [submitting, setSubmitting] = useState(false);
   const [bookingResult, setBookingResult] = useState<any>(null);
+
+  // Payment Mode State
+  const [paymentMode, setPaymentMode] = useState<'online' | 'pay_at_hotel'>('online');
+
+  // Promo Code State
+  const [promoCode, setPromoCode] = useState('');
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [discountData, setDiscountData] = useState<any>(null);
+  const [promoError, setPromoError] = useState('');
 
   useEffect(() => {
     publicApi.property(params.slug)
@@ -47,6 +57,10 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
           setProperty(res.data);
           if (res.data.roomTypes?.length > 0) {
             setRoomTypeId(res.data.roomTypes[0].id);
+          }
+          // Default payment mode based on property config
+          if (!res.data.hasOnlinePayment && res.data.allowPayAtHotel) {
+            setPaymentMode('pay_at_hotel');
           }
         } else {
           setError('Property not found');
@@ -103,8 +117,8 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
       const res = await publicApi.createBooking({
         tenantId: property.id,
         guestName,
-        guestEmail,
-        guestPhone,
+        guestEmail: guestEmail || undefined,
+        guestPhone: `${countryCode}${guestPhone}`,
         guestState,
         source: 'website',
         checkInDate: checkIn,
@@ -115,6 +129,8 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
           roomTypeId,
           extraBeds: 0,
         }],
+        paymentMode,
+        promoCode: discountData ? promoCode : undefined,
       });
 
       if (res.success) {
@@ -127,6 +143,31 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
       setError(err.message || 'An error occurred during booking');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleApplyPromo = async () => {
+    if (!promoCode || !property || !availability) return;
+    setApplyingPromo(true);
+    setPromoError('');
+    setDiscountData(null);
+    try {
+      const res = await couponsApi.validate({
+        code: promoCode,
+        bookingAmount: availability.pricing.totalAmount,
+        roomTypeId,
+        checkIn
+      }, property.id);
+      
+      if (res.success) {
+        setDiscountData(res.data);
+      } else {
+        setPromoError(res.error || 'Invalid promo code');
+      }
+    } catch (err: any) {
+      setPromoError(err.message || 'Failed to validate promo code');
+    } finally {
+      setApplyingPromo(false);
     }
   };
 
@@ -222,12 +263,33 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-surface-700">Email Address (for confirmation receipt)</label>
+                    <label className="text-sm font-semibold text-surface-700">Email Address (Optional)</label>
                     <input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="john@example.com" className="w-full border border-surface-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500 outline-none" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-surface-700">Phone Number *</label>
-                    <input type="tel" required value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="+91 9999999999" className="w-full border border-surface-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500 outline-none" />
+                    <div className="flex gap-2">
+                      <select 
+                        value={countryCode} 
+                        onChange={e => setCountryCode(e.target.value)}
+                        className="w-24 border border-surface-300 rounded-xl px-2 py-3 focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                      >
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+1">+1 (US)</option>
+                        <option value="+44">+44 (UK)</option>
+                        <option value="+971">+971 (UAE)</option>
+                        <option value="+61">+61 (AU)</option>
+                        <option value="+65">+65 (SG)</option>
+                      </select>
+                      <input 
+                        type="tel" 
+                        required 
+                        value={guestPhone} 
+                        onChange={e => setGuestPhone(e.target.value.replace(/\D/g, ''))} 
+                        placeholder="9876543210" 
+                        className="flex-1 border border-surface-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500 outline-none" 
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -243,8 +305,110 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
                   </select>
                 </div>
 
+                {/* Promo Code Input */}
+                <div className="p-6 rounded-2xl bg-surface-50 border border-surface-200 border-dashed">
+                  <label className="block text-sm font-semibold text-surface-700 mb-2">Have a promo code?</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={promoCode} 
+                      onChange={e => setPromoCode(e.target.value.toUpperCase())} 
+                      placeholder="ENTER CODE" 
+                      className="flex-1 border border-surface-300 rounded-xl px-4 py-2 font-mono uppercase focus:ring-2 focus:ring-primary-500 outline-none" 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={handleApplyPromo}
+                      disabled={applyingPromo || !promoCode}
+                      className="bg-surface-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                      {applyingPromo ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                    </button>
+                  </div>
+                  {promoError && <p className="text-red-500 text-xs mt-2 font-medium">{promoError}</p>}
+                  {discountData && (
+                    <div className="mt-3 flex items-center gap-2 text-emerald-600">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="text-sm font-bold">Code {discountData.code} applied! ₹{discountData.discountAmount} saved</span>
+                      <button onClick={() => { setDiscountData(null); setPromoCode(''); }} className="ml-auto text-xs text-surface-400 hover:text-red-500 underline">Remove</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Mode Selector */}
+                {property.allowPayAtHotel && (
+                  <div className="space-y-3 pt-2">
+                    <label className="text-sm font-semibold text-surface-700">How would you like to pay?</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Pay Now Card */}
+                      {property.hasOnlinePayment && (
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMode('online')}
+                          className={`relative flex items-start gap-3.5 p-4 rounded-2xl border-2 text-left transition-all duration-200 ${
+                            paymentMode === 'online'
+                              ? 'border-primary-500 bg-primary-50/60 shadow-md shadow-primary-500/10'
+                              : 'border-surface-200 bg-white hover:border-surface-300 hover:bg-surface-50'
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                            paymentMode === 'online'
+                              ? 'bg-primary-500 text-white'
+                              : 'bg-surface-100 text-surface-500'
+                          }`}>
+                            <CreditCard className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-semibold text-sm ${
+                              paymentMode === 'online' ? 'text-primary-700' : 'text-surface-800'
+                            }`}>Pay Now</p>
+                            <p className="text-xs text-surface-500 mt-0.5">Secure online payment via UPI or Card</p>
+                          </div>
+                          {paymentMode === 'online' && (
+                            <CheckCircle2 className="w-5 h-5 text-primary-500 absolute top-3 right-3" />
+                          )}
+                        </button>
+                      )}
+
+                      {/* Pay at Hotel Card */}
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMode('pay_at_hotel')}
+                        className={`relative flex items-start gap-3.5 p-4 rounded-2xl border-2 text-left transition-all duration-200 ${
+                          paymentMode === 'pay_at_hotel'
+                            ? 'border-amber-500 bg-amber-50/60 shadow-md shadow-amber-500/10'
+                            : 'border-surface-200 bg-white hover:border-surface-300 hover:bg-surface-50'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          paymentMode === 'pay_at_hotel'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-surface-100 text-surface-500'
+                        }`}>
+                          <Building2 className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-semibold text-sm ${
+                            paymentMode === 'pay_at_hotel' ? 'text-amber-700' : 'text-surface-800'
+                          }`}>Pay at Hotel</p>
+                          <p className="text-xs text-surface-500 mt-0.5">No advance needed — pay at check-in</p>
+                        </div>
+                        {paymentMode === 'pay_at_hotel' && (
+                          <CheckCircle2 className="w-5 h-5 text-amber-500 absolute top-3 right-3" />
+                        )}
+                      </button>
+                    </div>
+                    {paymentMode === 'pay_at_hotel' && (
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                        <Banknote className="w-4 h-4 mt-0.5 shrink-0" />
+                        <p className="text-xs leading-relaxed">Your room will be reserved instantly. Full payment is due at the front desk during check-in.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button type="submit" disabled={submitting} className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 mt-8">
-                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Reservation'}
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : paymentMode === 'pay_at_hotel' ? 'Reserve — Pay at Hotel' : 'Confirm Reservation'}
                 </button>
                 <p className="text-center text-xs text-surface-500">By proceeding, you agree to our terms and cancellation policy.</p>
               </form>
@@ -256,8 +420,20 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-10 h-10 text-green-600" />
               </div>
-              <h2 className="text-3xl font-bold text-surface-900 mb-4">Booking Confirmed!</h2>
+              <h2 className="text-3xl font-bold text-surface-900 mb-4">
+                {paymentMode === 'pay_at_hotel' ? 'Reservation Confirmed!' : 'Booking Confirmed!'}
+              </h2>
               <p className="text-lg text-surface-600 mb-8">Thank you, {bookingResult.guestName}. Your reservation is confirmed.</p>
+              
+              {paymentMode === 'pay_at_hotel' && (
+                <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 mb-6 text-left">
+                  <Banknote className="w-6 h-6 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm">Payment due at check-in</p>
+                    <p className="text-xs mt-0.5">Please pay ₹{bookingResult.totalAmount?.toLocaleString('en-IN')} at the front desk on arrival.</p>
+                  </div>
+                </div>
+              )}
               
               <div className="bg-surface-50 rounded-2xl p-6 border border-surface-200 inline-block text-left mb-8 w-full max-w-sm">
                 <div className="mb-4">
@@ -319,15 +495,21 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
               <div className="pt-6 border-t border-white/10 space-y-3 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-surface-300">Room Base Rate (avg)</span>
-                  <span>₹{Math.round(availability.pricing.roomTotal / availability.pricing.nightlyRates.length)} x {availability.pricing.nightlyRates.length} nights</span>
+                  <span>₹{Math.round(availability.pricing.totalAmount / availability.pricing.nightlyRates.length)} x {availability.pricing.nightlyRates.length} nights</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-surface-300">Taxes & GST</span>
                   <span>₹{availability.pricing.totalGst}</span>
                 </div>
-                <div className="flex justify-between text-lg font-bold text-white pt-4 border-t border-white/10 mt-2">
+                {discountData && (
+                  <div className="flex justify-between text-sm text-emerald-400 font-semibold">
+                    <span>Discount ({discountData.code})</span>
+                    <span>- ₹{discountData.discountAmount}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-lg pt-4 border-t border-white/20">
                   <span>Total Amount</span>
-                  <span className="text-primary-400">₹{availability.pricing.grandTotal}</span>
+                  <span>₹{Math.max(0, (availability?.pricing?.grandTotal || 0) - (discountData?.discountAmount || 0)).toLocaleString('en-IN')}</span>
                 </div>
                 
                 {step === 1 && (
@@ -342,5 +524,6 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
 
       </div>
     </div>
+
   );
 }

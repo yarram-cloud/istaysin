@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe } from 'lucide-react';
+import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -11,7 +11,7 @@ import { COUNTRY_CODES } from '@/lib/constants';
 interface Booking {
   id: string; bookingNumber: string; guestName: string; guestPhone: string; guestEmail: string;
   checkInDate: string; checkOutDate: string; numRooms: number; numAdults: number; numChildren: number;
-  totalAmount: number; status: string; source: string; notes?: string;
+  totalAmount: number; discountAmount?: number; status: string; source: string; notes?: string;
   bookingRooms?: any[];
 }
 
@@ -95,6 +95,30 @@ export default function BookingsPage() {
         b.guestPhone?.includes(searchQuery)
       )
     : bookings;
+
+  // Pay at Hotel queue: unpaid bookings that need staff follow-up
+  const payAtHotelQueue = bookings.filter((b) => {
+    if (!b.notes) return false;
+    try {
+      const meta = JSON.parse(b.notes);
+      return meta.paymentMode === 'pay_at_hotel' && ['confirmed', 'pending_confirmation'].includes(b.status);
+    } catch { return false; }
+  });
+
+  function getExpiryInfo(booking: Booking): { label: string; isExpired: boolean; urgencyClass: string } {
+    try {
+      const meta = JSON.parse(booking.notes || '{}');
+      if (!meta.expiresAt) return { label: '', isExpired: false, urgencyClass: '' };
+      const expiresAt = new Date(meta.expiresAt);
+      const now = new Date();
+      const diffMs = expiresAt.getTime() - now.getTime();
+      if (diffMs <= 0) return { label: 'Expired', isExpired: true, urgencyClass: 'text-red-400' };
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      if (diffHrs < 2) return { label: `${diffHrs}h ${diffMins}m left`, isExpired: false, urgencyClass: 'text-amber-400' };
+      return { label: `${diffHrs}h left`, isExpired: false, urgencyClass: 'text-surface-400' };
+    } catch { return { label: '', isExpired: false, urgencyClass: '' }; }
+  }
 
   const statusLabels: Record<string, { label: string; class: string }> = {
     pending_confirmation: { label: 'Pending', class: 'badge-warning' },
@@ -223,11 +247,8 @@ export default function BookingsPage() {
                         required 
                         type="tel" 
                         inputMode="numeric"
-                        maxLength={10}
-                        placeholder={t('mobilePlaceholder') || '98765 43210'}
-                        className="flex-1 h-11 px-3 bg-transparent text-sm text-surface-800 placeholder:text-surface-400 outline-none" 
                         value={walkInForm.guestPhone} 
-                        onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
+                        onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value.replace(/\D/g, '')})} 
                       />
                     </div>
                   </div>
@@ -342,6 +363,115 @@ export default function BookingsPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Pay at Hotel Queue ────────────────────────────────── */}
+      <div className="glass-card overflow-hidden mb-8" style={{ borderLeft: '3px solid #f59e0b' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+              <Building2 className="w-4.5 h-4.5 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">Pay at Hotel Queue</h3>
+              <p className="text-[11px] text-surface-400">Manage unconfirmed web reservations requiring follow-up</p>
+            </div>
+          </div>
+          {payAtHotelQueue.length > 0 && (
+            <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 text-xs font-bold tabular-nums border border-amber-500/20 animate-pulse">
+              {payAtHotelQueue.length} {t('actionsRequired') || 'Actions Required'}
+            </span>
+          )}
+        </div>
+
+        {payAtHotelQueue.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center bg-white/[0.01]">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-3">
+              <CheckCircle className="w-6 h-6 text-emerald-500" />
+            </div>
+            <p className="text-sm font-medium text-surface-200">All caught up!</p>
+            <p className="text-xs text-surface-500 mt-1 max-w-[200px]">No pending Pay at Hotel reservations in the queue.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/[0.04]">
+            {payAtHotelQueue.map((booking) => {
+              const expiry = getExpiryInfo(booking);
+              return (
+                <div key={booking.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors">
+                  {/* Guest Info */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 text-sm font-semibold shrink-0">
+                      {booking.guestName?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{booking.guestName}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <a
+                          href={`tel:${booking.guestPhone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 transition-colors"
+                          title="Call guest"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {booking.guestPhone}
+                        </a>
+                        <span className="text-surface-600">·</span>
+                        <span className="text-[11px] text-surface-500 font-mono">{booking.bookingNumber}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stay Details */}
+                  <div className="hidden md:flex items-center gap-6 px-4 shrink-0">
+                    <div className="text-right">
+                      <p className="text-xs text-surface-500">Check-in</p>
+                      <p className="text-sm font-medium text-surface-200">
+                        {new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-surface-500">Amount Due</p>
+                      <p className="text-sm font-bold text-amber-400">₹{booking.totalAmount?.toLocaleString('en-IN')}</p>
+                    </div>
+                    {expiry.label && (
+                      <div className="text-right">
+                        <p className="text-xs text-surface-500">Expires</p>
+                        <p className={`text-xs font-medium flex items-center gap-1 ${expiry.urgencyClass}`}>
+                          <Clock className="w-3 h-3" /> {expiry.label}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleConfirm(booking.id); }}
+                      className="h-9 px-3.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-emerald-500/20"
+                      title="Confirm booking"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" /> Confirm
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCancel(booking.id, 'No-show / Pay at Hotel expired'); }}
+                      className="h-9 px-3.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-red-500/20"
+                      title="Cancel booking"
+                    >
+                      <Ban className="w-3.5 h-3.5" /> Cancel
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); }}
+                      className="h-9 w-9 rounded-lg bg-white/[0.04] text-surface-400 hover:bg-white/[0.08] hover:text-white flex items-center justify-center transition-colors border border-white/[0.06]"
+                      title="View details"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Search & Filters */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -455,11 +585,15 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const t = useTranslations('Dashboard');
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
   const [guestEmail, setGuestEmail] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [source, setSource] = useState('walk_in');
   const [notes, setNotes] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState(0);
   
   // Cart state for Group Bookings (multiple room types per reservation)
   const [roomSelections, setRoomSelections] = useState<{ roomTypeId: string; quantity: number; extraBeds: number }[]>([]);
@@ -521,7 +655,7 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
     try {
       await bookingsApi.create({
         guestName: guestName.trim(),
-        guestPhone: guestPhone.trim() || undefined,
+        guestPhone: guestPhone ? `${countryCode}${guestPhone.replace(/\D/g, '')}` : undefined,
         guestEmail: guestEmail.trim() || undefined,
         checkInDate: checkIn,
         checkOutDate: checkOut,
@@ -530,6 +664,7 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
         roomSelections: expandedSelections,
         source,
         notes: notes.trim() || undefined,
+        promoCode: promoCode.trim() || undefined,
       });
       onCreated();
       toast.success(t('bookingCreated') || 'Booking created successfully');
@@ -558,8 +693,25 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
               <div className="sm:col-span-2">
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} className="input-field" required placeholder="Guest full name *" />
               </div>
-              <div>
-                <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="input-field" placeholder="Phone number" />
+              <div className="flex gap-2">
+                <select 
+                  value={countryCode} 
+                  onChange={e => setCountryCode(e.target.value)}
+                  className="w-24 bg-surface-800 border border-white/[0.08] rounded-xl px-2 py-2 text-sm outline-none cursor-pointer"
+                >
+                  <option value="+91">+91 (IN)</option>
+                  <option value="+1">+1 (US)</option>
+                  <option value="+44">+44 (UK)</option>
+                  <option value="+971">+971 (UAE)</option>
+                  <option value="+61">+61 (AU)</option>
+                  <option value="+65">+65 (SG)</option>
+                </select>
+                <input 
+                  value={guestPhone} 
+                  onChange={(e) => setGuestPhone(e.target.value.replace(/\D/g, ''))} 
+                  className="input-field flex-1" 
+                  placeholder="Phone number" 
+                />
               </div>
               <div>
                 <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className="input-field" placeholder="Email address" />
@@ -644,6 +796,55 @@ function NewBookingModal({ onClose, onCreated }: { onClose: () => void; onCreate
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input-field" rows={2} placeholder="Optional notes for staff..." />
           </div>
 
+          <div>
+             <label className="block text-sm font-medium text-surface-300 mb-1">Promo Code</label>
+             <div className="flex gap-2">
+               <input 
+                 value={promoCode} 
+                 onChange={(e) => {
+                   setPromoCode(e.target.value.toUpperCase());
+                   if (discountAmount > 0) setDiscountAmount(0);
+                 }} 
+                 className="input-field font-mono uppercase flex-1" 
+                 placeholder="e.g. STAFF20" 
+               />
+               <button 
+                 type="button" 
+                 onClick={async () => {
+                   if (!promoCode) return;
+                   setApplyingPromo(true);
+                   try {
+                     // Simple estimate of amount for validation
+                     const res = await couponsApi.validate({
+                       code: promoCode,
+                       bookingAmount: 0, // Backend will use this for minimum amount check
+                       roomTypeId: roomSelections[0]?.roomTypeId || '',
+                       checkIn
+                     });
+                     if (res.success) {
+                       setDiscountAmount(res.data.discountAmount);
+                       toast.success(`Coupon applied: ₹${res.data.discountAmount} discount`);
+                     } else {
+                       toast.error(res.error || 'Invalid code');
+                     }
+                   } catch (err) {
+                     toast.error('Validation failed');
+                   } finally {
+                     setApplyingPromo(false);
+                   }
+                 }}
+                 disabled={applyingPromo || !promoCode}
+                 className="btn-secondary text-xs px-3"
+               >
+                 {applyingPromo ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Apply'}
+               </button>
+             </div>
+             {discountAmount > 0 && (
+               <p className="text-[10px] text-emerald-400 mt-1 font-medium italic">Applied Discount: ₹{discountAmount.toLocaleString('en-IN')}</p>
+             )}
+             <p className="text-[10px] text-surface-500 mt-1 italic">Enter a code for staff or guest discounts.</p>
+          </div>
+
           <div className="flex gap-3 pt-4 border-t border-white/[0.08]">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
             <button type="submit" disabled={saving || roomSelections.length === 0} className="btn-primary flex-1 flex items-center justify-center gap-2">
@@ -719,9 +920,21 @@ function BookingDetail({ booking, onClose, onConfirm, onCancel }: {
           {/* Amount */}
           <section>
             <h3 className="text-xs uppercase text-surface-500 font-medium mb-3">Billing</h3>
-            <div className="flex justify-between text-lg font-display font-bold">
-              <span className="text-surface-400">Total</span>
-              <span>₹{booking.totalAmount?.toLocaleString('en-IN')}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-surface-400">Booking Amount</span>
+                <span>₹{(booking.totalAmount + (booking.discountAmount || 0)).toLocaleString('en-IN')}</span>
+              </div>
+              {booking.discountAmount && (
+                <div className="flex justify-between text-sm text-emerald-400 font-medium">
+                  <span>Discount Applied</span>
+                  <span>- ₹{booking.discountAmount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-lg font-display font-bold pt-2 border-t border-white/[0.04]">
+                <span className="text-surface-400">Total</span>
+                <span>₹{booking.totalAmount?.toLocaleString('en-IN')}</span>
+              </div>
             </div>
           </section>
 

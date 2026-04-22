@@ -144,6 +144,7 @@ model Tenant {
   channelConnections  ChannelConnection[]
   pointTransactions   PointTransaction[]
   loyaltyRewards      LoyaltyReward[]
+  coupons             Coupon[]
   groupBlocks         GroupBlock[]
   nightAuditLogs      NightAuditLog[]
   posOutlets          PosOutlet[]
@@ -309,6 +310,30 @@ model PricingRule {
   @@map("pricing_rules")
 }
 
+model Coupon {
+  id                 String    @id @default(uuid())
+  tenantId           String    @map("tenant_id")
+  code               String    @db.VarChar(50)
+  discountType       String    @map("discount_type") // 'percentage', 'flat'
+  discountValue      Float     @map("discount_value")
+  maxUses            Int?      @map("max_uses")
+  currentUses        Int       @default(0) @map("current_uses")
+  minBookingAmount   Float     @default(0) @map("min_booking_amount")
+  validFrom          DateTime? @map("valid_from")
+  validUntil         DateTime? @map("valid_until")
+  applicableRoomTypes Json      @default("[]") @map("applicable_room_types") // Array of roomTypeId strings
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  bookings Booking[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("coupons")
+}
+
 model Room {
   id                 String   @id @default(uuid())
   tenantId           String   @map("tenant_id")
@@ -400,6 +425,8 @@ model Booking {
   checkedOutAt       DateTime? @map("checked_out_at")
   specialRequests    String?   @map("special_requests")
   notes              String?
+  couponId           String?   @map("coupon_id")
+  discountAmount     Float     @default(0) @map("discount_amount")
   createdBy          String?   @map("created_by")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
@@ -407,6 +434,7 @@ model Booking {
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
   groupBlock   GroupBlock?   @relation(fields: [groupBlockId], references: [id])
   guestProfile GuestProfile? @relation(fields: [guestProfileId], references: [id])
+  coupon       Coupon?       @relation(fields: [couponId], references: [id])
 
   bookingRooms      BookingRoom[]
   bookingGuests     BookingGuest[]

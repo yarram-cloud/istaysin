@@ -51,10 +51,15 @@ export async function withTenant<T>(
   }
 
   return actualPrisma.$transaction(async (tx) => {
-    // SET LOCAL cannot use parameterized queries ($1), this is a PostgreSQL limitation.
-    // The strict UUID regex above ensures only hex chars and dashes pass through.
-    await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
-    return txStore.run(tx, callback);
+    try {
+      // SET LOCAL cannot use parameterized queries ($1), this is a PostgreSQL limitation.
+      // The strict UUID regex above ensures only hex chars and dashes pass through.
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
+      return await txStore.run(tx, callback);
+    } catch (err) {
+      console.error(`[withTenant ERROR for ${tenantId}]`, err);
+      throw err;
+    }
   }, {
     timeout: 15000,
     isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,

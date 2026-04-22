@@ -25,6 +25,7 @@ const TENANT_TABLES = [
   'channel_connections',
   'point_transactions',
   'loyalty_rewards',
+  'coupons',
   'group_blocks'
 ] as const;
 
