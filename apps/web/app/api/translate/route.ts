@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not configured.' }, { status: 500 });
+      return NextResponse.json({ error: 'AI Translation is currently unavailable. Please configure the platform API keys or contact support.' }, { status: 500 });
     }
 
     const body = await req.json();

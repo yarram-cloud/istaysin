@@ -10,8 +10,10 @@ import {
   Waves, UtensilsCrossed, Car, Wind, Tv, Coffee, Bath, Dumbbell,
   TreePine, Flame, ParkingCircle, ShieldCheck, Baby, Dog, Shirt,
   Refrigerator, Phone, Lock, Sparkles, Mountain, Sun, Sunrise,
-  GlassWater, Umbrella, Gamepad2, Music, BookOpen, Accessibility
+  GlassWater, Umbrella, Gamepad2, Music, BookOpen, Accessibility,
+  Map as MapIcon, Award, Ticket, Contact
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Curated hospitality icons for the visual picker
 const HOSPITALITY_ICONS: { id: string; label: string; icon: any }[] = [
@@ -103,6 +105,10 @@ export default function WebsiteBuilderPage() {
       reviews: { enabled: true, title: 'Guest Reviews', limit: 3 },
       faq: { enabled: true, title: 'Frequently Asked Questions', questions: [] },
       policies: { enabled: true, title: 'Hotel Policies', contentHtml: '' },
+      location: { enabled: true, title: 'Location Map', coordinates: '' },
+      awards: { enabled: true, title: 'Awards & Recognition', items: [] },
+      offers: { enabled: true, title: 'Special Offers', items: [] },
+      contact: { enabled: true, title: 'Contact Us', email: '', phone: '' },
       footer: { enabled: true, text: '', socialLinks: { facebook: '', instagram: '', twitter: '' } },
       seo: { title: '', description: '', keywords: '' },
       scripts: { head: '', body: '' },
@@ -164,7 +170,7 @@ export default function WebsiteBuilderPage() {
         brandLogo, primaryColor, secondaryColor, tagline, heroImage, description,
         config: { websiteBuilder: websiteConfig }
       });
-      if (!silent) alert('Website mapped & published successfully! Edge CDN purged.');
+      if (!silent) toast.success('Website mapped & published successfully! Edge CDN purged.');
       
       // Auto refresh the preview iframe
       const iframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
@@ -172,14 +178,13 @@ export default function WebsiteBuilderPage() {
         iframe.contentWindow.location.reload();
       }
     } catch (err: any) {
-      if (!silent) alert(err.message || 'Failed to save settings');
+      if (!silent) toast.error(err.message || 'Failed to save settings');
     } finally {
       if (!silent) setSaving(false);
     }
   }
 
-  async function handleTranslate() {
-    if (!confirm(`Translate entire website component text to ${targetLang.toUpperCase()}? This will overwrite English fields.`)) return;
+  async function performTranslation() {
     setTranslating(true);
     try {
       const res = await fetch('/api/translate', {
@@ -193,12 +198,27 @@ export default function WebsiteBuilderPage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setWebsiteConfig({ ...websiteConfig, components: data.translatedContent });
-      alert('Translation Complete!');
+      toast.success('Translation Complete!');
     } catch (err: any) {
-      alert(err.message || 'Translation failed');
+      toast.error(err.message || 'Translation failed');
     } finally {
       setTranslating(false);
     }
+  }
+
+  function handleTranslate() {
+    toast(`Translate website to ${targetLang.toUpperCase()}?`, {
+      description: 'This will replace all current component text.',
+      duration: 10000,
+      action: {
+        label: 'Translate',
+        onClick: performTranslation
+      },
+      cancel: {
+        label: 'Cancel',
+        onClick: () => {}
+      }
+    });
   }
 
   function updateComponent(key: string, updates: any) {
@@ -225,7 +245,7 @@ export default function WebsiteBuilderPage() {
           if (setter) setter(res.url);
         }
       } catch {
-        alert('Upload failed. Please try pasting the URL instead.');
+        toast.error('Upload failed. Please try pasting the URL instead.');
       } finally {
         setUploading(null);
       }
@@ -254,13 +274,17 @@ export default function WebsiteBuilderPage() {
       { id: 'reviews', label: '9. Guest Reviews', icon: Star },
       { id: 'faq', label: '10. FAQ Section', icon: HelpCircle },
       { id: 'policies', label: '11. House Policies', icon: Shield },
-      { id: 'footer', label: '12. Footer & Socials', icon: MonitorDown },
+      { id: 'location', label: '12. Location Map', icon: MapIcon },
+      { id: 'awards', label: '13. Awards', icon: Award },
+      { id: 'offers', label: '14. Special Offers', icon: Ticket },
+      { id: 'contact', label: '15. Contact Us', icon: Contact },
+      { id: 'footer', label: '16. Footer & Socials', icon: MonitorDown },
     ]},
     { section: 'Advanced Operations', items: [
-      { id: 'seo', label: '13. SEO & Meta Tags', icon: Globe },
-      { id: 'scripts', label: '14. Tracking Scripts', icon: Code },
-      { id: 'advanced', label: '15. Advanced CSS', icon: Terminal },
-      { id: 'domain', label: '16. Custom Domain', icon: Link2 },
+      { id: 'seo', label: '17. SEO & Meta Tags', icon: Globe },
+      { id: 'scripts', label: '18. Tracking Scripts', icon: Code },
+      { id: 'advanced', label: '19. Advanced CSS', icon: Terminal },
+      { id: 'domain', label: '20. Custom Domain', icon: Link2 },
     ]}
   ];
 
@@ -277,6 +301,7 @@ export default function WebsiteBuilderPage() {
               value={targetLang} onChange={e => setTargetLang(e.target.value)}
               className="bg-transparent text-surface-800 px-3 py-1.5 outline-none text-sm border-r border-surface-200 font-medium"
             >
+              <option value="en">English</option>
               <option value="hi">Hindi</option>
               <option value="te">Telugu</option>
               <option value="ta">Tamil</option>
@@ -438,7 +463,12 @@ export default function WebsiteBuilderPage() {
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Brand Logo URL</label>
-                      <input type="url" value={brandLogo} onChange={(e) => setBrandLogo(e.target.value)} className="input-field shadow-sm text-sm" placeholder="https://..." />
+                      <div className="flex gap-2">
+                        <input type="url" value={brandLogo} onChange={(e) => setBrandLogo(e.target.value)} className="input-field shadow-sm text-sm flex-1" placeholder="https://..." />
+                        <button onClick={() => handleFileUpload('brandLogo', setBrandLogo)} disabled={uploading === 'brandLogo'} className="border border-surface-200 bg-surface-50 hover:bg-primary-50 hover:text-primary-600 rounded-xl px-3 flex items-center justify-center transition-colors" title="Upload Image">
+                          {uploading === 'brandLogo' ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Upload className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Default Tagline</label>
@@ -460,7 +490,8 @@ export default function WebsiteBuilderPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 border-t border-surface-100 pt-6">
                 {[
                   'header','hero','about','stats','amenities','rooms',
-                  'gallery','nearby','reviews','faq','policies','footer'
+                  'gallery','nearby','reviews','faq','policies','location',
+                  'awards','offers','contact','footer'
                 ].map(key => (
                   <label key={key} className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer shadow-sm ${
                     websiteConfig.components[key]?.enabled ? 'bg-primary-50/50 border-primary-200' : 'bg-surface-50 border-surface-200'
@@ -510,7 +541,12 @@ export default function WebsiteBuilderPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-surface-900">Background Image URL</label>
-                  <input type="url" value={heroImage} onChange={e => setHeroImage(e.target.value)} className="input-field shadow-sm" placeholder="https://..." />
+                  <div className="flex gap-2">
+                    <input type="url" value={heroImage} onChange={e => setHeroImage(e.target.value)} className="input-field shadow-sm flex-1" placeholder="https://..." />
+                    <button onClick={() => handleFileUpload('heroImage', setHeroImage)} disabled={uploading === 'heroImage'} className="border border-surface-200 bg-surface-50 hover:bg-primary-50 hover:text-primary-600 rounded-xl px-3 flex items-center justify-center transition-colors" title="Upload Image">
+                      {uploading === 'heroImage' ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Upload className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -531,7 +567,12 @@ export default function WebsiteBuilderPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-surface-900">Showcase Image URL</label>
-                  <input type="url" value={websiteConfig.components.about?.image || ''} onChange={e => updateComponent('about', { image: e.target.value })} className="input-field shadow-sm" placeholder="https://..." />
+                  <div className="flex gap-2">
+                    <input type="url" value={websiteConfig.components.about?.image || ''} onChange={e => updateComponent('about', { image: e.target.value })} className="input-field shadow-sm flex-1" placeholder="https://..." />
+                    <button onClick={() => handleFileUpload('aboutImage', (url) => updateComponent('about', { image: url }))} disabled={uploading === 'aboutImage'} className="border border-surface-200 bg-surface-50 hover:bg-primary-50 hover:text-primary-600 rounded-xl px-3 flex items-center justify-center transition-colors" title="Upload Image">
+                      {uploading === 'aboutImage' ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Upload className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -739,6 +780,9 @@ export default function WebsiteBuilderPage() {
                  {(websiteConfig.components.gallery?.images || []).map((imgUrl:string, i:number) => (
                     <div key={i} className="flex gap-2">
                        <input placeholder="https://..." value={imgUrl} onChange={e => { const n = [...websiteConfig.components.gallery.images]; n[i] = e.target.value; updateComponent('gallery', { images: n }); }} className="input-field flex-1 shadow-sm" />
+                       <button onClick={() => handleFileUpload(`gallery-${i}`, (url) => { const n = [...websiteConfig.components.gallery.images]; n[i] = url; updateComponent('gallery', { images: n }); })} disabled={uploading === `gallery-${i}`} className="border border-surface-200 bg-surface-50 hover:bg-primary-50 hover:text-primary-600 rounded-xl px-3 flex items-center justify-center transition-colors shadow-sm" title="Upload Image">
+                         {uploading === `gallery-${i}` ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Upload className="w-4 h-4" />}
+                       </button>
                        <button onClick={() => { const n = websiteConfig.components.gallery.images.filter((_:any, idx:number)=>idx!==i); updateComponent('gallery', { images: n }); }} className="text-red-500 hover:text-red-700 px-3 border border-surface-200 rounded-xl bg-surface-50 shadow-sm"><Trash2 className="w-4 h-4"/></button>
                     </div>
                  ))}
@@ -911,10 +955,155 @@ export default function WebsiteBuilderPage() {
             </div>
           )}
 
-          {/* 12. Footer */}
+          {/* 12. Location Map */}
+          {activeTab === 'location' && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">12. Location Map</h2>
+              <div className="space-y-6 bg-surface-50 p-6 rounded-2xl border border-surface-200">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm text-surface-500">Location coordinates are pulled automatically from your property settings.</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-surface-900">Map Title</label>
+                  <input type="text" value={websiteConfig.components.location?.title || ''} onChange={e => updateComponent('location', { title: e.target.value })} className="input-field shadow-sm" placeholder="Find Us Here" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 13. Awards */}
+          {activeTab === 'awards' && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">13. Awards & Recognition</h2>
+               <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-surface-500">Showcase your property's achievements.</p>
+                <button onClick={() => {
+                  const items = [...(websiteConfig.components.awards?.items || []), { title: 'TripAdvisor Excellence', year: new Date().getFullYear().toString(), image: '' }];
+                  updateComponent('awards', { items });
+                }} className="bg-primary-700 hover:bg-primary-600 text-white px-4 py-2 rounded-xl font-semibold text-sm inline-flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Add Award
+                </button>
+              </div>
+              <div className="space-y-2 mb-6">
+                  <label className="text-sm font-medium text-surface-900">Section Title</label>
+                  <input type="text" value={websiteConfig.components.awards?.title || ''} onChange={e => updateComponent('awards', { title: e.target.value })} className="input-field shadow-sm" placeholder="Awards" />
+              </div>
+              <div className="space-y-4">
+                {(websiteConfig.components.awards?.items || []).map((award: any, i: number) => (
+                  <div key={i} className="flex gap-4 items-start bg-surface-50 p-4 border border-surface-200 rounded-xl shadow-sm">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-surface-500">Image URL</label>
+                      <div className="flex gap-2">
+                        <input type="url" value={award.image || ''} onChange={e => {
+                          const items = [...websiteConfig.components.awards.items]; items[i].image = e.target.value; updateComponent('awards', { items });
+                        }} className="input-field shadow-sm w-48 text-sm" placeholder="https://..." />
+                        <button onClick={() => handleFileUpload(`awardImage_${i}`, (url) => {
+                          const items = [...websiteConfig.components.awards.items]; items[i].image = url; updateComponent('awards', { items });
+                        })} className="border border-surface-200 bg-surface-50 hover:bg-primary-50 hover:text-primary-600 rounded-xl px-3 flex items-center justify-center transition-colors px-4 py-2">
+                          <Upload className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <label className="text-xs font-semibold text-surface-500">Title</label>
+                      <input placeholder="Award Title" value={award.title} onChange={e => {
+                        const items = [...websiteConfig.components.awards.items]; items[i].title = e.target.value; updateComponent('awards', { items });
+                      }} className="input-field shadow-sm font-semibold" />
+                    </div>
+                    <div className="w-32 space-y-1">
+                      <label className="text-xs font-semibold text-surface-500">Year</label>
+                      <input placeholder="Year" value={award.year} onChange={e => {
+                        const items = [...websiteConfig.components.awards.items]; items[i].year = e.target.value; updateComponent('awards', { items });
+                      }} className="input-field shadow-sm text-sm" />
+                    </div>
+                    <button onClick={() => {
+                      const items = websiteConfig.components.awards.items.filter((_: any, idx: number) => idx !== i);
+                      updateComponent('awards', { items });
+                    }} className="text-red-500 hover:text-red-700 mt-6 p-2 rounded-lg hover:bg-red-50 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {(!websiteConfig.components.awards?.items || websiteConfig.components.awards.items.length === 0) && (
+                  <p className="text-sm text-surface-500 text-center py-4 bg-surface-50 rounded-xl border border-surface-200">No awards added.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 14. Special Offers */}
+          {activeTab === 'offers' && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">14. Special Offers</h2>
+               <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-surface-500">Show upcoming deals and packages.</p>
+                <button onClick={() => {
+                  const items = [...(websiteConfig.components.offers?.items || []), { title: 'Summer Special', description: 'Get 20% off', code: 'SUMMER20' }];
+                  updateComponent('offers', { items });
+                }} className="bg-primary-700 hover:bg-primary-600 text-white px-4 py-2 rounded-xl font-semibold text-sm inline-flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Add Offer
+                </button>
+              </div>
+              <div className="space-y-2 mb-6">
+                  <label className="text-sm font-medium text-surface-900">Section Title</label>
+                  <input type="text" value={websiteConfig.components.offers?.title || ''} onChange={e => updateComponent('offers', { title: e.target.value })} className="input-field shadow-sm" placeholder="Offers & Packages" />
+              </div>
+              <div className="space-y-4">
+                {(websiteConfig.components.offers?.items || []).map((offer: any, i: number) => (
+                  <div key={i} className="flex gap-4 items-start bg-surface-50 p-4 border border-surface-200 rounded-xl shadow-sm">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-xs font-semibold text-surface-500">Title</label>
+                      <input placeholder="Offer Title" value={offer.title} onChange={e => {
+                        const items = [...websiteConfig.components.offers.items]; items[i].title = e.target.value; updateComponent('offers', { items });
+                      }} className="input-field shadow-sm font-semibold" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <label className="text-xs font-semibold text-surface-500">Description</label>
+                      <input placeholder="Offer Details" value={offer.description} onChange={e => {
+                        const items = [...websiteConfig.components.offers.items]; items[i].description = e.target.value; updateComponent('offers', { items });
+                      }} className="input-field shadow-sm text-sm" />
+                    </div>
+                    <div className="w-32 space-y-1">
+                      <label className="text-xs font-semibold text-surface-500">Promo Code</label>
+                      <input placeholder="Code" value={offer.code} onChange={e => {
+                        const items = [...websiteConfig.components.offers.items]; items[i].code = e.target.value; updateComponent('offers', { items });
+                      }} className="input-field shadow-sm font-mono text-sm uppercase" />
+                    </div>
+                    <button onClick={() => {
+                      const items = websiteConfig.components.offers.items.filter((_: any, idx: number) => idx !== i);
+                      updateComponent('offers', { items });
+                    }} className="text-red-500 hover:text-red-700 mt-6 p-2 rounded-lg hover:bg-red-50 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {(!websiteConfig.components.offers?.items || websiteConfig.components.offers.items.length === 0) && (
+                  <p className="text-sm text-surface-500 text-center py-4 bg-surface-50 rounded-xl border border-surface-200">No offers added.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 15. Contact Us */}
+          {activeTab === 'contact' && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">15. Contact Us Section</h2>
+              <div className="space-y-6 bg-surface-50 p-6 rounded-2xl border border-surface-200">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm text-surface-500">Contact details (email, phone, address) are pulled automatically from your property global settings.</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-surface-900">Section Title</label>
+                  <input type="text" value={websiteConfig.components.contact?.title || ''} onChange={e => updateComponent('contact', { title: e.target.value })} className="input-field shadow-sm" placeholder="Get in Touch" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 16. Footer */}
           {activeTab === 'footer' && (
             <div className="space-y-6 animate-fade-in">
-              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">12. Footer & Contact Details</h2>
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">16. Footer & Contact Details</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-surface-50 p-6 rounded-2xl border border-surface-200">
                   <div className="space-y-2">
@@ -953,10 +1142,10 @@ export default function WebsiteBuilderPage() {
             </div>
           )}
 
-          {/* 13. SEO */}
+          {/* 17. SEO */}
           {activeTab === 'seo' && (
             <div className="space-y-6 animate-fade-in">
-              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">13. SEO & Meta Tags</h2>
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">17. SEO & Meta Tags</h2>
               <div className="space-y-6">
                  <div className="space-y-2">
                   <label className="text-sm font-medium text-surface-900">Meta Title Tag</label>
@@ -974,10 +1163,10 @@ export default function WebsiteBuilderPage() {
             </div>
           )}
 
-          {/* 14. Scripts */}
+          {/* 18. Scripts */}
           {activeTab === 'scripts' && (
             <div className="space-y-6 animate-fade-in">
-              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">14. Tracking Scripts</h2>
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">18. Tracking Scripts</h2>
               <div className="space-y-6 bg-surface-50 p-6 rounded-2xl border border-surface-200">
                  <div className="space-y-2">
                   <label className="text-sm font-bold text-surface-900 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded ml-2">Head Scripts</label>
@@ -993,10 +1182,10 @@ export default function WebsiteBuilderPage() {
             </div>
           )}
 
-          {/* 15. Advanced */}
+          {/* 19. Advanced */}
           {activeTab === 'advanced' && (
             <div className="space-y-6 animate-fade-in">
-              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">15. Advanced CSS overrides</h2>
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">19. Advanced CSS overrides</h2>
               <div className="space-y-2 bg-surface-900 p-6 rounded-2xl shadow-sm border border-surface-800">
                 <p className="text-sm text-surface-400 mb-4 font-mono">/* Provide standard CSS logic here to override theme variables globally. */</p>
                 <textarea rows={16} value={websiteConfig.components.advanced?.customCss || ''} onChange={e => updateComponent('advanced', { customCss: e.target.value })} className="w-full bg-surface-950 border border-surface-700 rounded-xl p-4 text-blue-300 font-mono text-sm focus:outline-none focus:border-primary-500 transition-colors shadow-inner" placeholder=":root {&#10;  --primary-500: #000; &#10;}" />
@@ -1004,10 +1193,10 @@ export default function WebsiteBuilderPage() {
             </div>
           )}
 
-          {/* 16. Domain */}
+          {/* 20. Domain */}
           {activeTab === 'domain' && (
             <div className="space-y-6 animate-fade-in">
-              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">16. Custom Domain Mapping</h2>
+              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">20. Custom Domain Mapping</h2>
               <div className="p-8 bg-surface-50 rounded-2xl border border-surface-200 shadow-sm text-center max-w-2xl mx-auto mt-8">
                  <Globe className="w-16 h-16 text-primary-500 mx-auto mb-6 opacity-80" />
                  <h3 className="text-xl font-bold text-surface-900 mb-3">Bring your own Domain</h3>

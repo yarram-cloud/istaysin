@@ -8,6 +8,7 @@ import {
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
   ClipboardList, TrendingUp, Star, Globe, Clock, Network
 } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 const sidebarGroups = [
   {
@@ -170,6 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main className="flex-1 p-6 lg:p-8">
+          <Toaster position="top-right" />
           {children}
         </main>
       </div>

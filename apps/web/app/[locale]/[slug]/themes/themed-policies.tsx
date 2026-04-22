@@ -29,7 +29,7 @@ export default function ThemedPolicies({ config, property, themeTokens }: { conf
           <h3 className={`text-5xl md:text-6xl font-black text-surface-900 mb-16 text-center ${themeTokens.fontHeadingClass}`}>{config.title || t('thingsToKnow')}</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {defaultPolicies.map((policy, i) => (
+            {defaultPolicies.map((policy: any, i: number) => (
               <div key={i} className={`bg-white p-8 ${themeTokens.radiusClass} border-2 border-surface-100 hover:border-[color:var(--brand-color,#000)] transition-colors shadow-xl flex flex-col items-start`}>
                  <div className={`w-14 h-14 ${themeTokens.radiusClass} bg-surface-100 flex items-center justify-center mb-6`}>
                    <policy.icon className={`w-6 h-6 ${themeTokens.primaryText}`} />
@@ -57,7 +57,7 @@ export default function ThemedPolicies({ config, property, themeTokens }: { conf
           <h3 className={`text-3xl font-light text-surface-900 mb-16 tracking-wide border-b border-surface-200 pb-6 ${themeTokens.fontHeadingClass}`}>{config.title || t('policies')}</h3>
           
           <div className="space-y-12">
-            {defaultPolicies.map((policy, i) => (
+            {defaultPolicies.map((policy: any, i: number) => (
               <div key={i} className="grid grid-cols-1 sm:grid-cols-12 gap-4 sm:gap-8 group">
                 <div className="sm:col-span-4 flex items-center gap-4">
                   <policy.icon className="w-4 h-4 text-surface-300 group-hover:text-black transition-colors" />
@@ -84,25 +84,32 @@ export default function ThemedPolicies({ config, property, themeTokens }: { conf
   // --- CHIC ARCHETYPE ---
   if (themeTokens.archetype === 'CHIC') {
     return (
-      <section className="py-24 bg-surface-950 text-white">
-        <div className="max-w-[1400px] mx-auto px-6">
-          <div className="grid md:grid-cols-3 gap-16">
-            <div className="md:col-span-1 border-r border-surface-800 pr-16 hidden md:block">
-              <h3 className={`text-4xl text-white mb-6 leading-tight ${themeTokens.fontHeadingClass}`}>{config.title || t('policies')}</h3>
-              <p className={`text-surface-400 font-light ${themeTokens.fontBodyClass}`}>{t('reviewHouseRules')}</p>
+      <section className="py-32 bg-white text-surface-950 border-t border-surface-100 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-surface-50/50 to-transparent pointer-events-none" />
+        <div className="max-w-[1400px] mx-auto px-8 md:px-16 relative z-10">
+          <div className="grid md:grid-cols-3 gap-16 lg:gap-24">
+            <div className="md:col-span-1 border-r border-surface-200 pr-16 hidden md:block">
+              <span className={`text-[11px] uppercase tracking-[0.3em] text-surface-500 font-bold mb-4 block ${themeTokens.fontBodyClass}`}>Essential info</span>
+              <h3 className={`text-4xl text-surface-950 mb-6 leading-tight drop-shadow-sm ${themeTokens.fontHeadingClass}`}>{config.title || t('policies')}</h3>
+              <p className={`text-surface-600 font-light leading-relaxed ${themeTokens.fontBodyClass}`}>{t('reviewHouseRules')}</p>
             </div>
             
             <div className="md:col-span-2">
-              <h3 className={`text-4xl text-white mb-12 md:hidden ${themeTokens.fontHeadingClass}`}>{config.title || t('policies')}</h3>
+              <h3 className={`text-4xl text-surface-950 mb-12 md:hidden ${themeTokens.fontHeadingClass}`}>{config.title || t('policies')}</h3>
               <div className="grid sm:grid-cols-2 gap-x-12 gap-y-16">
-                 {defaultPolicies.map((policy, i) => (
+                 {defaultPolicies.map((policy: any, i: number) => (
                    <div key={i} className="group">
                      <div className="flex items-center gap-4 mb-4">
-                       <h4 className={`text-sm uppercase tracking-[0.2em] text-surface-300 group-hover:text-white transition-colors ${themeTokens.fontHeadingClass}`}>{policy.title}</h4>
+                       <h4 className={`text-xs uppercase tracking-[0.2em] text-surface-500 font-bold group-hover:text-black transition-colors ${themeTokens.fontHeadingClass}`}>{policy.title}</h4>
                      </div>
-                     <p className={`text-lg text-surface-500 group-hover:text-surface-300 transition-colors ${themeTokens.fontBodyClass}`}>{policy.value}</p>
+                     <p className={`text-lg text-surface-700 font-light leading-relaxed group-hover:text-surface-900 transition-colors ${themeTokens.fontBodyClass}`}>{policy.value}</p>
                    </div>
                  ))}
+                 
+                 <div className="group col-span-1 sm:col-span-2 border-t border-surface-200 pt-8 mt-4 flex items-start gap-6">
+                    <Info className="w-5 h-5 text-surface-400 mt-1" />
+                    <p className={`text-surface-600 font-light leading-relaxed ${themeTokens.fontBodyClass}`}>{t('idRequirementInfo')}</p>
+                 </div>
               </div>
             </div>
           </div>
@@ -125,7 +132,7 @@ export default function ThemedPolicies({ config, property, themeTokens }: { conf
 
         <div className={`bg-white ${themeTokens.radiusClass} border border-surface-200 p-8 md:p-12 shadow-sm`}>
           <dl className="space-y-6 divide-y divide-surface-100">
-            {defaultPolicies.map((policy, i) => (
+            {defaultPolicies.map((policy: any, i: number) => (
               <div key={i} className={`flex flex-col sm:flex-row gap-2 sm:gap-8 ${i !== 0 ? 'pt-6' : ''}`}>
                 <dt className={`w-48 font-semibold text-surface-900 shrink-0 flex items-center gap-2 ${themeTokens.fontHeadingClass}`}>
                   <policy.icon className={`w-4 h-4 ${themeTokens.primaryText}`} />

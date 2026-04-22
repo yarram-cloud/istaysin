@@ -10,6 +10,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        brand: {
+          DEFAULT: 'rgb(var(--brand-color-rgb) / <alpha-value>)',
+        },
         primary: {
           50: '#f4f7f6',
           100: '#e3ebe8',

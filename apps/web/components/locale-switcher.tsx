@@ -82,7 +82,7 @@ export default function LocaleSwitcher({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 text-sm font-medium text-surface-600 hover:text-surface-900 transition-colors px-2 py-1.5 rounded-lg hover:bg-surface-100"
+        className="flex items-center gap-1.5 text-sm font-bold opacity-80 hover:opacity-100 transition-opacity px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-current"
         aria-label="Switch language"
       >
         <Globe className="w-4 h-4" />
