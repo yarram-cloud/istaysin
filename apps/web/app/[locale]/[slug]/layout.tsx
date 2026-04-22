@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { publicApi } from '@/lib/api';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   try {
@@ -32,8 +34,8 @@ export default async function PropertyLayout({
     if (res.success && res.data) {
       property = res.data;
     }
-  } catch (error) {
-    console.error('Failed to load property:', error);
+  } catch (error: any) {
+    console.error('[PropertyLayout] Failed to load property:', error.message);
   }
 
   if (!property) {
@@ -44,6 +46,9 @@ export default async function PropertyLayout({
   const config = property.config?.websiteBuilder || {};
   const primaryColor = property.primaryColor || '#0ea5e9';
   const secondaryColor = property.secondaryColor || '#38bdf8';
+
+  // Get messages for client components
+  const messages = await getMessages();
 
   // Inject CSS variables for the property theme
   const customStyles = `
@@ -59,8 +64,10 @@ export default async function PropertyLayout({
   `;
 
   return (
+    <NextIntlClientProvider messages={messages}>
     <div className="min-h-screen bg-surface-50 text-surface-900 font-sans flex flex-col">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
+
 
       {/* Property Header */}
       <header className="bg-white border-b border-surface-200 sticky top-0 z-50">
@@ -140,5 +147,6 @@ export default async function PropertyLayout({
         </div>
       </footer>
     </div>
+    </NextIntlClientProvider>
   );
 }

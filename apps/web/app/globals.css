@@ -115,30 +115,45 @@
 
   /* ── Sidebar (Dashboard) ── */
   .sidebar {
-    @apply fixed left-0 top-0 h-screen w-64 bg-surface-900 text-white border-r border-surface-800 z-40;
+    @apply fixed left-0 top-0 h-screen w-64 bg-surface-900 border-r border-white/[0.06] z-40;
   }
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-surface-300
-      hover:bg-white/10 hover:text-white transition-all;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-surface-400
+      hover:bg-white/[0.06] hover:text-white transition-all duration-200;
   }
-  .sidebar-link.active {
-    @apply bg-primary-600/20 text-primary-400;
+  .sidebar-link-active {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+      bg-primary-500/10 text-white border border-primary-500/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all duration-200;
   }
 }
 
 @layer utilities {
   .font-display { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; }
 
+  /* Hide scrollbar for clean premium sidebars */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
   /* Animations */
   @keyframes slideUp {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideLeft {
+    from { opacity: 0; transform: translateX(32px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
   @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
   }
   .animate-slide-up { animation: slideUp 0.6s ease-out both; }
+  .animate-slide-left { animation: slideLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
   .animate-fade-in  { animation: fadeIn 0.3s ease-out both; }
 }
 

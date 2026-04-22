@@ -35,8 +35,8 @@ test.describe('Public Guest Booking Portal UI Operations', () => {
       test.skip(true, 'Test property not found, skipping public IBE UI test.');
     }
 
-    // Verify rooms section exists (using text segment from the premium template UI 'Our Rooms & Suites')
-    await expect(page.locator('text=Our Rooms').first()).toBeVisible();
+    // Verify rooms section exists (using default translated text 'Accommodations')
+    await expect(page.locator('text=Accommodations').first()).toBeVisible();
     
     // Expect at least one booked link, this can vary by component structure variant
     await expect(page.locator('a[href*="/book"]').first()).toBeVisible();

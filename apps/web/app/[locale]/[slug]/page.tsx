@@ -32,28 +32,29 @@ export default async function PropertyHomePage({ params }: { params: { slug: str
   }
 
   const config = property.config?.websiteBuilder || {};
-  const themeTokens = getThemeTokens(config.templateId || 'default', config.primaryColor);
+  const components = config.components || {};
+  const themeTokens = getThemeTokens(config.theme || 'default', property.primaryColor || '#2563eb', config);
 
   return (
     <PropertyLayoutClient config={config} property={property}>
       {/* Absolute floating Booking Widget for Desktop, Sticky for Mobile */}
       <ThemedHeader config={config} property={property} themeTokens={themeTokens} locale={params.locale} />
 
-      <ThemedHero config={config} property={property} themeTokens={themeTokens} />
+      <ThemedHero config={components.hero || {}} property={property} themeTokens={themeTokens} />
 
       <div className="max-w-7xl mx-auto px-4 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 relative -mt-16 lg:mt-0 z-20">
 
         {/* Main Content Area */}
         <div className="lg:col-span-8 flex flex-col gap-0 rounded-3xl overflow-hidden bg-white shadow-2xl">
-          <ThemedAbout config={config} property={property} themeTokens={themeTokens} />
-          <ThemedAmenities config={config} themeTokens={themeTokens} />
-          <ThemedRooms property={property} locale={params.locale} propertySlug={params.slug} themeTokens={themeTokens} />
-          <ThemedGallery config={config} themeTokens={themeTokens} />
-          <ThemedStats config={config} themeTokens={themeTokens} />
-          <ThemedNearby config={config} themeTokens={themeTokens} />
-          <ThemedReviews property={property} themeTokens={themeTokens} />
-          <ThemedFaq config={config} themeTokens={themeTokens} />
-          <ThemedPolicies property={property} themeTokens={themeTokens} />
+          <ThemedAbout config={components.about || {}} property={property} themeTokens={themeTokens} />
+          <ThemedAmenities config={components.amenities || {}} themeTokens={themeTokens} />
+          <ThemedRooms config={components.rooms || {}} property={property} locale={params.locale} propertySlug={params.slug} themeTokens={themeTokens} />
+          <ThemedGallery config={components.gallery || {}} themeTokens={themeTokens} />
+          <ThemedStats config={components.stats || {}} themeTokens={themeTokens} />
+          <ThemedNearby config={components.nearby || {}} themeTokens={themeTokens} />
+          <ThemedReviews config={components.reviews || {}} property={property} themeTokens={themeTokens} />
+          <ThemedFaq config={components.faq || {}} themeTokens={themeTokens} />
+          <ThemedPolicies config={components.policies || {}} property={property} themeTokens={themeTokens} />
         </div>
 
         {/* Sidebar / Booking Engine */}

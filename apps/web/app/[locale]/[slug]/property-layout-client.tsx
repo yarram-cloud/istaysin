@@ -5,7 +5,9 @@ import { getThemeTokens } from './themes/theme-tokens';
 import ThemedFooter from './themes/themed-footer';
 
 export default function PropertyLayoutClient({ config, children, property }: { config: any, children: ReactNode, property: any }) {
-  const themeTokens = getThemeTokens(config.templateId || 'default', config.primaryColor);
+  const themeTokens = getThemeTokens(config.theme || 'default', property.primaryColor || '#2563eb', config);
+  const components = config.components || {};
+  const brandColor = property.primaryColor || '#2563eb';
 
   return (
     <div className="min-h-screen bg-surface-50 flex flex-col font-sans relative selection:bg-black/10">
@@ -13,14 +15,14 @@ export default function PropertyLayoutClient({ config, children, property }: { c
       <style dangerouslySetInnerHTML={{
         __html: `
           :root {
-            --brand-color: ${config.primaryColor || '#2563eb'};
+            --brand-color: ${brandColor};
           }
         `
       }} />
       <main className="flex-1 w-full flex flex-col relative z-0">
         {children}
       </main>
-      <ThemedFooter config={config} property={property} themeTokens={themeTokens} />
+      <ThemedFooter config={components.footer || {}} property={property} themeTokens={themeTokens} />
     </div>
   );
 }
