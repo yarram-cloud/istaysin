@@ -234,7 +234,7 @@ billingRouter.get('/invoices/:id/pdf', authorize('property_owner', 'general_mana
         include: {
           booking: {
             include: {
-              charges: true
+              folioCharges: true
             }
           }
         }
@@ -254,7 +254,7 @@ billingRouter.get('/invoices/:id/pdf', authorize('property_owner', 'general_mana
       
       const pdfBuffer = await buildInvoicePdf(
         invoice, 
-        invoice.booking?.charges || [], 
+        invoice.booking?.folioCharges || [], 
         tenant || {}
       );
 

@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { bookingsApi, roomsApi } from '@/lib/api';
+import { COUNTRY_CODES } from '@/lib/constants';
 
 interface Booking {
   id: string; bookingNumber: string; guestName: string; guestPhone: string; guestEmail: string;
@@ -21,6 +23,55 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  // Walk-in State
+  const [showWalkInCard, setShowWalkInCard] = useState(false);
+  const [walkInForm, setWalkInForm] = useState({ 
+    guestName: '', 
+    countryCode: '+91',
+    guestPhone: '', 
+    roomId: '', 
+    durationValue: 1, 
+    durationUnit: 'days', 
+    paymentMode: 'cash' 
+  });
+  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [roomSearch, setRoomSearch] = useState('');
+  const [submittingWalkIn, setSubmittingWalkIn] = useState(false);
+
+  useEffect(() => {
+    if (showWalkInCard && availableRooms.length === 0) {
+      roomsApi.getRooms({ status: 'available' })
+        .then(res => setAvailableRooms(res.data || []))
+        .catch(console.error);
+    }
+  }, [showWalkInCard, availableRooms.length]);
+
+  const handleWalkInSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingWalkIn(true);
+    try {
+      // Format phone number correctly (combine code + digits, strip whitespace)
+      const cleanPhone = walkInForm.guestPhone.replace(/\D/g, '');
+      const formattedPayload = {
+        ...walkInForm,
+        guestPhone: `${walkInForm.countryCode}${cleanPhone}`
+      };
+
+      await bookingsApi.walkIn(formattedPayload);
+      toast.success(t('walkInSuccess') || 'Walk-in booking created and checked in successfully!');
+      setShowWalkInCard(false);
+      setWalkInForm({ guestName: '', countryCode: '+91', guestPhone: '', roomId: '', durationValue: 1, durationUnit: 'days', paymentMode: 'cash' });
+      setRoomSearch('');
+      fetchBookings();
+      // Refetch available rooms next time
+      setAvailableRooms([]);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to process walk-in');
+    } finally {
+      setSubmittingWalkIn(false);
+    }
+  };
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -79,10 +130,132 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-display font-bold mb-1">Bookings</h1>
           <p className="text-surface-400">Manage all reservations and walk-ins</p>
         </div>
-        <button onClick={() => setShowNewBooking(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Booking
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowWalkInCard(!showWalkInCard)} className="btn-surface flex items-center gap-2 font-semibold">
+            <Zap className="w-4 h-4 text-amber-500" /> Quick Walk-in
+          </button>
+          <button onClick={() => setShowNewBooking(true)} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Booking
+          </button>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {showWalkInCard && (
+          <motion.div
+            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+            animate={{ height: 'auto', opacity: 1, marginBottom: 24 }}
+            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass-card mb-6 p-4 md:p-6 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-white/[0.08] relative shadow-sm">
+              <button 
+                onClick={() => setShowWalkInCard(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-200 dark:hover:bg-white/[0.04] text-surface-500 dark:text-surface-400 transition-colors"
+                type="button"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                  <Zap className="w-5 h-5 flex-shrink-0" />
+                </div>
+                <div>
+                  <h3 className="font-display font-semibold text-lg text-surface-900 dark:text-white leading-tight">Express Walk-in</h3>
+                  <p className="text-sm text-surface-500 dark:text-surface-400">Instantly book & check-in an arriving guest</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleWalkInSubmit} className="flex flex-col md:flex-row flex-wrap gap-4 md:items-end">
+                <div className="space-y-1.5 flex-1 min-w-[180px]">
+                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Guest Name</label>
+                  <input required placeholder="Full Name" className="input-field py-2.5" 
+                    value={walkInForm.guestName} onChange={e => setWalkInForm({...walkInForm, guestName: e.target.value})} />
+                </div>
+                
+                 <div className="space-y-1.5 flex-1 min-w-[220px]">
+                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Phone</label>
+                  <div className="flex">
+                    <div className="relative">
+                      <select 
+                        value={walkInForm.countryCode} 
+                        onChange={e => setWalkInForm({...walkInForm, countryCode: e.target.value})}
+                        className="w-[90px] h-full rounded-l-xl border border-r-0 border-surface-200 dark:border-white/[0.1] bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 text-sm px-2 outline-none focus:ring-2 focus:ring-primary-500 appearance-none cursor-pointer"
+                      >
+                        {COUNTRY_CODES.map((c) => (
+                          <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none text-surface-400">
+                        <Globe className="w-3 h-3" />
+                      </div>
+                    </div>
+                    <input 
+                      required 
+                      type="tel" 
+                      placeholder="Mobile Number" 
+                      className="input-field rounded-l-none py-2.5 flex-1" 
+                      value={walkInForm.guestPhone} 
+                      onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value})} 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Room Selection</label>
+                  <input 
+                    required
+                    list="walkin-rooms"
+                    placeholder="Search 100+ rooms..."
+                    className="input-field py-2.5"
+                    value={roomSearch}
+                    onChange={e => {
+                      setRoomSearch(e.target.value);
+                      const match = availableRooms.find(r => `${r.roomNumber} - ${r.roomType?.name}` === e.target.value);
+                      setWalkInForm(prev => ({ ...prev, roomId: match ? match.id : '' }));
+                    }}
+                  />
+                  <datalist id="walkin-rooms">
+                    {availableRooms.filter(r => r.status === 'available').map(r => (
+                      <option key={r.id} value={`${r.roomNumber} - ${r.roomType?.name}`} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="space-y-1.5 w-full md:w-auto min-w-[140px]">
+                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Duration</label>
+                  <div className="flex gap-2">
+                    <input required type="number" min="1" max="365" className="input-field py-2.5 w-20 px-2 text-center" 
+                      value={walkInForm.durationValue} onChange={e => setWalkInForm({...walkInForm, durationValue: parseInt(e.target.value) || 1})} />
+                    <select required className="input-field py-2.5 flex-1" 
+                      value={walkInForm.durationUnit} onChange={e => setWalkInForm({...walkInForm, durationUnit: e.target.value})}>
+                      <option value="days">Days</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 flex-1 min-w-[130px]">
+                  <label className="text-sm font-medium text-surface-700 dark:text-surface-200">Payment</label>
+                  <select required className="input-field py-2.5" 
+                    value={walkInForm.paymentMode} onChange={e => setWalkInForm({...walkInForm, paymentMode: e.target.value})}>
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="card">Card</option>
+                  </select>
+                </div>
+                
+                <div className="w-full md:w-auto md:ml-auto pt-4 md:pt-0">
+                  <button type="submit" disabled={submittingWalkIn} className="btn-primary w-full md:w-auto py-2.5 px-8 h-[42px] whitespace-nowrap shadow-lg shadow-primary-500/20">
+                    {submittingWalkIn ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Check In'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search & Filters */}
       <div className="flex items-center gap-4 flex-wrap">

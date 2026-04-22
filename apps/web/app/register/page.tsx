@@ -12,30 +12,8 @@ import {
   Building2, Eye, EyeOff, Loader2, ChevronRight, CheckCircle2,
   Phone, Mail, Sparkles,
 } from 'lucide-react';
+import { COUNTRY_CODES } from '@/lib/constants';
 import { authApi, tenantsApi, saveAuthData } from '@/lib/api';
-
-const COUNTRY_CODES = [
-  { code: '+91', flag: '🇮🇳', label: 'IN' },
-  { code: '+1', flag: '🇺🇸', label: 'US' },
-  { code: '+44', flag: '🇬🇧', label: 'GB' },
-  { code: '+971', flag: '🇦🇪', label: 'AE' },
-  { code: '+65', flag: '🇸🇬', label: 'SG' },
-  { code: '+61', flag: '🇦🇺', label: 'AU' },
-  { code: '+49', flag: '🇩🇪', label: 'DE' },
-  { code: '+33', flag: '🇫🇷', label: 'FR' },
-  { code: '+81', flag: '🇯🇵', label: 'JP' },
-  { code: '+86', flag: '🇨🇳', label: 'CN' },
-  { code: '+55', flag: '🇧🇷', label: 'BR' },
-  { code: '+27', flag: '🇿🇦', label: 'ZA' },
-  { code: '+60', flag: '🇲🇾', label: 'MY' },
-  { code: '+66', flag: '🇹🇭', label: 'TH' },
-  { code: '+977', flag: '🇳🇵', label: 'NP' },
-  { code: '+94', flag: '🇱🇰', label: 'LK' },
-  { code: '+880', flag: '🇧🇩', label: 'BD' },
-  { code: '+92', flag: '🇵🇰', label: 'PK' },
-  { code: '+39', flag: '🇮🇹', label: 'IT' },
-  { code: '+34', flag: '🇪🇸', label: 'ES' },
-];
 
 const PROPERTY_TYPES = [
   { value: 'hotel', label: 'Hotel' },

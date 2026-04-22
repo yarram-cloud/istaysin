@@ -183,9 +183,10 @@ export const roomsApi = {
 };
 
 // Bookings helpers
-// Backend routes: POST /, GET /, GET /:id, PATCH /:id/confirm, POST /:id/cancel
+// Backend routes: POST /, GET /, GET /:id, PATCH /:id/confirm, POST /:id/cancel, POST /walk-in
 export const bookingsApi = {
   create: (body: any) => apiFetch('/bookings', { method: 'POST', body: JSON.stringify(body) }),
+  walkIn: (body: any) => apiFetch('/bookings/walk-in', { method: 'POST', body: JSON.stringify(body) }),
   list: (params?: Record<string, string>) => {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/bookings${query}`);

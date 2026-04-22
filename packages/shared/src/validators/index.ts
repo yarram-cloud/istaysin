@@ -240,3 +240,12 @@ export const bookingGuestSchema = z.object({
   arrivingFrom: z.string().optional(),
   goingTo: z.string().optional(),
 });
+
+export const walkInBookingSchema = z.object({
+  guestName: z.string().min(2).max(100),
+  guestPhone: z.string().min(10, 'Phone must be at least 10 digits').max(18),
+  roomId: z.string().uuid(),
+  durationValue: z.number().int().min(1).max(365),
+  durationUnit: z.enum(['days', 'months']),
+  paymentMode: z.enum(['cash', 'upi', 'card']).optional(),
+});
