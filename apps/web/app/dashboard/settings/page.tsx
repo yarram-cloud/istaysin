@@ -71,7 +71,6 @@ export default function SettingsPage() {
 
 // ── Property Settings ────────────────────────────────────────
 function PropertySettings({ onBack }: { onBack: () => void }) {
-  const t = useTranslations('Dashboard');
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -122,7 +121,7 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
         checkInTime, checkOutTime, latitude: lat, longitude: lng,
         config: { ...settings?.config, languages, bookingPrefix: bookingPrefix.trim().toUpperCase().slice(0, 6) || 'IS' }
       });
-      toast.success(t('settingsSaved') || 'Settings saved!');
+      toast.success('Property Settings saved successfully!');
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   }

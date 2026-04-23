@@ -29,7 +29,6 @@ test.describe('Front Desk Operations', () => {
     const dateToday = new Date().toISOString().split('T')[0];
     const dateTomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
     
-    const tokenRes = await page.evaluate(() => localStorage.getItem('token'));
     
     const bookingRes = await request.post('/api/v1/public/bookings', {
       data: {
@@ -65,9 +64,7 @@ test.describe('Front Desk Operations', () => {
     await frontdeskPage.openBookingDetails(testBookingNumber);
 
     // 3. Perform Check-In
-    // Get the first available Room Number (101 mapped in global setup)
     await frontdeskPage.performCheckIn(
-      '101', 
       '123412341234', // Aadhaar Num
       'Mumbai, India', // Arriving From
       'Delhi, India'   // Going To

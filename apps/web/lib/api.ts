@@ -1,6 +1,35 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 
   (typeof window === 'undefined' ? 'http://localhost:4100/api/v1' : '/api/v1');
 
+// Mutex to prevent concurrent refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+async function attemptTokenRefresh(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const newToken = data.data?.accessToken;
+    if (newToken) {
+      localStorage.setItem('accessToken', newToken);
+      document.cookie = `accessToken=${newToken}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`;
+      return newToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 interface FetchOptions extends RequestInit {
   token?: string;
   tenantId?: string;
@@ -31,6 +60,43 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
     ...fetchOptions,
     headers,
   });
+
+  // If 401 and not the refresh endpoint itself, try silent refresh
+  if (response.status === 401 && typeof window !== 'undefined' && !endpoint.includes('/auth/refresh-token')) {
+    // Use mutex to prevent concurrent refresh storms
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = attemptTokenRefresh().finally(() => { isRefreshing = false; });
+    }
+
+    const newToken = await refreshPromise;
+    if (newToken) {
+      // Retry the original request with the new token
+      headers['Authorization'] = `Bearer ${newToken}`;
+      const retryResponse = await fetch(`${API_URL}${endpoint}`, {
+        cache: 'no-store',
+        ...fetchOptions,
+        headers,
+      });
+      const retryData = await retryResponse.json();
+      if (!retryResponse.ok) {
+        throw new Error(retryData.error || `API error: ${retryResponse.status}`);
+      }
+      return retryData;
+    }
+
+    // Refresh failed — clear auth and redirect to login
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('tenantId');
+    document.cookie = 'accessToken=; path=/; max-age=0';
+
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = '/login?reason=timeout';
+    }
+    throw new Error('Session expired. Please log in again.');
+  }
 
   const data = await response.json();
 
@@ -67,7 +133,7 @@ export function saveAuthData(data: { accessToken: string; refreshToken: string; 
     localStorage.setItem('tenantId', data.tenantId);
   }
   // Set cookie for Next.js middleware
-  document.cookie = `accessToken=${data.accessToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  document.cookie = `accessToken=${data.accessToken}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`;
 }
 
 // Auth helpers

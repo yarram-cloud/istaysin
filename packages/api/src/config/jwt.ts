@@ -14,5 +14,5 @@ export function getJwtRefreshSecret(): string {
   return secret;
 }
 
-export const JWT_ACCESS_EXPIRY = '15m';
+export const JWT_ACCESS_EXPIRY = '8h';
 export const JWT_REFRESH_EXPIRY = '7d';

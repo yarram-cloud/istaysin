@@ -5,7 +5,7 @@ import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap,
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { bookingsApi, roomsApi } from '@/lib/api';
+import { bookingsApi, roomsApi, checkinApi } from '@/lib/api';
 import { COUNTRY_CODES } from '@/lib/constants';
 
 interface Booking {
@@ -626,9 +626,11 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
   const [guestPhone, setGuestPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [guestEmail, setGuestEmail] = useState('');
-  const [checkIn, setCheckIn] = useState(new Date().toISOString().split('T')[0]);
+  const [checkIn, setCheckIn] = useState(() => {
+    const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
   const [checkOut, setCheckOut] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0];
+    const d = new Date(); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   });
   const [source, setSource] = useState('walk_in');
   const [notes, setNotes] = useState('');
@@ -878,6 +880,17 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
   });
   const [saving, setSaving] = useState(false);
 
+  // Check-in form state (controlled)
+  const [ciIdType, setCiIdType] = useState('aadhaar');
+  const [ciIdNumber, setCiIdNumber] = useState('');
+  const [ciArrivingFrom, setCiArrivingFrom] = useState('');
+  const [ciGoingTo, setCiGoingTo] = useState('');
+  const [ciPurpose, setCiPurpose] = useState('leisure');
+
+  // Check-out form state (controlled)
+  const [coBalance, setCoBalance] = useState('');
+  const [coPayMode, setCoPayMode] = useState('cash');
+
   // Room change state
   const [changingRoomId, setChangingRoomId] = useState<string | null>(null);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
@@ -1124,10 +1137,10 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
                       <Zap className="w-4 h-4 text-indigo-600" /> Fast-Track Check-In
                     </h4>
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-semibold text-indigo-800 mb-1">ID Type</label>
-                          <select className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                          <select value={ciIdType} onChange={e => setCiIdType(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
                             <option value="aadhaar">Aadhaar</option>
                             <option value="passport">Passport</option>
                             <option value="dl">Driving License</option>
@@ -1135,39 +1148,46 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-indigo-800 mb-1">ID Number</label>
-                          <input type="text" placeholder="12-digit" className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                          <input type="text" placeholder="12-digit" value={ciIdNumber} onChange={e => setCiIdNumber(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-semibold text-indigo-800 mb-1">Arriving From</label>
-                          <input type="text" placeholder="City/Country" className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                          <input type="text" placeholder="City/Country" value={ciArrivingFrom} onChange={e => setCiArrivingFrom(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-indigo-800 mb-1">Going To</label>
-                          <input type="text" placeholder="City/Country" className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                          <input type="text" placeholder="City/Country" value={ciGoingTo} onChange={e => setCiGoingTo(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <select className="flex-1 h-10 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <select value={ciPurpose} onChange={e => setCiPurpose(e.target.value)} className="flex-1 h-10 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
                           <option value="leisure">Leisure</option>
                           <option value="business">Business</option>
                           <option value="transit">Transit</option>
                         </select>
                         <button 
                           onClick={async () => {
-                            // Dummy checkin call to pass E2E 
                             try {
                               setSaving(true);
-                              await fetch(`/api/v1/check-in-out/${booking.id}/check-in`, { method: 'POST', headers: {'Authorization': `Bearer ${localStorage.getItem('token')}`}, body: JSON.stringify({}) });
+                              await checkinApi.checkIn(booking.id, {
+                                idProofType: ciIdType,
+                                idProofNumber: ciIdNumber,
+                                arrivingFrom: ciArrivingFrom,
+                                goingTo: ciGoingTo,
+                                purposeOfVisit: ciPurpose,
+                              });
                               toast.success('Successfully Checked In');
                               onUpdated();
+                            } catch (err: any) {
+                              toast.error(err.message || 'Check-in failed');
                             } finally { setSaving(false); }
                           }}
                           disabled={saving}
-                          className="flex-1 h-10 rounded-lg bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center hover:bg-indigo-500 transition-colors"
+                          className="flex-1 h-10 rounded-lg bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors disabled:opacity-50"
                         >
-                          Complete Check-In
+                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Complete Check-In
                         </button>
                       </div>
                     </div>
@@ -1193,17 +1213,20 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
                 <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
                   <Building2 className="w-4 h-4 text-amber-600" /> Complete Check-Out
                 </h4>
-                <div className="flex gap-3 items-center">
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium">₹</span>
-                    <input type="number" placeholder="Balance Due" className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30" />
+                    <input type="number" placeholder="Balance Due" value={coBalance} onChange={e => setCoBalance(e.target.value)} className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30" />
                   </div>
                   <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-1.5 text-sm text-amber-900">
-                      <input type="radio" name="payMode" value="cash" className="accent-amber-600" /> Cash
+                    <label className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer">
+                      <input type="radio" name={`payMode-${booking.id}`} value="cash" checked={coPayMode === 'cash'} onChange={() => setCoPayMode('cash')} className="accent-amber-600" /> Cash
                     </label>
-                    <label className="flex items-center gap-1.5 text-sm text-amber-900">
-                      <input type="radio" name="payMode" value="card" className="accent-amber-600" /> Card
+                    <label className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer">
+                      <input type="radio" name={`payMode-${booking.id}`} value="card" checked={coPayMode === 'card'} onChange={() => setCoPayMode('card')} className="accent-amber-600" /> Card
+                    </label>
+                    <label className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer">
+                      <input type="radio" name={`payMode-${booking.id}`} value="upi" checked={coPayMode === 'upi'} onChange={() => setCoPayMode('upi')} className="accent-amber-600" /> UPI
                     </label>
                   </div>
                 </div>
@@ -1211,15 +1234,20 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
                   onClick={async () => {
                     try {
                       setSaving(true);
-                      await fetch(`/api/v1/check-in-out/${booking.id}/check-out`, { method: 'POST', headers: {'Authorization': `Bearer ${localStorage.getItem('token')}`}, body: JSON.stringify({}) });
+                      await checkinApi.checkOut(booking.id, {
+                        balanceDue: parseFloat(coBalance) || 0,
+                        paymentMode: coPayMode,
+                      });
                       toast.success('Successfully Checked Out');
                       onUpdated();
+                    } catch (err: any) {
+                      toast.error(err.message || 'Check-out failed');
                     } finally { setSaving(false); }
                   }}
                   disabled={saving}
-                  className="mt-3 w-full h-10 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center hover:bg-amber-500 transition-colors"
+                  className="mt-3 w-full h-10 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-50"
                 >
-                  Complete Check-out
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Complete Check-out
                 </button>
               </div>
             )}

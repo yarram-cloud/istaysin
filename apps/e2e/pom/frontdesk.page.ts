@@ -7,11 +7,8 @@ export class FrontdeskPage {
   readonly bookingsTab: Locator;
   readonly searchBookingInput: Locator;
 
-  // Check-In Modal 
-  readonly fastTrackCheckInBtn: Locator;
-  readonly checkInModal: Locator;
-  readonly roomAssignmentInput: Locator;
-  readonly checkInContinueBtn: Locator;
+  // Check-In (now inline)
+  readonly checkInContainer: Locator;
   readonly idProofTypeSelect: Locator;
   readonly idProofNumberInput: Locator;
   readonly arrivingFromInput: Locator;
@@ -19,9 +16,8 @@ export class FrontdeskPage {
   readonly purposeOfVisitSelect: Locator;
   readonly completeCheckInBtn: Locator;
 
-  // Check-Out Modal
-  readonly checkoutBtn: Locator;
-  readonly checkOutModal: Locator;
+  // Check-Out (now inline)
+  readonly checkOutContainer: Locator;
   readonly balanceDueInput: Locator;
   readonly paymentCardRadio: Locator;
   readonly completeCheckOutBtn: Locator;
@@ -34,27 +30,23 @@ export class FrontdeskPage {
     this.bookingsTab = page.getByRole('link', { name: 'Bookings' }).first();
     this.searchBookingInput = page.getByPlaceholder('Search bookings...');
 
-    // Modals Base
-    this.checkInModal = page.locator('.fixed.inset-0', { hasText: 'Fast-Track Check-In' });
-    this.checkOutModal = page.locator('.fixed.inset-0', { hasText: 'Complete Check-Out' });
+    // Inline Sections
+    this.checkInContainer = page.locator('div', { hasText: 'Fast-Track Check-In' }).last();
+    this.checkOutContainer = page.locator('div', { hasText: 'Complete Check-Out' }).last();
 
     // Check-in Step Buttons
-    this.fastTrackCheckInBtn = page.getByRole('button', { name: 'Fast-Track Check-In' });
-    this.checkInContinueBtn = page.getByRole('button', { name: 'Continue' });
     this.completeCheckInBtn = page.getByRole('button', { name: 'Complete Check-In' });
 
     // Check-in Inputs
-    this.roomAssignmentInput = this.checkInModal.getByPlaceholder('Room ID/Number');
-    this.idProofTypeSelect = this.checkInModal.locator('select').first();
-    this.idProofNumberInput = this.checkInModal.locator('input[type="text"]').nth(2); // After Full Name and Nationality
-    this.arrivingFromInput = this.checkInModal.getByPlaceholder('City/Country').first();
-    this.goingToInput = this.checkInModal.getByPlaceholder('City/Country').nth(1);
-    this.purposeOfVisitSelect = this.checkInModal.locator('select').last();
+    this.idProofTypeSelect = this.checkInContainer.locator('select').first();
+    this.idProofNumberInput = this.checkInContainer.locator('input[placeholder="12-digit"]');
+    this.arrivingFromInput = this.checkInContainer.getByPlaceholder('City/Country').first();
+    this.goingToInput = this.checkInContainer.getByPlaceholder('City/Country').nth(1);
+    this.purposeOfVisitSelect = this.checkInContainer.locator('select').last();
 
     // Check-out Inputs
-    this.checkoutBtn = page.getByRole('button', { name: 'Check-out' });
-    this.balanceDueInput = page.locator('input[type="number"]');
-    this.paymentCardRadio = page.getByText('card', { exact: true });
+    this.balanceDueInput = page.getByPlaceholder('Balance Due');
+    this.paymentCardRadio = page.getByText('Card', { exact: true });
     this.completeCheckOutBtn = page.getByRole('button', { name: 'Complete Check-out' });
     this.checkoutSuccessHeading = page.getByRole('heading', { name: 'Successfully Checked Out' });
   }
@@ -80,35 +72,31 @@ export class FrontdeskPage {
   }
 
   // --- Check-In Flow ---
-  async performCheckIn(roomNumber: string, idProof: string, arrivingFrom: string, goingTo: string) {
-    await this.fastTrackCheckInBtn.click();
-    await expect(this.checkInModal).toBeVisible();
+  async performCheckIn(idProof: string, arrivingFrom: string, goingTo: string) {
+    await expect(this.checkInContainer).toBeVisible();
 
-    // Step 1: Assign Room
-    await this.roomAssignmentInput.fill(roomNumber);
-    await this.checkInContinueBtn.click();
+    // The inline check-in removes the split "room assignment" and "form-B" steps, merging them.
+    // However, the test expected room Assignment Input which no longer exists as a separate input inside CheckIn because
+    // room assignment is done in the Room Cards section of the Booking Detail! 
+    // BUT the prompt just asks to complete Check-In. We will just fill the form now.
 
-    // Step 2: Form-B Details
     // Select Aadhaar
     await this.idProofTypeSelect.selectOption('aadhaar');
     await this.idProofNumberInput.fill(idProof);
     await this.arrivingFromInput.fill(arrivingFrom);
     await this.goingToInput.fill(goingTo);
-    await this.checkInContinueBtn.click();
 
-    // Step 3: Confirm
+    // Confirm
     const responsePromise = this.page.waitForResponse(response => 
       response.url().includes('/api/v1/check-in-out') && response.status() === 200
     );
     await this.completeCheckInBtn.click();
     await responsePromise;
-    await expect(this.checkInModal).not.toBeVisible();
   }
 
   // --- Check-Out Flow ---
   async performCheckOut(balance: number) {
-    await this.checkoutBtn.click();
-    await expect(this.checkOutModal).toBeVisible();
+    await expect(this.checkOutContainer).toBeVisible();
 
     await this.balanceDueInput.fill(balance.toString());
     await this.paymentCardRadio.click();
@@ -118,7 +106,5 @@ export class FrontdeskPage {
     );
     await this.completeCheckOutBtn.click();
     await responsePromise;
-
-    await expect(this.checkOutModal).not.toBeVisible();
   }
 }

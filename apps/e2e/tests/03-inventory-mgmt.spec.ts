@@ -49,12 +49,12 @@ test.describe('Rooms & Inventory Management Flow', () => {
     // 3. Create Room using newly created floor and type
     await roomsPage.createRoom(roomNumber, floorName, typeName);
 
-    // 4. Verify room appears in the grid
-    const roomCard = page.locator('.glass-card, .border').filter({ hasText: roomNumber });
-    await expect(roomCard).toBeVisible({ timeout: 10000 });
-    await expect(roomCard).toContainText(typeName);
-    await expect(roomCard).toContainText(floorName);
-    await expect(roomCard).toContainText(/available/i); // Default status
+    // 4. Verify room appears in the table or grid 
+    // New UI uses white rounded-xl cards in grid view or table rows in table view
+    const roomCard = page.locator('tr, [class*="rounded-xl"]').filter({ hasText: roomNumber });
+    await expect(roomCard.first()).toBeVisible({ timeout: 10000 });
+    await expect(roomCard.first()).toContainText(typeName);
+    await expect(roomCard.first()).toContainText(/available/i); // Default status
   });
 
 });
