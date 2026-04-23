@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { markNotificationReadSchema, markAllNotificationsReadSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -31,7 +33,7 @@ notificationsRouter.get('/', async (req: Request, res: Response) => {
 });
 
 // PATCH /notifications/:id/read
-notificationsRouter.patch('/:id/read', async (req: Request, res: Response) => {
+notificationsRouter.patch('/:id/read', validateRequest(markNotificationReadSchema), async (req: Request, res: Response) => {
   try {
     const notification = await prisma.notification.update({
       where: { id: req.params.id },
@@ -44,7 +46,7 @@ notificationsRouter.patch('/:id/read', async (req: Request, res: Response) => {
 });
 
 // POST /notifications/read-all
-notificationsRouter.post('/read-all', async (req: Request, res: Response) => {
+notificationsRouter.post('/read-all', validateRequest(markAllNotificationsReadSchema), async (req: Request, res: Response) => {
   try {
     await prisma.notification.updateMany({
       where: { userId: req.userId, isRead: false, ...(req.tenantId ? { tenantId: req.tenantId } : {}) },

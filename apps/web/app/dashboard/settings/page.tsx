@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt, TrendingUp, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { tenantsApi } from '@/lib/api';
 import { DomainSettings } from './domain-settings';
+import { CompetitorRatesSettings } from './competitor-rates';
+import { ComplianceSettings } from './compliance';
 import dynamic from 'next/dynamic';
 
 const LocationPicker = dynamic(() => import('./location-picker'), { ssr: false });
@@ -16,6 +18,8 @@ export default function SettingsPage() {
     { id: 'property', icon: Building2, title: 'Property Details', desc: 'Name, address, type, contact info, check-in/out times' },
     { id: 'domain', icon: Globe, title: 'Domain Settings', desc: 'Subdomain, custom domain, and DNS configuration' },
     { id: 'billing', icon: Receipt, title: 'Billing & Taxes', desc: 'GST settings, invoicing details' },
+    { id: 'competitor', icon: TrendingUp, title: 'Rate Comparison', desc: 'Manage your direct booking rate widget (OTA comparisons)' },
+    { id: 'compliance', icon: FileText, title: 'Local Compliance', desc: 'Police Register (Sarai Act) and FRRO Settings' },
     { id: 'staff', icon: Users, title: 'Staff Management', desc: 'Invite and manage staff members with role-based access' },
     { id: 'subscription', icon: CreditCard, title: 'Subscription', desc: 'View and manage your istaysin plan' },
   ];
@@ -60,6 +64,8 @@ export default function SettingsPage() {
           {activeSection === 'domain' && <DomainSettings />}
           {activeSection === 'staff' && <StaffSettings onBack={() => setActiveSection(null)} />}
           {activeSection === 'billing' && <BillingSettings onBack={() => setActiveSection(null)} />}
+          {activeSection === 'competitor' && <CompetitorRatesSettings />}
+          {activeSection === 'compliance' && <ComplianceSettings onBack={() => setActiveSection(null)} />}
           {activeSection === 'subscription' && <SubscriptionSettings onBack={() => setActiveSection(null)} />}
         </div>
       )}

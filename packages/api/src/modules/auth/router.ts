@@ -1,3 +1,4 @@
+import { validateRequest } from '../../middleware/validate';
 import { Router, Request, Response } from 'express';
 import { randomInt } from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -6,7 +7,7 @@ import { prisma } from '../../config/database';
 import { getJwtSecret, getJwtRefreshSecret, JWT_ACCESS_EXPIRY, JWT_REFRESH_EXPIRY } from '../../config/jwt';
 import { authenticate } from '../../middleware/auth';
 import { authLimiter } from '../../middleware/rate-limit';
-import { registerSchema, loginSchema } from '@istays/shared';
+import { registerSchema, loginSchema, whatsappOtpSchema, verifyOtpSchema, refreshTokenSchema, updateLanguageSchema } from '@istays/shared';
 import { sendWelcomeEmail } from '../../services/email';
 import { dispatchOtpMessage } from '../../services/whatsapp';
 
@@ -226,7 +227,7 @@ authRouter.post('/login', authLimiter, async (req: Request, res: Response) => {
 });
 
 // POST /auth/send-whatsapp-otp
-authRouter.post('/send-whatsapp-otp', authLimiter, async (req: Request, res: Response) => {
+authRouter.post('/send-whatsapp-otp', validateRequest(whatsappOtpSchema), authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone } = req.body;
     if (!phone) {
@@ -258,7 +259,7 @@ authRouter.post('/send-whatsapp-otp', authLimiter, async (req: Request, res: Res
 });
 
 // POST /auth/verify-whatsapp-otp
-authRouter.post('/verify-whatsapp-otp', authLimiter, async (req: Request, res: Response) => {
+authRouter.post('/verify-whatsapp-otp', validateRequest(verifyOtpSchema), authLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, code, targetRole = 'guest' } = req.body;
     if (!phone || !code) {
@@ -374,7 +375,7 @@ authRouter.post('/verify-whatsapp-otp', authLimiter, async (req: Request, res: R
 });
 
 // POST /auth/refresh-token
-authRouter.post('/refresh-token', async (req: Request, res: Response) => {
+authRouter.post('/refresh-token', validateRequest(refreshTokenSchema), async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
@@ -462,7 +463,7 @@ authRouter.get('/me', authenticate, async (req: Request, res: Response) => {
 });
 
 // PUT /auth/me/language — update user preferred language
-authRouter.put('/me/language', authenticate, async (req: Request, res: Response) => {
+authRouter.put('/me/language', validateRequest(updateLanguageSchema), authenticate, async (req: Request, res: Response) => {
   try {
     const { language } = req.body;
     if (!language) {

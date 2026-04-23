@@ -7,7 +7,7 @@ test.describe('Public Guest Review Injection', () => {
   test.beforeEach(async ({ request }) => {
     // Authenticate Admin
     const adminRes = await request.post('/api/v1/auth/login', {
-      data: { email: 'owner-premium@e2e.com', password: 'Welcome@1' }
+      data: { identifier: 'owner-premium@e2e.com', password: 'Welcome@1' }
     });
     adminToken = (await adminRes.json()).data.accessToken;
 

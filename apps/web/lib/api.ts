@@ -125,12 +125,15 @@ function getTenantId(): string {
 }
 
 // Helper to save auth data after login/register
-export function saveAuthData(data: { accessToken: string; refreshToken: string; user: any; tenantId?: string }) {
+export function saveAuthData(data: { accessToken: string; refreshToken: string; user: any; tenantId?: string; memberships?: any[] }) {
   localStorage.setItem('accessToken', data.accessToken);
   localStorage.setItem('refreshToken', data.refreshToken);
   localStorage.setItem('user', JSON.stringify(data.user));
   if (data.tenantId) {
     localStorage.setItem('tenantId', data.tenantId);
+  }
+  if (data.memberships) {
+    localStorage.setItem('memberships', JSON.stringify(data.memberships));
   }
   // Set cookie for Next.js middleware
   document.cookie = `accessToken=${data.accessToken}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`;
@@ -495,4 +498,25 @@ export const couponsApi = {
   delete: (id: string) => apiFetch(`/coupons/${id}`, { method: 'DELETE' }),
   validate: (body: { code: string; bookingAmount: number; roomTypeId: string; checkIn: string }, tenantId?: string) => 
     apiFetch('/coupons/validate', { method: 'POST', body: JSON.stringify(body), tenantId }),
+};
+
+// Night Audit helpers
+export const nightAuditApi = {
+  getSummary: (dateStr?: string) => apiFetch(`/night-audit/summary${dateStr ? `?date=${dateStr}` : ''}`),
+  getHistory: () => apiFetch('/night-audit/history'),
+  runAudit: (targetDate?: string) => apiFetch('/night-audit/run', { method: 'POST', body: JSON.stringify({ targetDate }) }),
+};
+
+// Compliance helpers
+export const complianceApi = {
+  getGuestRegister: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return apiFetch(`/compliance/guest-register?${params.toString()}`);
+  },
+  submitPoliceRegister: (date?: string) => 
+    apiFetch('/compliance/police/submit', { method: 'POST', body: JSON.stringify({ date }) }),
+  submitCForm: (guestId: string) => 
+    apiFetch('/compliance/c-form/submit', { method: 'POST', body: JSON.stringify({ guestId }) }),
 };

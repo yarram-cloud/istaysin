@@ -6,10 +6,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2, LayoutDashboard, BedDouble, CalendarDays, Users, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
-  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag
+  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { NextIntlClientProvider } from 'next-intl';
+import messages from '@/messages/en.json';
 
 const sidebarGroups = [
   {
@@ -26,10 +27,12 @@ const sidebarGroups = [
     category: 'Front Desk',
     links: [
       { href: '/dashboard/front-desk/shifts', icon: Clock, label: 'Staff Shifts' },
+      { href: '/dashboard/night-audit', icon: ClipboardList, label: 'Night Audit' },
       { href: '/dashboard/rooms/calendar', icon: CalendarDays, label: 'Room Calendar' },
       { href: '/dashboard/housekeeping', icon: Sparkles, label: 'Housekeeping' },
       { href: '/dashboard/reviews', icon: Star, label: 'Reviews' },
       { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
+      { href: '/dashboard/compliance/register', icon: Shield, label: 'Compliance' },
     ]
   },
   {
@@ -49,19 +52,37 @@ const sidebarGroups = [
   }
 ];
 
+const planLabels: Record<string, string> = {
+  free: 'Free Plan',
+  basic: 'Basic Plan',
+  professional: 'Professional',
+  enterprise: 'Enterprise',
+};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [propertyName, setPropertyName] = useState('My Property');
+  const [plan, setPlan] = useState('free');
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
     if (stored) {
       setUser(JSON.parse(stored));
     }
-    // TODO: fetch property name from memberships
+    // Read membership info from the login response stored in localStorage
+    const memberships = localStorage.getItem('memberships');
+    if (memberships) {
+      try {
+        const parsed = JSON.parse(memberships);
+        if (parsed?.[0]?.tenant) {
+          setPropertyName(parsed[0].tenant.name || 'My Property');
+          setPlan(parsed[0].tenant.plan || 'free');
+        }
+      } catch { /* ignore */ }
+    }
   }, []);
 
   function handleLogout() {
@@ -69,12 +90,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     localStorage.removeItem('tenantId');
+    localStorage.removeItem('memberships');
     document.cookie = 'accessToken=; path=/; max-age=0';
     router.push('/login');
   }
 
   return (
-    <NextIntlClientProvider locale="en" messages={{}} getMessageFallback={({key}) => ''}>
+    <NextIntlClientProvider locale="en" messages={messages} getMessageFallback={({key}) => ''}>
     <div className="min-h-screen bg-surface-50 flex">
       {/* Sidebar */}
       <aside className={`
@@ -102,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium truncate">{propertyName}</p>
-                <p className="text-xs text-primary-400 font-semibold uppercase tracking-wider">Free Plan</p>
+                <p className="text-xs text-primary-400 font-semibold uppercase tracking-wider">{planLabels[plan] || plan}</p>
               </div>
               <ChevronDown className="w-4 h-4 text-surface-400" />
             </button>

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     // If production or Cloudinary configured, use Cloudinary
     if (process.env.CLOUDINARY_CLOUD_NAME) {
-       return new Promise((resolve) => {
+       return new Promise<NextResponse>((resolve) => {
          const uploadStream = cloudinary.uploader.upload_stream(
            { folder: 'istays' },
            (error, result) => {

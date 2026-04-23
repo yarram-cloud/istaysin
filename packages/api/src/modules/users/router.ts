@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { updateProfileSchema, changePasswordSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../../middleware/auth';
 import { prisma } from '../../config/database';
@@ -6,7 +8,7 @@ export const usersRouter = Router();
 usersRouter.use(authenticate);
 
 // PATCH /users/profile
-usersRouter.patch('/profile', async (req: Request, res: Response) => {
+usersRouter.patch('/profile', validateRequest(updateProfileSchema), async (req: Request, res: Response) => {
   try {
     const { fullName, phone, avatarUrl } = req.body;
     const user = await prisma.globalUser.update({
@@ -25,7 +27,7 @@ usersRouter.patch('/profile', async (req: Request, res: Response) => {
 });
 
 // PATCH /users/change-password
-usersRouter.patch('/change-password', async (req: Request, res: Response) => {
+usersRouter.patch('/change-password', validateRequest(changePasswordSchema), async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) {

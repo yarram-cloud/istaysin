@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { voidPosOrderSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -238,7 +240,7 @@ posRouter.post('/orders', authorize('property_owner', 'general_manager', 'fnb_ma
 });
 
 // PUT /pos/orders/:id/void — Void an open order
-posRouter.put('/orders/:id/void', authorize('property_owner', 'general_manager', 'fnb_manager'), async (req: Request, res: Response) => {
+posRouter.put('/orders/:id/void', validateRequest(voidPosOrderSchema), authorize('property_owner', 'general_manager', 'fnb_manager'), async (req: Request, res: Response) => {
   try {
     await withTenant(req.tenantId!, async () => {
       const order = await (prisma as any).posOrder.findUnique({ where: { id: req.params.id } });

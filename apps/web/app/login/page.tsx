@@ -27,6 +27,7 @@ export default function LoginPage() {
           refreshToken: res.data.refreshToken,
           user: res.data.user,
           tenantId: res.data.memberships?.[0]?.tenantId,
+          memberships: res.data.memberships,
         });
         // Redirect admin to admin panel, regular users to dashboard
         if (res.data.user?.isGlobalAdmin) {

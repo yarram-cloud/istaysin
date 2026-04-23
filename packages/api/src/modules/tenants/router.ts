@@ -178,7 +178,7 @@ tenantsRouter.patch(
         'lateCheckoutChargePercent', 'timezone', 'gstNumber', 'contactPhone',
         'contactEmail', 'address', 'city', 'state', 'pincode', 'description',
         'brandLogo', 'primaryColor', 'secondaryColor', 'tagline', 'heroImage',
-        'latitude', 'longitude'
+        'latitude', 'longitude', 'competitorRates'
       ];
 
       const updateData: Record<string, any> = {};

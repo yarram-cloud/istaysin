@@ -8,7 +8,7 @@ test.describe('Form-C & FRRO Export Compliance', () => {
   test.beforeEach(async ({ request }) => {
     // Authenticate Admin
     const adminRes = await request.post('/api/v1/auth/login', {
-      data: { email: 'owner-premium@e2e.com', password: 'Welcome@1' }
+      data: { identifier: 'owner-premium@e2e.com', password: 'Welcome@1' }
     });
     adminToken = (await adminRes.json()).data.accessToken;
 
@@ -24,7 +24,7 @@ test.describe('Form-C & FRRO Export Compliance', () => {
     });
   });
 
-  test('Generates Foreign National C-Form export natively', async ({ request }) => {
+  test('Generates Foreign National C-Form export and verifies Compliance Register', async ({ page, request }) => {
     const roomTypeId = (await (await request.get(`/api/v1/public/properties/premium-resort-pro`)).json()).data.roomTypes[0].id;
     const dateToday = new Date().toISOString().split('T')[0];
     const dateTomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -46,16 +46,8 @@ test.describe('Form-C & FRRO Export Compliance', () => {
     const booking = await bkgRes.json();
     bookingId = booking.data.id;
 
-    // 2. FrontDesk updates the BookingGuest logic to show them as a Foreign National (USA)
-    // Finding the auto-generated BookingGuest from the booking creation.
-    const bookingDetails = await request.get(`/api/v1/bookings/${bookingId}`, {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const detailsData = await bookingDetails.json();
-    console.log(JSON.stringify(detailsData, null, 2)); const bookingGuestId = detailsData.data.bookingGuests[0]?.id;
-
-    // Add guest as a foreign national
-    const guestPost = await request.post(`/api/v1/bookings/${bookingId}/guests`, {
+    // 2. Add guest as a foreign national
+    await request.post(`/api/v1/bookings/${bookingId}/guests`, {
       headers: { 'Authorization': `Bearer ${adminToken}` },
       data: {
         fullName: 'John Doe',
@@ -68,28 +60,35 @@ test.describe('Form-C & FRRO Export Compliance', () => {
         goingTo: 'Tokyo'
       }
     });
-    console.log("POST GUEST STATUS:", guestPost.status(), await guestPost.json());
 
-    // 3. Fetch the FRRO Compliance Export
-    const frroRes = await request.get('/api/v1/compliance/c-form/export?hours=24', {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    
-    expect(frroRes.status()).toBe(200);
-    const frroData = await frroRes.json();
-    
-    // Assert 
-    expect(frroData.success).toBeTruthy();
-    expect(Array.isArray(frroData.data)).toBe(true);
+    // 3. UI LOGIN & NAVIGATION
+    await page.goto('/login');
+    await page.fill('input[type="email"]', 'owner-premium@e2e.com');
+    await page.fill('input[type="password"]', 'Welcome@1');
+    await page.click('button[type="submit"]');
+    await page.waitForURL('/dashboard');
 
-    // Verify our American guest is caught by the 24 hour net
-    const caughtGuest = frroData.data.find((g: any) => g.PassportNumber === 'US-PASS-998877');
-    expect(caughtGuest).toBeDefined();
-    expect(caughtGuest.Nationality).toBe('American');
-    expect(caughtGuest.VisaNumber).toBe('V-112233');
-    expect(caughtGuest.PurposeOfVisit).toBe('Tourism');
+    // Go to Police Register
+    await page.goto('/dashboard/compliance/register');
+    await expect(page.locator('h1', { hasText: 'Police Master Register' })).toBeVisible();
 
-    // NOTE: If we made an Indian guest, they would NOT be in this export.
-    // Cleanup is omitted for simplicity as tenant isolation handles safety.
+    // The guest 'John Doe' should be listed in the table
+    await expect(page.locator('table >> text=John Doe').first()).toBeVisible();
+    await expect(page.locator('table >> text=American').first()).toBeVisible();
+
+    // Verify Email to SHO button works
+    await page.click('button:has-text("Email to SHO")');
+    await expect(page.locator('text=Successfully submitted to Station House Officer!')).toBeVisible();
+
+    // Go to Bookings Details panel
+    await page.goto('/dashboard/bookings');
+    await page.click('table >> text=John Doe');
+
+    // Look for FRRO panel and submit button
+    await expect(page.locator('h3:has-text("FRRO & Police Compliance")')).toBeVisible();
+    await page.click('button:has-text("Submit to FRRO")');
+    await expect(page.locator('text=Successfully submitted C-Form to FRRO!')).toBeVisible();
+    await expect(page.locator('text=FRRO Submitted')).toBeVisible();
+
   });
 });

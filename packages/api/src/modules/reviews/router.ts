@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { publishReviewSchema, replyReviewSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -56,7 +58,7 @@ reviewsRouter.get('/', async (req: Request, res: Response) => {
 });
 
 // PATCH /reviews/:id/publish - Toggle visibility of a review
-reviewsRouter.patch('/:id/publish', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+reviewsRouter.patch('/:id/publish', validateRequest(publishReviewSchema), authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
     const { isPublished } = req.body;
     if (typeof isPublished !== 'boolean') {
@@ -78,7 +80,7 @@ reviewsRouter.patch('/:id/publish', authorize('property_owner', 'general_manager
 });
 
 // PATCH /reviews/:id/reply - Add an owner reply to a review
-reviewsRouter.patch('/:id/reply', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+reviewsRouter.patch('/:id/reply', validateRequest(replyReviewSchema), authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
     const { ownerReply } = req.body;
     if (!ownerReply || typeof ownerReply !== 'string') {

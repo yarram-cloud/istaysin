@@ -10,7 +10,7 @@ test.describe('Global Loyalty Engine', () => {
   test.beforeEach(async ({ request }) => {
     // 1. Get Admin Token
     const adminRes = await request.post('/api/v1/auth/login', {
-      data: { email: 'owner-premium@e2e.com', password: 'Welcome@1' }
+      data: { identifier: 'owner-premium@e2e.com', password: 'Welcome@1' }
     });
     adminToken = (await adminRes.json()).data.accessToken;
 
@@ -41,7 +41,7 @@ test.describe('Global Loyalty Engine', () => {
     
     // Authenticate as Guest
     const guestLogin = await request.post('/api/v1/auth/login', {
-      data: { email: `loyal.${uniqueNum}@e2e.test`, password: 'Password123!' }
+      data: { identifier: `loyal.${uniqueNum}@e2e.test`, password: 'Password123!' }
     });
     guestToken = (await guestLogin.json()).data.accessToken;
   });

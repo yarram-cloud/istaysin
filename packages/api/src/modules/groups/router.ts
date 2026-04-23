@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { createGroupBlockSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -10,7 +12,7 @@ export const groupsRouter = Router();
 groupsRouter.use(authenticate, resolveTenant, requireTenant);
 
 // POST /groups/blocks
-groupsRouter.post('/blocks', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+groupsRouter.post('/blocks', validateRequest(createGroupBlockSchema), authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const { blockCode, name, companyName } = req.body;
 

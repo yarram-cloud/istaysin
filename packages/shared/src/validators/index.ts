@@ -277,3 +277,207 @@ export const validateCouponSchema = z.object({
   roomTypeId: z.string().uuid(),
   checkIn: z.string(),
 });
+
+// ============================================================
+// Auth Router Schemas
+// ============================================================
+export const whatsappOtpSchema = z.object({
+  phone: z.string().min(10, 'Phone must be at least 10 digits').max(15)
+});
+
+export const verifyOtpSchema = z.object({
+  phone: z.string().min(10).max(15),
+  otp: z.string().min(4).max(6)
+});
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1)
+});
+
+export const updateLanguageSchema = z.object({
+  language: z.enum(['en', 'hi', 'ta', 'te', 'mr', 'bn', 'gu', 'kn', 'ml', 'pa'])
+});
+
+// ============================================================
+// Bookings Router Additional Schemas
+// ============================================================
+export const confirmBookingSchema = z.object({
+  paymentMode: z.enum(['online', 'pay_at_hotel', 'cash', 'card', 'upi', 'bank_transfer']),
+  amount: z.number().min(0)
+});
+
+export const cancelBookingSchema = z.object({
+  reason: z.string().min(1).max(500).optional()
+});
+
+export const assignRoomSchema = z.object({
+  bookingRoomId: z.string().uuid(),
+  roomId: z.string().uuid()
+});
+
+export const updateBookingSchema = z.object({
+  guestName: z.string().min(2).max(100).optional(),
+  guestPhone: z.string().min(10).max(15).optional(),
+  guestEmail: z.string().email().optional().or(z.literal('')),
+  notes: z.string().max(1000).optional(),
+  checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+// ============================================================
+// Housekeeping Router Schemas
+// ============================================================
+export const updateTaskStatusSchema = z.object({
+  status: z.enum(['pending', 'in_progress', 'completed', 'verified', 'cancelled']),
+  notes: z.string().max(500).optional()
+});
+
+export const updateTaskSchema = z.object({
+  status: z.enum(['pending', 'in_progress', 'completed', 'verified', 'cancelled']).optional(),
+  assignedTo: z.string().uuid().optional().nullable(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  notes: z.string().max(500).optional()
+});
+
+export const createTaskSchema = z.object({
+  roomId: z.string().uuid().optional().nullable(),
+  taskType: z.enum(['cleaning', 'inspection', 'maintenance', 'turndown', 'setup', 'other']),
+  status: z.enum(['pending', 'in_progress', 'completed', 'verified', 'cancelled']).default('pending'),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
+  assignedTo: z.string().uuid().optional().nullable(),
+  notes: z.string().max(1000).optional()
+});
+
+export const createMaintenanceSchema = z.object({
+  roomId: z.string().uuid(),
+  issueType: z.string().min(1).max(100),
+  description: z.string().min(1).max(1000),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
+});
+
+// ============================================================
+// Notifications Router Schemas
+// ============================================================
+export const markNotificationReadSchema = z.object({
+  isRead: z.boolean()
+});
+
+export const markAllNotificationsReadSchema = z.object({
+  type: z.string().optional()
+});
+
+// ============================================================
+// Payments Router Schemas
+// ============================================================
+export const createRazorpayOrderSchema = z.object({
+  amount: z.number().positive(),
+  receipt: z.string().min(1).max(50),
+  bookingId: z.string().uuid().optional()
+});
+
+export const verifyRazorpayOrderSchema = z.object({
+  razorpay_order_id: z.string().min(1),
+  razorpay_payment_id: z.string().min(1),
+  razorpay_signature: z.string().min(1),
+  bookingId: z.string().uuid().optional()
+});
+
+// ============================================================
+// Platform Router Schemas
+// ============================================================
+export const platformApproveSchema = z.object({
+  notes: z.string().max(1000).optional()
+});
+
+export const platformRejectSchema = z.object({
+  reason: z.string().min(1).max(1000)
+});
+
+// ============================================================
+// POS Router Schemas
+// ============================================================
+export const voidPosOrderSchema = z.object({
+  reason: z.string().min(1).max(500)
+});
+
+// ============================================================
+// Pricing Router Schemas
+// ============================================================
+export const createPricingSchema = z.object({
+  roomTypeId: z.string().uuid(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  rate: z.number().min(0),
+  minStay: z.number().int().min(1).optional(),
+  isBlocked: z.boolean().default(false)
+});
+
+export const updatePricingSchema = z.object({
+  rate: z.number().min(0).optional(),
+  minStay: z.number().int().min(1).optional(),
+  isBlocked: z.boolean().optional()
+});
+
+// ============================================================
+// Reviews Router Schemas
+// ============================================================
+export const createReviewSchema = z.object({
+  bookingId: z.string().uuid(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(2000).optional()
+});
+
+export const publishReviewSchema = z.object({
+  isPublished: z.boolean()
+});
+
+export const replyReviewSchema = z.object({
+  reply: z.string().min(1).max(2000)
+});
+
+// ============================================================
+// Rooms Router Schemas
+// ============================================================
+export const updateRoomSchema = z.object({
+  roomNumber: z.string().min(1).max(20).optional(),
+  roomTypeId: z.string().uuid().optional(),
+  floorId: z.string().uuid().optional(),
+  status: z.enum(['available', 'occupied', 'dirty', 'maintenance', 'out_of_order']).optional(),
+  rateOverride: z.number().min(0).optional()
+});
+
+export const updateRoomStatusSchema = z.object({
+  status: z.enum(['available', 'occupied', 'dirty', 'maintenance', 'out_of_order'])
+});
+
+// ============================================================
+// Users Router Schemas
+// ============================================================
+export const updateProfileSchema = z.object({
+  fullName: z.string().min(2).max(100).optional(),
+  phone: z.string().min(10).max(20).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  avatarUrl: z.string().url().optional().or(z.literal(''))
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6).max(100)
+});
+
+// ============================================================
+// Channels Webhook Schema
+// ============================================================
+export const channelWebhookSchema = z.record(z.unknown());
+
+// ============================================================
+// Groups Router Schema
+// ============================================================
+export const createGroupBlockSchema = z.object({
+  name: z.string().min(2).max(200),
+  company: z.string().max(200).optional(),
+  checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  status: z.enum(['tentative', 'confirmed', 'cancelled']).default('tentative'),
+  roomsAssigned: z.number().int().min(1)
+});

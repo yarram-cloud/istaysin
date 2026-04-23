@@ -1,7 +1,8 @@
+import { validateRequest } from '../../middleware/validate';
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { optionalAuth } from '../../middleware/auth';
-import { bookingSchema } from '@istays/shared';
+import { bookingSchema, createReviewSchema, createRazorpayOrderSchema, verifyRazorpayOrderSchema } from '@istays/shared';
 import { calculatePricing } from '../../services/pricing';
 import { sendBookingConfirmation } from '../../services/email';
 import { dispatchBookingConfirmation } from '../../services/whatsapp';
@@ -126,6 +127,34 @@ publicRouter.get('/properties/:slug', optionalAuth, async (req: Request, res: Re
   } catch (err) {
     console.error('[PUBLIC PROPERTY DETAIL ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch property' });
+  }
+});
+
+// GET /public/properties/:slug/rate-comparison — OTA Competitor Rates
+publicRouter.get('/properties/:slug/rate-comparison', async (req: Request, res: Response) => {
+  try {
+    const property = await prisma.tenant.findUnique({
+      where: { slug: req.params.slug },
+      select: { competitorRates: true }
+    });
+
+    if (!property) {
+      res.status(404).json({ success: false, error: 'Property not found' });
+      return;
+    }
+
+    const rates = (property.competitorRates as Record<string, any>) || { enabled: false };
+    
+    // Only return data if it's explicitly enabled by the property owner
+    if (!rates.enabled) {
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    res.json({ success: true, data: rates });
+  } catch (err) {
+    console.error('[PUBLIC RATE COMPARISON ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch rate comparisons' });
   }
 });
 
@@ -269,7 +298,7 @@ publicRouter.get('/check-slug/:slug', async (req: Request, res: Response) => {
 });
 
 // POST /public/reviews — Guest submits a review
-publicRouter.post('/reviews', async (req: Request, res: Response) => {
+publicRouter.post('/reviews', validateRequest(createReviewSchema), async (req: Request, res: Response) => {
   try {
     const { bookingNumber, email, rating, text } = req.body;
 
@@ -618,7 +647,7 @@ publicRouter.post('/bookings', async (req: Request, res: Response) => {
  * POST /public/payments/razorpay/order
  * Secures a checkout session for a guest without authentication.
  */
-publicRouter.post('/payments/razorpay/order', async (req: Request, res: Response) => {
+publicRouter.post('/payments/razorpay/order', validateRequest(createRazorpayOrderSchema), async (req: Request, res: Response) => {
   try {
     const { bookingId, amount } = req.body;
     if (!bookingId || !amount) {
@@ -672,7 +701,7 @@ publicRouter.post('/payments/razorpay/order', async (req: Request, res: Response
  * POST /public/payments/razorpay/verify
  * Guest verifies an advance deposit to secure the reservation
  */
-publicRouter.post('/payments/razorpay/verify', async (req: Request, res: Response) => {
+publicRouter.post('/payments/razorpay/verify', validateRequest(verifyRazorpayOrderSchema), async (req: Request, res: Response) => {
   try {
     const { bookingId, amount, paymentId, orderId, signature } = req.body;
     if (!bookingId || !amount || !paymentId || !orderId || !signature) {

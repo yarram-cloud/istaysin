@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { runNightAudit } from '../../services/night-audit';
+import { runNightAudit, getNightAuditSummary, getNightAuditHistory } from '../../services/night-audit';
 import { authenticate } from '../../middleware/auth';
 import { resolveTenant, requireTenant } from '../../middleware/tenant-resolver';
 import { authorize } from '../../middleware/rbac';
@@ -9,7 +9,7 @@ import { logAudit } from '../../middleware/audit-log';
 export const nightAuditRouter = Router();
 
 // Protect all night audit routes
-nightAuditRouter.use(authenticate, resolveTenant, requireTenant, authorize('property_owner', 'general_manager'));
+nightAuditRouter.use(authenticate, resolveTenant, requireTenant, authorize('property_owner', 'general_manager', 'front_desk', 'accountant'));
 
 const runAuditSchema = z.object({
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional()
@@ -49,5 +49,34 @@ nightAuditRouter.post('/run', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[NIGHT AUDIT API ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to run night audit' });
+  }
+});
+
+// GET /night-audit/summary
+nightAuditRouter.get('/summary', async (req: Request, res: Response) => {
+  try {
+    const targetDate = req.query.date as string | undefined;
+    if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+      res.status(400).json({ success: false, error: 'Target date must be YYYY-MM-DD' });
+      return;
+    }
+    const tenantId = req.tenantId!;
+    const summary = await getNightAuditSummary(tenantId, targetDate);
+    res.json({ success: true, data: summary });
+  } catch (err) {
+    console.error('[NIGHT AUDIT SUMMARY ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to get night audit summary' });
+  }
+});
+
+// GET /night-audit/history
+nightAuditRouter.get('/history', async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!;
+    const history = await getNightAuditHistory(tenantId);
+    res.json({ success: true, data: history });
+  } catch (err) {
+    console.error('[NIGHT AUDIT HISTORY ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to get night audit history' });
   }
 });

@@ -1,9 +1,10 @@
+import { validateRequest } from '../../middleware/validate';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant, getLocalDate } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { resolveTenant, requireTenant } from '../../middleware/tenant-resolver';
 import { authorize } from '../../middleware/rbac';
-import { bookingSchema, bookingGuestSchema, walkInBookingSchema } from '@istays/shared';
+import { bookingSchema, bookingGuestSchema, walkInBookingSchema, confirmBookingSchema, cancelBookingSchema, assignRoomSchema, updateBookingSchema } from '@istays/shared';
 import { logAudit } from '../../middleware/audit-log';
 import { sendBookingConfirmation } from '../../services/email';
 import { sendWhatsAppMessage } from '../../services/whatsapp';
@@ -401,7 +402,7 @@ bookingsRouter.put('/:id/guests/:guestId', authorize('property_owner', 'general_
 });
 
 // PATCH /bookings/:id/confirm
-bookingsRouter.patch('/:id/confirm', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+bookingsRouter.patch('/:id/confirm', validateRequest(confirmBookingSchema), authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const result = await withTenant(req.tenantId!, async () => {
       // Verify booking exists and is in confirmable state
@@ -431,7 +432,7 @@ bookingsRouter.patch('/:id/confirm', authorize('property_owner', 'general_manage
 });
 
 // POST /bookings/:id/cancel
-bookingsRouter.post('/:id/cancel', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+bookingsRouter.post('/:id/cancel', validateRequest(cancelBookingSchema), authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const { reason } = req.body;
 
@@ -730,7 +731,7 @@ bookingsRouter.post('/walk-in', authorize('property_owner', 'general_manager', '
 
 
 // PUT /bookings/:id/assign-room — One-click room assignment
-bookingsRouter.put('/:id/assign-room', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+bookingsRouter.put('/:id/assign-room', validateRequest(assignRoomSchema), authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const { bookingRoomId, roomId } = req.body;
     if (!bookingRoomId || !roomId) {
@@ -792,7 +793,7 @@ bookingsRouter.put('/:id/assign-room', authorize('property_owner', 'general_mana
 
 
 // PUT /bookings/:id — Update booking details (guest info, dates, notes)
-bookingsRouter.put('/:id', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+bookingsRouter.put('/:id', validateRequest(updateBookingSchema), authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const { guestName, guestPhone, guestEmail, notes, checkInDate, checkOutDate } = req.body;
 

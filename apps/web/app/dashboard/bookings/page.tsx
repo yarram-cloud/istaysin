@@ -5,14 +5,14 @@ import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap,
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { bookingsApi, roomsApi, checkinApi } from '@/lib/api';
+import { bookingsApi, roomsApi, checkinApi, complianceApi } from '@/lib/api';
 import { COUNTRY_CODES } from '@/lib/constants';
 
 interface Booking {
   id: string; bookingNumber: string; guestName: string; guestPhone: string; guestEmail: string;
   checkInDate: string; checkOutDate: string; numRooms: number; numAdults: number; numChildren: number;
   totalAmount: number; discountAmount?: number; status: string; source: string; notes?: string;
-  bookingRooms?: any[];
+  bookingRooms?: any[]; bookingGuests?: any[];
 }
 
 export default function BookingsPage() {
@@ -929,6 +929,22 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
     } catch { }
   }
 
+  const [submittingCForm, setSubmittingCForm] = useState<string | null>(null);
+
+  async function handleCFormSubmit(guestId: string) {
+    setSubmittingCForm(guestId);
+    try {
+      const res = await complianceApi.submitCForm(guestId);
+      if (!res.success) throw new Error(res.error || 'Failed to submit C-Form');
+      toast.success('Successfully submitted C-Form to FRRO!');
+      onUpdated();
+    } catch (err: any) {
+      toast.error(err.message || 'Error communicating with FRRO');
+    } finally {
+      setSubmittingCForm(null);
+    }
+  }
+
   const canEdit = !['cancelled', 'checked_out', 'no_show'].includes(booking.status);
 
   return (
@@ -1031,6 +1047,62 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
             <span className="text-surface-900 font-medium capitalize">{booking.source?.replace(/_/g, ' ')}</span>
           </div>
         </div>
+
+        {/* FRRO & Sarai Compliance */}
+        {booking.bookingGuests && booking.bookingGuests.length > 0 && (
+          <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">
+            <h3 className="text-[11px] uppercase text-surface-500 font-semibold tracking-wider mb-3 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" /> FRRO & Police Compliance
+            </h3>
+            <div className="space-y-2">
+              {booking.bookingGuests.map((guest: any) => {
+                const isForeigner = guest.nationality && guest.nationality.toLowerCase() !== 'indian' && guest.nationality.toLowerCase() !== 'india';
+                return (
+                  <div key={guest.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded-lg border border-surface-100 gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-surface-900 flex items-center gap-2">
+                        {guest.fullName} 
+                        {isForeigner && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 font-bold uppercase tracking-wider">
+                            Foreign National
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-surface-500 mt-0.5">
+                        {guest.idProof && `ID: ${guest.idProof}`} {guest.visaDetails && `| Visa: ${guest.visaDetails}`}
+                      </p>
+                    </div>
+                    {isForeigner ? (
+                      <div>
+                        {guest.cFormSubmitted ? (
+                          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100">
+                            <CheckCircle className="w-3.5 h-3.5" /> FRRO Submitted
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => handleCFormSubmit(guest.id)} 
+                            disabled={submittingCForm === guest.id}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-50 px-2.5 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors disabled:opacity-50"
+                          >
+                            {submittingCForm === guest.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+                            Submit to FRRO
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs text-surface-500 font-medium">
+                        Domestic Guest
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-surface-400 mt-3 italic">
+              All guests listed here will automatically be included in your Sarai Act Police Register for the relevant dates.
+            </p>
+          </div>
+        )}
 
         {/* Room Cards */}
         <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">

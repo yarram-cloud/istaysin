@@ -8,7 +8,7 @@ test.describe('Global Admin Platform Security Constraints', () => {
     // Let's retrieve a token for it, or use the regular admin to verify they CANNOT access Global Routes
     const loginRes = await request.post('/api/v1/auth/login', {
       data: {
-        email: 'owner-premium@e2e.com', // 'premium-resort-pro' local admin
+        identifier: 'owner-premium@e2e.com', // 'premium-resort-pro' local admin
         password: 'Welcome@1',
       }
     });

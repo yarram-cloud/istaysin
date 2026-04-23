@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { createRazorpayOrderSchema, verifyRazorpayOrderSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -69,7 +71,7 @@ paymentsRouter.get('/upi/qr', authenticate, resolveTenant, requireTenant, async 
  * POST /payments/razorpay/order
  * Creates a Razorpay Order for a Booking
  */
-paymentsRouter.post('/razorpay/order', authenticate, resolveTenant, requireTenant, async (req: Request, res: Response) => {
+paymentsRouter.post('/razorpay/order', validateRequest(createRazorpayOrderSchema), authenticate, resolveTenant, requireTenant, async (req: Request, res: Response) => {
   try {
     const { bookingId, amount } = req.body;
     if (!bookingId || !amount) {
@@ -118,7 +120,7 @@ paymentsRouter.post('/razorpay/order', authenticate, resolveTenant, requireTenan
  * POST /payments/razorpay/verify
  * Verifies a Razorpay payment signature and records the payment
  */
-paymentsRouter.post('/razorpay/verify', authenticate, resolveTenant, requireTenant, async (req: Request, res: Response) => {
+paymentsRouter.post('/razorpay/verify', validateRequest(verifyRazorpayOrderSchema), authenticate, resolveTenant, requireTenant, async (req: Request, res: Response) => {
   try {
     const { bookingId, amount, paymentId, orderId, signature } = req.body;
     if (!bookingId || !amount || !paymentId || !orderId || !signature) {

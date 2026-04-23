@@ -13,7 +13,7 @@ test.describe('Dynamic Pricing Automation Workflow', () => {
 
     // 1. Authenticate as Admin to inject UI Rules
     const loginRes = await request.post('/api/v1/auth/login', {
-      data: { email: 'owner-premium@e2e.com', password: 'Welcome@1' }
+      data: { identifier: 'owner-premium@e2e.com', password: 'Welcome@1' }
     });
     const loginData = await loginRes.json();
     adminToken = loginData.data.accessToken;

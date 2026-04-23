@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { createPricingSchema, updatePricingSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authorize } from '../../middleware/rbac';
@@ -25,7 +27,7 @@ pricingRouter.get('/', authorize('property_owner', 'general_manager'), async (re
 });
 
 // POST /pricing
-pricingRouter.post('/', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+pricingRouter.post('/', validateRequest(createPricingSchema), authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
     const { name, startDate, endDate, daysOfWeek, roomTypeId, adjustmentType, adjustmentValue, priority, isActive } = req.body;
     
@@ -58,7 +60,7 @@ pricingRouter.post('/', authorize('property_owner', 'general_manager'), async (r
 });
 
 // PUT /pricing/:id
-pricingRouter.put('/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+pricingRouter.put('/:id', validateRequest(updatePricingSchema), authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, startDate, endDate, daysOfWeek, roomTypeId, adjustmentType, adjustmentValue, priority, isActive } = req.body;

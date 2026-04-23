@@ -105,6 +105,7 @@ model Tenant {
   lateCheckoutChargePercent Float    @default(50) @map("late_checkout_charge_percent")
   config                    Json     @default("{}")
   featureOverrides          Json     @default("{}") @map("feature_overrides")
+  competitorRates           Json?    @default("{}") @map("competitor_rates")
   brandLogo                 String?  @map("brand_logo")
   primaryColor              String?  @map("primary_color")
   secondaryColor            String?  @map("secondary_color")

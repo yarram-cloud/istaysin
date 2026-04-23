@@ -1,9 +1,10 @@
+import { validateRequest } from '../../middleware/validate';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { resolveTenant, requireTenant } from '../../middleware/tenant-resolver';
 import { authorize } from '../../middleware/rbac';
-import { floorSchema, roomTypeSchema, roomSchema } from '@istays/shared';
+import { floorSchema, roomTypeSchema, roomSchema, updateRoomSchema, updateRoomStatusSchema } from '@istays/shared';
 import { logAudit } from '../../middleware/audit-log';
 
 export const roomsRouter = Router();
@@ -176,7 +177,7 @@ roomsRouter.post('/', authorize('property_owner', 'general_manager'), async (req
 });
 
 // PUT /rooms/:id
-roomsRouter.put('/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+roomsRouter.put('/:id', validateRequest(updateRoomSchema), authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
     const { roomNumber, floorId, roomTypeId, baseRate } = req.body;
     if (!roomNumber?.trim()) {
@@ -290,7 +291,7 @@ roomsRouter.delete('/types/:id', authorize('property_owner', 'general_manager'),
 });
 
 // PATCH /rooms/:id/status
-roomsRouter.patch('/:id/status', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
+roomsRouter.patch('/:id/status', validateRequest(updateRoomStatusSchema), authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {
     const { status } = req.body;
     const validStatuses = ['available', 'occupied', 'blocked', 'maintenance', 'dirty', 'cleaning'];

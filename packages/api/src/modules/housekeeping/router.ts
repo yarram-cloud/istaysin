@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { updateTaskStatusSchema, updateTaskSchema, createTaskSchema, createMaintenanceSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -29,7 +31,7 @@ housekeepingRouter.get('/tasks', authorize('property_owner', 'general_manager', 
 });
 
 // PATCH /housekeeping/tasks/:id/status
-housekeepingRouter.patch('/tasks/:id/status', authorize('property_owner', 'general_manager', 'housekeeping', 'front_desk'), async (req: Request, res: Response) => {
+housekeepingRouter.patch('/tasks/:id/status', validateRequest(updateTaskStatusSchema), authorize('property_owner', 'general_manager', 'housekeeping', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const { status } = req.body;
     const validStatuses = ['pending', 'in_progress', 'completed', 'inspected'];
@@ -74,7 +76,7 @@ housekeepingRouter.patch('/tasks/:id/status', authorize('property_owner', 'gener
 });
 
 // PATCH /housekeeping/tasks/:id
-housekeepingRouter.patch('/tasks/:id', authorize('property_owner', 'general_manager', 'housekeeping', 'front_desk'), async (req: Request, res: Response) => {
+housekeepingRouter.patch('/tasks/:id', validateRequest(updateTaskSchema), authorize('property_owner', 'general_manager', 'housekeeping', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const { assignedTo, checklist, notes } = req.body;
 
@@ -96,7 +98,7 @@ housekeepingRouter.patch('/tasks/:id', authorize('property_owner', 'general_mana
 });
 
 // POST /housekeeping/tasks
-housekeepingRouter.post('/tasks', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
+housekeepingRouter.post('/tasks', validateRequest(createTaskSchema), authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {
     const { roomId, notes, assignedTo, taskType, priority } = req.body;
     if (!roomId) {
@@ -167,7 +169,7 @@ housekeepingRouter.post('/tasks', authorize('property_owner', 'general_manager',
 });
 
 // POST /housekeeping/maintenance
-housekeepingRouter.post('/maintenance', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
+housekeepingRouter.post('/maintenance', validateRequest(createMaintenanceSchema), authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {
     const { roomId, category, priority, description } = req.body;
 

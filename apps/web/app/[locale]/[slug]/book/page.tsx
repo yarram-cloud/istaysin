@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { publicApi, couponsApi } from '@/lib/api';
 import { Calendar, Users, CreditCard, ChevronRight, CheckCircle2, Loader2, ArrowLeft, Building2, Banknote } from 'lucide-react';
 import Link from 'next/link';
+import { RateComparisonWidget } from './rate-comparison';
 
 function formatDisplayDate(dateString: string | Date) {
   if (!dateString) return '-';
@@ -247,6 +248,19 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
                   {checkingAvailability ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Check Availability'}
                 </button>
               </form>
+
+              {property && roomTypeId && (
+                <div className="mt-8">
+                  <RateComparisonWidget 
+                    slug={params.slug} 
+                    roomTypeId={roomTypeId} 
+                    directRate={
+                      Math.round((availability?.pricing?.totalAmount || 0) / (availability?.pricing?.nightlyRates?.length || 1)) || 
+                      property.roomTypes?.find((r: any) => r.id === roomTypeId)?.baseRate || 0
+                    } 
+                  />
+                </div>
+              )}
             </div>
           )}
 

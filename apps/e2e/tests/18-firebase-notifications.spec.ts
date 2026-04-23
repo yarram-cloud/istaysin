@@ -7,7 +7,7 @@ test.describe('Firebase Cloud Messaging & WhatsApp Extensions Pipeline', () => {
   test.beforeEach(async ({ request }) => {
     // Authenticate Admin
     const adminRes = await request.post('/api/v1/auth/login', {
-      data: { email: 'owner-premium@e2e.com', password: 'Welcome@1' }
+      data: { identifier: 'owner-premium@e2e.com', password: 'Welcome@1' }
     });
     const body = await adminRes.json(); console.log(body); adminToken = body.data.accessToken;
 

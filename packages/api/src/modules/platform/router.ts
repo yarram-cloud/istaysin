@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { platformApproveSchema, platformRejectSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -25,7 +27,7 @@ platformRouter.get('/registrations', async (req: Request, res: Response) => {
 });
 
 // POST /platform/approve/:id
-platformRouter.post('/approve/:id', async (req: Request, res: Response) => {
+platformRouter.post('/approve/:id', validateRequest(platformApproveSchema), async (req: Request, res: Response) => {
   try {
     const tenant = await prisma.tenant.update({
       where: { id: req.params.id },
@@ -44,7 +46,7 @@ platformRouter.post('/approve/:id', async (req: Request, res: Response) => {
 });
 
 // POST /platform/reject/:id
-platformRouter.post('/reject/:id', async (req: Request, res: Response) => {
+platformRouter.post('/reject/:id', validateRequest(platformRejectSchema), async (req: Request, res: Response) => {
   try {
     const { reason } = req.body;
     const tenant = await prisma.tenant.update({

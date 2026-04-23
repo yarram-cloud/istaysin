@@ -1,3 +1,5 @@
+import { validateRequest } from '../../middleware/validate';
+import { channelWebhookSchema } from '@istays/shared';
 import { Router, Request, Response } from 'express';
 import { prisma, withTenant } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
@@ -11,7 +13,7 @@ export const channelsRouter = Router();
 
 // Public Webhook Ingestion
 // In production, validate via HMAC signature or IP whitelist per provider
-channelsRouter.post('/webhooks/incoming/:channel', async (req: Request, res: Response) => {
+channelsRouter.post('/webhooks/incoming/:channel', validateRequest(channelWebhookSchema), async (req: Request, res: Response) => {
   try {
     const { channel } = req.params;
     const allowedChannels = ['booking_com', 'makemytrip', 'agoda', 'airbnb', 'expedia', 'goibibo'];

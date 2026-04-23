@@ -9,7 +9,7 @@ test.describe('Staff Shifts and Handover Workflows', () => {
     // We execute a raw backend authentication to fetch the JWT and Admin ID
     const loginRes = await request.post('/api/v1/auth/login', {
       data: {
-        email: 'owner-premium@e2e.com',
+        identifier: 'owner-premium@e2e.com',
         password: 'Welcome@1',
       }
     });
