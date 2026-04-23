@@ -60,21 +60,24 @@ export default function BillingPage() {
   };
 
   return (
-    <div className="space-y-6 print-container">
-      {/* 
-        Print styling: We use global print styles to hide headers/navigation in layout component,
-        but we can also use tailwind's print: modifier to force simple layouts.
-      */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @media print {
-          body * { visibility: hidden; }
-          .print-container, .print-container * { visibility: visible; }
-          .print-container { position: absolute; left: 0; top: 0; width: 100%; }
-        }
-      `}} />
-      <div className="print:hidden">
-        <h1 className="text-2xl font-display font-bold mb-1">Billing & Invoices</h1>
-        <p className="text-surface-400">Manage guest folios, payments, and GST invoicing</p>
+    <div className="space-y-6">
+      {/* Print Header (Visible only in print) */}
+      <div className="hidden print:block invoice-header">
+        <h1 className="text-2xl font-bold uppercase tracking-widest text-black">{t('taxInvoice')}</h1>
+        <p className="text-sm font-serif text-black">{t('folioSummary')}</p>
+      </div>
+
+      <div className="flex items-center justify-between flex-wrap gap-4 print:hidden">
+        <div>
+          <h1 className="text-2xl font-display font-bold mb-1">{t('billing')}</h1>
+          <p className="text-surface-400">{t('billingSub')}</p>
+        </div>
+        <button 
+          onClick={() => window.print()}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <Printer className="w-4 h-4" /> {t('printReports')}
+        </button>
       </div>
 
       {/* Summary Cards */}
@@ -109,7 +112,7 @@ export default function BillingPage() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
+      <div className="relative max-w-md print:hidden">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
         <input type="text" placeholder="Search invoices..." value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-10 py-2.5" />
@@ -207,6 +210,9 @@ export default function BillingPage() {
           </table>
         </div>
       )}
+      <div className="hidden print:block computer-generated">
+        {t('computerGeneratedFooter')}
+      </div>
     </div>
   );
 }

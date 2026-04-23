@@ -7,6 +7,7 @@ import { sendBookingConfirmation } from '../../services/email';
 import { dispatchBookingConfirmation } from '../../services/whatsapp';
 import { logAudit } from '../../middleware/audit-log';
 import { createRazorpayOrder, verifyRazorpayPayment } from '../../services/razorpay';
+import { publicHintsLimiter } from '../../middleware/rate-limit';
 export const publicRouter = Router();
 
 // GET /public/properties — public property directory
@@ -125,6 +126,49 @@ publicRouter.get('/properties/:slug', optionalAuth, async (req: Request, res: Re
   } catch (err) {
     console.error('[PUBLIC PROPERTY DETAIL ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch property' });
+  }
+});
+
+// GET /public/properties/:slug/availability-hints — urgency triggers
+publicRouter.get('/properties/:slug/availability-hints', publicHintsLimiter, async (req: Request, res: Response) => {
+  try {
+    const property = await prisma.tenant.findUnique({
+      where: { slug: req.params.slug },
+      select: { id: true }
+    });
+
+    if (!property) {
+      res.status(404).json({ success: false, error: 'Property not found' });
+      return;
+    }
+
+    const tenantId = property.id;
+    const now = new Date();
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [roomsLeftToday, recentBookings, dynamicPricingCount] = await Promise.all([
+      prisma.room.count({
+        where: { tenantId, status: 'available', isActive: true }
+      }),
+      prisma.booking.count({
+        where: { tenantId, createdAt: { gte: last24h }, status: { not: 'cancelled' } }
+      }),
+      prisma.pricingRule.count({
+        where: { tenantId, isActive: true }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        roomsLeftToday,
+        recentBookings,
+        dynamicPricingActive: dynamicPricingCount > 0
+      }
+    });
+  } catch (err) {
+    console.error('[AVAILABILITY HINTS ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch hints' });
   }
 });
 

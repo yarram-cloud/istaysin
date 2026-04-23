@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { BedDouble, Plus, X, Trash2, Edit2, Layers, Tag, Loader2 } from 'lucide-react';
+import { BedDouble, Plus, X, Trash2, Edit2, Layers, Tag, Loader2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { roomsApi } from '@/lib/api';
@@ -75,11 +75,18 @@ export default function RoomsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1 text-surface-900">Rooms</h1>
-          <p className="text-surface-500">Manage your property&apos;s rooms and availability</p>
+          <h1 className="text-2xl font-display font-bold mb-1 text-surface-900">{t('rooms')}</h1>
+          <p className="text-surface-500">{t('roomsSub')}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowManageFloors(true)} className="btn-secondary flex items-center gap-2 text-sm shadow-sm">
+          <button 
+            onClick={() => window.print()}
+            className="btn-secondary flex items-center gap-2 text-sm shadow-sm print:hidden"
+            title={t('printHousekeeping')}
+          >
+            <Printer className="w-4 h-4" /> {t('print')}
+          </button>
+          <button onClick={() => setShowManageFloors(true)} className="btn-secondary flex items-center gap-2 text-sm shadow-sm print:hidden">
             <Layers className="w-4 h-4" /> Floors
           </button>
           <button onClick={() => setShowManageTypes(true)} className="btn-secondary flex items-center gap-2 text-sm shadow-sm">

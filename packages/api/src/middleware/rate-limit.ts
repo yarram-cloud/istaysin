@@ -67,6 +67,35 @@ export function authLimiter(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
+/**
+ * Limit for public availability hints to prevent scraping
+ */
+export function publicHintsLimiter(req: Request, res: Response, next: NextFunction): void {
+  const key = `hints:${getRateLimitKey(req)}`;
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute
+  const maxRequests = 30;
+
+  const entry = requestCounts.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    requestCounts.set(key, { count: 1, resetAt: now + windowMs });
+    next();
+    return;
+  }
+
+  if (entry.count >= maxRequests) {
+    res.status(429).json({
+      success: false,
+      error: 'Rate limit exceeded',
+    });
+    return;
+  }
+
+  entry.count++;
+  next();
+}
+
 // Cleanup stale entries every 5 minutes
 setInterval(() => {
   const now = Date.now();

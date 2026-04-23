@@ -358,3 +358,86 @@ roomsRouter.get('/availability', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Failed to check availability' });
   }
 });
+
+// GET /rooms/availability-grid — tape chart data (single optimized query)
+roomsRouter.get('/availability-grid', async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) {
+      res.status(400).json({ success: false, error: 'startDate and endDate are required (YYYY-MM-DD)' });
+      return;
+    }
+
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD.' });
+      return;
+    }
+
+    const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0 || diffDays > 31) {
+      res.status(400).json({ success: false, error: 'Date range must be 1-31 days.' });
+      return;
+    }
+
+    await withTenant(req.tenantId!, async () => {
+      const rooms = await prisma.room.findMany({
+        where: { tenantId: req.tenantId!, isActive: true },
+        include: {
+          floor: { select: { id: true, name: true, sortOrder: true } },
+          roomType: { select: { id: true, name: true, baseRate: true } },
+          bookingRooms: {
+            where: {
+              booking: {
+                status: { notIn: ['cancelled'] },
+                checkInDate: { lt: end },
+                checkOutDate: { gt: start },
+              },
+            },
+            include: {
+              booking: {
+                select: {
+                  id: true, bookingNumber: true, guestName: true,
+                  guestPhone: true, guestEmail: true,
+                  checkInDate: true, checkOutDate: true,
+                  status: true, totalAmount: true, source: true,
+                  numAdults: true, numChildren: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ floor: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
+      });
+
+      const unassigned = await prisma.bookingRoom.findMany({
+        where: {
+          tenantId: req.tenantId!,
+          roomId: null,
+          booking: {
+            status: { notIn: ['cancelled'] },
+            checkInDate: { lt: end },
+            checkOutDate: { gt: start },
+          },
+        },
+        include: {
+          booking: {
+            select: {
+              id: true, bookingNumber: true, guestName: true,
+              guestPhone: true, checkInDate: true, checkOutDate: true,
+              status: true, totalAmount: true, source: true,
+            },
+          },
+          roomType: { select: { id: true, name: true } },
+        },
+      });
+
+      res.json({ success: true, data: { rooms, unassigned } });
+    });
+  } catch (err) {
+    console.error('[AVAILABILITY GRID ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch availability grid' });
+  }
+});

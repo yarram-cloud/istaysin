@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, BedDouble, CalendarDays, IndianRupee, Users } from 'lucide-react';
+import { BarChart3, TrendingUp, BedDouble, CalendarDays, IndianRupee, Users, Printer } from 'lucide-react';
 import { analyticsApi } from '@/lib/api';
+import { useTranslations } from 'next-intl';
 
 interface AnalyticsData {
   occupancy: { current: number; total: number; percent: number };
@@ -13,6 +14,7 @@ interface AnalyticsData {
 }
 
 export default function AnalyticsPage() {
+  const t = useTranslations('Dashboard');
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -77,9 +79,17 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-display font-bold mb-1">Analytics</h1>
-        <p className="text-surface-400">Property performance overview</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold mb-1">{t('analytics')}</h1>
+          <p className="text-surface-400">{t('analyticsSub')}</p>
+        </div>
+        <button 
+          onClick={() => window.print()}
+          className="btn-secondary flex items-center gap-2 print:hidden"
+        >
+          <Printer className="w-4 h-4" /> {t('printReport')}
+        </button>
       </div>
 
       {/* Stats Grid */}

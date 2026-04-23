@@ -186,6 +186,121 @@
   }
 }
 
+
+/* ============================================================ */
+/* Print Stylesheet */
+/* ============================================================ */
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-family: serif !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide UI elements */
+  aside, 
+  header, 
+  nav,
+  .print\:hidden,
+  .no-print,
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .Toaster,
+  [role="status"] {
+    display: none !important;
+  }
+
+  /* Reset layout */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .flex-1 {
+    display: block !important;
+  }
+
+  /* Visual improvements for print */
+  .glass-card, 
+  .stat-card,
+  .dashboard-card {
+    background: transparent !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 20px !important;
+  }
+
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+    text-align: left !important;
+    color: black !important;
+  }
+
+  th {
+    background-color: #f9f9f9 !important;
+    font-weight: bold !important;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  a::after {
+    content: " (" attr(href) ")";
+    font-size: 80%;
+  }
+
+  /* Invoice-specific tweaks */
+  .invoice-header {
+    margin-bottom: 30px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+  }
+
+  .computer-generated {
+    text-align: center;
+    font-size: 9pt;
+    font-style: italic;
+    margin-top: 40px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+  }
+
+  /* ── Tape Chart Print ── */
+  .tape-chart-container {
+    overflow: visible !important;
+    border: 1px solid #999 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .tape-chart-container [data-testid="booking-bar"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  [data-testid="booking-detail-panel"],
+  [data-testid="booking-detail-panel-mobile"] {
+    display: none !important;
+  }
+}
+
 /* ── Custom scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--surface-100); }

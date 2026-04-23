@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Users, Search, Plus, X, Loader2, Phone, Mail, Calendar } from 'lucide-react';
+import { Users, Search, Plus, X, Loader2, Phone, Mail, Calendar, Printer } from 'lucide-react';
 import { guestsApi } from '@/lib/api';
+import { useTranslations } from 'next-intl';
 
 interface Guest {
   id: string; fullName: string; phone?: string; email?: string;
@@ -11,6 +12,7 @@ interface Guest {
 }
 
 export default function GuestsPage() {
+  const t = useTranslations('Dashboard');
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,18 +36,26 @@ export default function GuestsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1">Guests</h1>
-          <p className="text-surface-400">Guest directory and history</p>
+          <h1 className="text-2xl font-display font-bold mb-1">{t('guests')}</h1>
+          <p className="text-surface-400">{t('guestsSub')}</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Guest
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => window.print()}
+            className="btn-secondary flex items-center gap-2 print:hidden"
+          >
+            <Printer className="w-4 h-4" /> {t('printRegister')}
+          </button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2 print:hidden">
+            <Plus className="w-4 h-4" /> Add Guest
+          </button>
+        </div>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
+      <div className="relative max-w-md print:hidden">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
         <input type="text" placeholder="Search by name, phone, or email..." value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-10 py-2.5" />
@@ -67,6 +77,7 @@ export default function GuestsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/[0.06]">
+                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase hidden print:table-cell">{t('srNo')}</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Name</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Phone</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Email</th>
@@ -75,9 +86,10 @@ export default function GuestsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
-              {guests.map((guest) => (
+              {guests.map((guest, index) => (
                 <tr key={guest.id} className="hover:bg-white/[0.02] cursor-pointer transition-colors"
                   onClick={() => setSelectedGuest(guest)}>
+                  <td className="px-6 py-4 text-sm text-surface-400 hidden print:table-cell">{index + 1}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary-600/20 flex items-center justify-center text-sm font-medium text-primary-400">

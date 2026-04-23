@@ -180,6 +180,8 @@ export const roomsApi = {
     apiFetch(`/rooms/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   checkAvailability: (checkIn: string, checkOut: string) =>
     apiFetch(`/rooms/availability?checkIn=${checkIn}&checkOut=${checkOut}`),
+  getAvailabilityGrid: (startDate: string, endDate: string) =>
+    apiFetch(`/rooms/availability-grid?startDate=${startDate}&endDate=${endDate}`),
 };
 
 // Bookings helpers
@@ -326,6 +328,7 @@ export const publicApi = {
     return apiFetch(`/public/properties${query}`);
   },
   property: (slug: string) => apiFetch(`/public/properties/${slug}`),
+  getAvailabilityHints: (slug: string) => apiFetch(`/public/properties/${slug}/availability-hints`),
   search: (q: string) => apiFetch(`/public/search?q=${encodeURIComponent(q)}`),
   createBooking: (body: any) => apiFetch('/public/bookings', { method: 'POST', body: JSON.stringify(body) }),
   createRazorpayOrder: (body: { bookingId: string; amount: number }) => 

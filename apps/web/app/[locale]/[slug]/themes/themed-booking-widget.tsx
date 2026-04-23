@@ -1,9 +1,11 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Users, ChevronDown, CheckCircle2, ArrowRight } from 'lucide-react';
 import { ThemeStyleMap } from './theme-tokens';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
+import { publicApi } from '@/lib/api';
 
 export default function BookingWidgetWrapper({ propertySlug, locale, config, themeTokens }: { propertySlug: string, locale: string, config: any, themeTokens: ThemeStyleMap }) {
   const router = useRouter();
@@ -18,6 +20,46 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
   const [guests, setGuests] = useState(2);
   const [rooms, setRooms] = useState(1);
   const [isExpanded, setIsExpanded] = useState(false);
+  const t = useTranslations('PropertySite');
+
+  const [hints, setHints] = useState<{ roomsLeftToday: number; recentBookings: number; dynamicPricingActive: boolean } | null>(null);
+  const [showUrgency, setShowUrgency] = useState(false);
+
+  useEffect(() => {
+    publicApi.getAvailabilityHints(propertySlug).then(res => {
+      if (res.success) {
+        setHints(res.data);
+        setTimeout(() => setShowUrgency(true), 2000);
+      }
+    }).catch(console.error);
+  }, [propertySlug]);
+
+  const renderUrgencyPills = (isVertical = false) => {
+    if (!showUrgency || !hints) return null;
+    
+    return (
+      <div data-testid="urgency-triggers" className={`flex ${isVertical ? 'flex-col items-start' : 'items-center'} gap-2 ${isVertical ? 'mt-4' : 'mt-2'} px-1`}>
+        {hints.roomsLeftToday <= 3 && hints.roomsLeftToday > 0 && (
+          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-bold border border-red-100 uppercase tracking-tight">
+            {t('urgencyRoomsLeft', { count: hints.roomsLeftToday })}
+          </motion.div>
+        )}
+        {hints.recentBookings > 0 && (
+          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold border border-blue-100 uppercase tracking-tight">
+            {t('urgencyRecentBookings', { count: hints.recentBookings })}
+          </motion.div>
+        )}
+        {hints.dynamicPricingActive && (
+          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold border border-amber-100 uppercase tracking-tight">
+            {t('urgencyPriceWarning')}
+          </motion.div>
+        )}
+      </div>
+    );
+  };
 
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -61,6 +103,12 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
               Check Availability
             </button>
           </form>
+          <div className="hidden md:block">
+            {renderUrgencyPills(false)}
+          </div>
+          <div className="md:hidden w-full px-2">
+            {renderUrgencyPills(true)}
+          </div>
        </motion.div>
     </div>
   );
@@ -111,7 +159,8 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
                   </div>
 
                   <div className="mt-auto">
-                    <button type="submit" style={{ backgroundColor: 'var(--brand-color)' }} className={`w-full py-6 text-sm uppercase tracking-[0.2em] font-bold text-white transition-all shadow-xl hover:-translate-y-1`}>
+                    {renderUrgencyPills(true)}
+                    <button type="submit" style={{ backgroundColor: 'var(--brand-color)' }} className={`mt-4 w-full py-6 text-sm uppercase tracking-[0.2em] font-bold text-white transition-all shadow-xl hover:-translate-y-1`}>
                       Check Availability
                     </button>
                   </div>
@@ -171,6 +220,7 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
             Check Availability
           </button>
         </form>
+        {renderUrgencyPills(true)}
       </div>
     </div>
   );

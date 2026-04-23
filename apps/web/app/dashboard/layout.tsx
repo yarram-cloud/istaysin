@@ -26,6 +26,7 @@ const sidebarGroups = [
     category: 'Front Desk',
     links: [
       { href: '/dashboard/front-desk/shifts', icon: Clock, label: 'Staff Shifts' },
+      { href: '/dashboard/rooms/calendar', icon: CalendarDays, label: 'Room Calendar' },
       { href: '/dashboard/housekeeping', icon: Sparkles, label: 'Housekeeping' },
       { href: '/dashboard/reviews', icon: Star, label: 'Reviews' },
       { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },

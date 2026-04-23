@@ -218,3 +218,23 @@ test.describe('Accessibility', () => {
     expect(imgsWithoutAlt).toBe(0);
   });
 });
+
+// ─── Booking Urgency Triggers ───────────────────────────────────────────────
+test.describe('Booking Urgency Triggers', () => {
+  test('urgency hints appear after 2 seconds delay', async ({ page }) => {
+    await page.goto(PROPERTY_URL);
+    await page.waitForLoadState('networkidle');
+
+    // Should NOT be visible immediately
+    const triggers = page.getByTestId('urgency-triggers').first();
+    // Use .first() because horizontal and vertical might both exist in DOM but one hidden
+    
+    await expect(triggers).not.toBeVisible();
+
+    // Wait for 3 seconds (2s delay + 1s buffer)
+    await page.waitForTimeout(3000);
+
+    // Should be visible now (if data exists)
+    await expect(triggers).toBeVisible();
+  });
+});
