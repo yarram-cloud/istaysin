@@ -16,29 +16,29 @@ test.describe('Dashboard Express Walk-in Flow', () => {
 
     // Navigate to Rooms to get a baseline and ensure an 'Available' room exists
     await page.goto('http://localhost:3100/dashboard/rooms');
-    await expect(page.locator('h1')).toContainText('Rooms', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText('Room Inventory', { timeout: 10000 });
     
     // Go to Bookings Page
     await page.goto('http://localhost:3100/dashboard/bookings');
     await expect(page.locator('h1')).toContainText('Bookings');
 
     // Open Quick Walk-in Card
-    await page.click('button:has-text("Quick Walk-in")');
+    await page.click('button:has-text("Quick Walk-in"), button:has-text("Walk-in")');
     await expect(page.locator('text=Express Walk-in')).toBeVisible();
 
     // Fill form
     const rawNumber = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
     const guestPhone = `99${rawNumber}`;
     
-    await page.fill('input[placeholder="eg. John Doe"]', 'E2E Walkin Guest');
-    await page.fill('input[placeholder="Mobile"]', guestPhone);
+    await page.fill('input[placeholder="e.g. Rajesh Kumar"]', 'E2E Walkin Guest');
+    await page.fill('input[placeholder="10 digit number"]', guestPhone);
     
     // Select the first available room 
-    const roomInput = page.locator('input[placeholder="Room #"]');
+    const roomInput = page.locator('input[placeholder="Search room..."]');
     await roomInput.fill('101'); 
     
     await page.fill('input[type="number"]', '3');
-    await page.click('button:has-text("Complete Check-in")');
+    await page.click('button:has-text("Book & Check-in")');
 
     // Toast visible
     await expect(page.locator('text=Walk-in booking created')).toBeVisible({ timeout: 10000 });
@@ -55,19 +55,19 @@ test.describe('Dashboard Express Walk-in Flow', () => {
     await page.waitForURL(url => url.pathname.includes('/dashboard'));
 
     await page.goto('http://localhost:3100/dashboard/bookings');
-    await page.click('button:has-text("Quick Walk-in")');
+    await page.click('button:has-text("Quick Walk-in"), button:has-text("Walk-in")');
 
     const rawNumber = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
     const guestPhone = `88${rawNumber}`;
 
-    await page.fill('input[placeholder="eg. John Doe"]', 'Monthly PG Guest');
-    await page.fill('input[placeholder="Mobile"]', guestPhone);
-    await page.fill('input[placeholder="Room #"]', '102'); 
+    await page.fill('input[placeholder="e.g. Rajesh Kumar"]', 'Monthly PG Guest');
+    await page.fill('input[placeholder="10 digit number"]', guestPhone);
+    await page.fill('input[placeholder="Search room..."]', '102'); 
     
     await page.fill('input[type="number"]', '1');
     await page.selectOption('select:has-text("Nights")', 'months'); 
     
-    await page.click('button:has-text("Complete Check-in")');
+    await page.click('button:has-text("Book & Check-in")');
     await expect(page.locator('text=Walk-in booking created')).toBeVisible();
     await expect(page.locator(`text=${guestPhone}`)).toBeVisible();
   });

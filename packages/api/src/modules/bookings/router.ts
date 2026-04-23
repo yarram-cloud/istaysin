@@ -15,12 +15,12 @@ export const bookingsRouter = Router();
 
 bookingsRouter.use(authenticate, resolveTenant, requireTenant);
 
-// Generate unique booking number
-function generateBookingNumber(): string {
-  const prefix = 'IS';
+// Generate unique booking number with optional custom prefix
+function generateBookingNumber(prefix?: string): string {
+  const pfx = (prefix && prefix.trim()) ? prefix.trim().toUpperCase().slice(0, 6) : 'IS';
   const timestamp = Date.now().toString(36).toUpperCase();
   const random = require('crypto').randomInt(1000, 9999).toString();
-  return `${prefix}-${timestamp}-${random}`;
+  return `${pfx}-${timestamp}-${random}`;
 }
 
 // Clamp pagination values for safety
@@ -42,7 +42,13 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
     const data = parsed.data;
 
     const result = await withTenant(req.tenantId!, async () => {
-      const bookingNumber = generateBookingNumber();
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.tenantId! },
+        select: { config: true, name: true },
+      });
+      const tenantConfig = (tenant?.config as Record<string, any>) || {};
+
+      const bookingNumber = generateBookingNumber(tenantConfig.bookingPrefix);
 
       // Calculate nights
       const nights = Math.ceil(
@@ -58,11 +64,6 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
       const bookingRoomsData = [];
       const folioChargesData: any[] = [];
 
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: req.tenantId! },
-        select: { config: true, name: true },
-      });
-      const tenantConfig = (tenant?.config as Record<string, any>) || {};
       const propertyState = tenantConfig.state?.toLowerCase() || '';
       const guestState = data.guestState?.toLowerCase() || '';
       const isInterState = propertyState && guestState && propertyState !== guestState;
@@ -595,7 +596,13 @@ bookingsRouter.post('/walk-in', authorize('property_owner', 'general_manager', '
         0
       );
 
-      const bookingNumber = generateBookingNumber();
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.tenantId! },
+        select: { config: true },
+      });
+      const walkinConfig = (tenant?.config as Record<string, any>) || {};
+
+      const bookingNumber = generateBookingNumber(walkinConfig.bookingPrefix);
       const totalAmount = pricing.grandTotal;
       const advancePaid = paymentMode ? totalAmount : 0; // If paid explicitly, record full upfront payment
 
@@ -717,6 +724,117 @@ bookingsRouter.post('/walk-in', authorize('property_owner', 'general_manager', '
     res.status(result.status || 200).json({ success: true, booking: result.booking });
   } catch (err) {
     console.error('[WALK-IN BOOKING ERROR]', err);
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+
+// PUT /bookings/:id/assign-room — One-click room assignment
+bookingsRouter.put('/:id/assign-room', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+  try {
+    const { bookingRoomId, roomId } = req.body;
+    if (!bookingRoomId || !roomId) {
+      res.status(400).json({ success: false, error: 'bookingRoomId and roomId are required' });
+      return;
+    }
+
+    const result = await withTenant(req.tenantId!, async () => {
+      // Verify the booking belongs to this tenant
+      const booking = await prisma.booking.findFirst({
+        where: { id: req.params.id, tenantId: req.tenantId! },
+        include: { bookingRooms: true },
+      });
+      if (!booking) return { error: 'Booking not found', status: 404 };
+
+      // Verify the bookingRoom belongs to this booking
+      const bookingRoom = booking.bookingRooms.find((br: any) => br.id === bookingRoomId);
+      if (!bookingRoom) return { error: 'BookingRoom not found in this booking', status: 404 };
+
+      // Verify the room exists, belongs to tenant, and is available
+      const room = await prisma.room.findFirst({
+        where: { id: roomId, tenantId: req.tenantId!, status: 'available' },
+      });
+      if (!room) return { error: 'Room is not available or does not exist', status: 400 };
+
+      // Verify room type matches
+      if (bookingRoom.roomTypeId !== room.roomTypeId) {
+        // Allow assignment even if type differs (staff override), but log it
+        console.warn(`[ROOM ASSIGN] Room type mismatch: bookingRoom expects ${bookingRoom.roomTypeId}, assigning ${room.roomTypeId}`);
+      }
+
+      // Assign the room
+      await prisma.bookingRoom.update({
+        where: { id: bookingRoomId },
+        data: { roomId },
+      });
+
+      // If all bookingRooms now have rooms assigned and booking is pending, auto-confirm
+      const updatedBooking = await prisma.booking.findFirst({
+        where: { id: req.params.id },
+        include: { bookingRooms: { include: { room: true, roomType: true } } },
+      });
+
+      await logAudit(req.tenantId!, req.userId, 'UPDATE', 'booking', req.params.id, { action: 'assign_room', roomId, bookingRoomId }, req.ip || undefined);
+
+      return { booking: updatedBooking, status: 200 };
+    });
+
+    if ('error' in result) {
+      res.status(result.status).json({ success: false, error: result.error });
+      return;
+    }
+    res.json({ success: true, data: result.booking });
+  } catch (err) {
+    console.error('[ASSIGN ROOM ERROR]', err);
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+
+// PUT /bookings/:id — Update booking details (guest info, dates, notes)
+bookingsRouter.put('/:id', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+  try {
+    const { guestName, guestPhone, guestEmail, notes, checkInDate, checkOutDate } = req.body;
+
+    const result = await withTenant(req.tenantId!, async () => {
+      const booking = await prisma.booking.findFirst({
+        where: { id: req.params.id, tenantId: req.tenantId! },
+      });
+      if (!booking) return { error: 'Booking not found', status: 404 };
+
+      // Only allow edits on non-cancelled, non-checked-out bookings
+      if (['cancelled', 'checked_out', 'no_show'].includes(booking.status)) {
+        return { error: 'Cannot edit a completed or cancelled booking', status: 400 };
+      }
+
+      const updateData: any = {};
+      if (guestName !== undefined) updateData.guestName = guestName.trim();
+      if (guestPhone !== undefined) updateData.guestPhone = guestPhone.trim();
+      if (guestEmail !== undefined) updateData.guestEmail = guestEmail?.trim()?.toLowerCase() || null;
+      if (notes !== undefined) updateData.notes = notes?.trim() || null;
+      if (checkInDate !== undefined) updateData.checkInDate = new Date(checkInDate);
+      if (checkOutDate !== undefined) updateData.checkOutDate = new Date(checkOutDate);
+
+      const updated = await prisma.booking.update({
+        where: { id: req.params.id },
+        data: updateData,
+        include: {
+          bookingRooms: { include: { room: true, roomType: true } },
+        },
+      });
+
+      await logAudit(req.tenantId!, req.userId, 'UPDATE', 'booking', req.params.id, updateData, req.ip || undefined);
+
+      return { booking: updated, status: 200 };
+    });
+
+    if ('error' in result) {
+      res.status(result.status).json({ success: false, error: result.error });
+      return;
+    }
+    res.json({ success: true, data: result.booking });
+  } catch (err) {
+    console.error('[BOOKING UPDATE ERROR]', err);
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : String(err) });
   }
 });

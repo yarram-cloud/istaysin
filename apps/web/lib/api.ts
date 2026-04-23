@@ -197,6 +197,10 @@ export const bookingsApi = {
   confirm: (id: string) => apiFetch(`/bookings/${id}/confirm`, { method: 'PATCH' }),
   cancel: (id: string, reason?: string) =>
     apiFetch(`/bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  update: (id: string, body: any) =>
+    apiFetch(`/bookings/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  assignRoom: (bookingId: string, body: { bookingRoomId: string; roomId: string }) =>
+    apiFetch(`/bookings/${bookingId}/assign-room`, { method: 'PUT', body: JSON.stringify(body) }),
 };
 
 // Guests helpers

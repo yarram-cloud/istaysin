@@ -87,6 +87,7 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
   const [lat, setLat] = useState(20.5937);
   const [lng, setLng] = useState(78.9629);
   const [languages, setLanguages] = useState<string[]>(['en']);
+  const [bookingPrefix, setBookingPrefix] = useState('IS');
 
   const SUPPORTED_LANGS = [
     { code: 'en', label: 'English' }, { code: 'hi', label: 'Hindi' }, { code: 'te', label: 'Telugu' },
@@ -104,6 +105,7 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
           setCheckInTime(d.checkInTime || '14:00'); setCheckOutTime(d.checkOutTime || '11:00');
           setLat(d.latitude || 20.5937); setLng(d.longitude || 78.9629);
           setLanguages(d.config?.languages || ['en']);
+          setBookingPrefix(d.config?.bookingPrefix || 'IS');
           setSettings(d);
         }
       })
@@ -118,7 +120,7 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
         name, address, city, state,
         contactPhone: phone, contactEmail: email,
         checkInTime, checkOutTime, latitude: lat, longitude: lng,
-        config: { ...settings?.config, languages }
+        config: { ...settings?.config, languages, bookingPrefix: bookingPrefix.trim().toUpperCase().slice(0, 6) || 'IS' }
       });
       toast.success(t('settingsSaved') || 'Settings saved!');
     } catch (err: any) { toast.error(err.message); }
@@ -178,6 +180,13 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
               <div>
                 <label className="block text-sm font-medium text-surface-300 mb-1">Check-out Time</label>
                 <input type="time" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} className="input-field" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">Booking ID Prefix (2-6 characters)</label>
+              <div className="flex items-center gap-3">
+                <input value={bookingPrefix} onChange={(e) => setBookingPrefix(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6))} maxLength={6} placeholder="IS" className="input-field w-32 uppercase" />
+                <span className="text-xs text-surface-400">Preview: <span className="font-mono text-primary-400">{(bookingPrefix || 'IS').toUpperCase()}-MO5GKE-1234</span></span>
               </div>
             </div>
           </div>
