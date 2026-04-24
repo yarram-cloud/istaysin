@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2, Edit2, Save, ChevronDown, ChevronRight, Mail, User, BedDouble, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -98,6 +98,14 @@ export default function BookingsPage() {
   }, [statusFilter]);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
+
+  // Keep expanded detail in sync after any action refreshes the list
+  useEffect(() => {
+    if (selectedBooking) {
+      const updated = bookings.find(b => b.id === selectedBooking.id);
+      if (updated) setSelectedBooking(updated);
+    }
+  }, [bookings]);
 
   const filtered = searchQuery
     ? bookings.filter((b) =>
@@ -463,8 +471,11 @@ export default function BookingsPage() {
                     key={booking.id}
                     booking={booking}
                     statusLabels={statusLabels}
+                    isSelected={selectedBooking?.id === booking.id}
                     onSelect={() => setSelectedBooking(booking)}
-                    onAssignRoom={() => { fetchBookings(); }}
+                    onDeselect={() => setSelectedBooking(null)}
+                    onRefresh={fetchBookings}
+                    onAssignRoom={fetchBookings}
                   />
                 ))}
               </tbody>
@@ -473,28 +484,19 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {/* Booking Detail — Full Inline Panel (No modal) */}
-      <AnimatePresence>
-        {selectedBooking && (
-          <BookingDetailPanel
-            booking={selectedBooking}
-            onClose={() => setSelectedBooking(null)}
-            onConfirm={handleConfirm}
-            onCancel={handleCancel}
-            onUpdated={() => { fetchBookings(); }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
 
 
-// ── Booking Row with Inline Room Assignment ─────────────────────
-function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
+// ── Booking Row — with inline expand-in-place detail ────────────
+function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, onRefresh, onAssignRoom }: {
   booking: Booking;
   statusLabels: Record<string, { label: string; class: string }>;
+  isSelected: boolean;
   onSelect: () => void;
+  onDeselect: () => void;
+  onRefresh: () => void;
   onAssignRoom: () => void;
 }) {
   const [showAssign, setShowAssign] = useState(false);
@@ -502,26 +504,26 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
   const [assigning, setAssigning] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
-  // Check if this booking has unassigned rooms
   const unassignedRooms = booking.bookingRooms?.filter((br: any) => !br.roomId && !br.room) || [];
   const canAssign = ['pending_confirmation', 'confirmed'].includes(booking.status) && unassignedRooms.length > 0;
 
+  function handleRowClick() {
+    if (isSelected) { onDeselect(); return; }
+    setShowAssign(false);
+    onSelect();
+  }
+
   async function handleAssignClick(e: React.MouseEvent) {
     e.stopPropagation();
-    if (showAssign) {
-      setShowAssign(false);
-      return;
-    }
+    if (showAssign) { setShowAssign(false); return; }
     setShowAssign(true);
     setLoadingRooms(true);
     try {
-      // Use date-aware availability so already-booked rooms don't appear
       const checkIn = booking.checkInDate.split('T')[0];
       const checkOut = booking.checkOutDate.split('T')[0];
       const res = await roomsApi.checkAvailability(checkIn, checkOut);
       setAvailableRooms(res.data || []);
     } catch {
-      // Fallback to status-only check
       try {
         const res = await roomsApi.getRooms({ status: 'available' });
         setAvailableRooms(res.data || []);
@@ -547,7 +549,10 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
 
   return (
     <>
-      <tr className="hover:bg-primary-50/30 cursor-pointer transition-colors" onClick={onSelect}>
+      <tr
+        className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary-50/70' : 'hover:bg-primary-50/30'}`}
+        onClick={handleRowClick}
+      >
         <td className="px-4 sm:px-5 py-3.5">
           <p className="text-sm font-mono text-primary-600 font-medium">{booking.bookingNumber}</p>
         </td>
@@ -567,15 +572,10 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
         <td className="px-4 sm:px-5 py-3.5 text-sm font-semibold text-surface-900">₹{booking.totalAmount?.toLocaleString('en-IN')}</td>
         <td className="px-4 sm:px-5 py-3.5">
           <div className="flex items-center gap-2">
-            {/* Status badge — clickable to open detail panel */}
-            <button
-              onClick={(e) => { e.stopPropagation(); onSelect(); }}
-              className={`text-[10px] px-2 py-1 rounded-full font-semibold uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity ${statusLabels[booking.status]?.class || 'bg-surface-100 text-surface-500'}`}
-              title="View booking details"
-            >
+            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold uppercase tracking-wider ${statusLabels[booking.status]?.class || 'bg-surface-100 text-surface-500'}`}>
               {statusLabels[booking.status]?.label || booking.status}
-            </button>
-            {canAssign && (
+            </span>
+            {canAssign && !isSelected && (
               <button
                 onClick={handleAssignClick}
                 className="text-[10px] px-2 py-1 rounded-full font-semibold bg-violet-100 text-violet-700 border border-violet-200 hover:bg-violet-200 transition-colors flex items-center gap-1"
@@ -588,16 +588,19 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
         </td>
         <td className="px-4 sm:px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={(e) => { e.stopPropagation(); onSelect(); }}
-            className="w-8 h-8 rounded-lg bg-surface-100 hover:bg-primary-100 flex items-center justify-center transition-colors group"
-            title="View details"
+            onClick={(e) => { e.stopPropagation(); isSelected ? onDeselect() : onSelect(); }}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors group ${isSelected ? 'bg-primary-100' : 'bg-surface-100 hover:bg-primary-100'}`}
+            title={isSelected ? 'Collapse' : 'View details'}
           >
-            <Eye className="w-4 h-4 text-surface-400 group-hover:text-primary-600" />
+            {isSelected
+              ? <ChevronDown className="w-4 h-4 text-primary-600" />
+              : <Eye className="w-4 h-4 text-surface-400 group-hover:text-primary-600" />}
           </button>
         </td>
       </tr>
-      {/* Inline room assign dropdown */}
-      {showAssign && (
+
+      {/* Quick room-assign strip (only when not expanded) */}
+      {!isSelected && showAssign && (
         <tr>
           <td colSpan={8} className="px-4 sm:px-5 py-3 bg-violet-50/50 border-b border-violet-100">
             <div className="space-y-2">
@@ -608,7 +611,7 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
                 </div>
               ) : availableRooms.length === 0 ? (
                 <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  ⚠ No rooms are available for these dates. Check room statuses or adjust the dates.
+                  ⚠ No rooms available for these dates.
                 </p>
               ) : (
                 unassignedRooms.map((br: any) => {
@@ -619,29 +622,20 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
                     <div key={br.id} className="flex items-start gap-3 flex-wrap">
                       <div className="min-w-[120px]">
                         <span className="text-sm text-surface-700 font-medium block">{br.roomType?.name || 'Room'}</span>
-                        {!hasExactMatch && (
-                          <span className="text-[10px] text-amber-600 font-medium">No exact match — showing all available</span>
-                        )}
+                        {!hasExactMatch && <span className="text-[10px] text-amber-600 font-medium">No exact match — showing all available</span>}
                       </div>
                       <div className="flex items-center gap-2 flex-1">
                         <select
                           className="h-9 px-3 rounded-lg border border-violet-200 bg-white text-sm text-surface-700 flex-1 min-w-[200px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-300"
                           defaultValue=""
-                          onChange={(e) => {
-                            if (e.target.value) doAssign(br.id, e.target.value);
-                          }}
+                          onChange={(e) => { if (e.target.value) doAssign(br.id, e.target.value); }}
                           disabled={assigning}
                         >
                           <option value="" disabled>Select room...</option>
-                          {!hasExactMatch && (
-                            <option disabled>── Matching type ──</option>
-                          )}
-                          {hasExactMatch && matchingRooms.map(r => (
-                            <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.rateOverride || r.roomType?.baseRate || r.baseRate})</option>
-                          ))}
-                          {!hasExactMatch && roomOptions.map(r => (
-                            <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.rateOverride || r.roomType?.baseRate || r.baseRate})</option>
-                          ))}
+                          {hasExactMatch
+                            ? matchingRooms.map(r => <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.rateOverride || r.roomType?.baseRate || r.baseRate})</option>)
+                            : roomOptions.map(r => <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.rateOverride || r.roomType?.baseRate || r.baseRate})</option>)
+                          }
                         </select>
                         {assigning && <Loader2 className="w-4 h-4 animate-spin text-violet-500 shrink-0" />}
                       </div>
@@ -653,6 +647,22 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
           </td>
         </tr>
       )}
+
+      {/* Inline detail expansion */}
+      <AnimatePresence>
+        {isSelected && (
+          <tr>
+            <td colSpan={8} className="p-0 border-b border-primary-100/60">
+              <BookingInlineDetail
+                booking={booking}
+                statusLabels={statusLabels}
+                onClose={onDeselect}
+                onRefresh={onRefresh}
+              />
+            </td>
+          </tr>
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -901,13 +911,13 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
 }
 
 
-// ── Booking Detail — Premium Inline Panel (No Modal) ─────────────
-function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }: {
-  booking: Booking; onClose: () => void;
-  onConfirm: (id: string) => void; onCancel: (id: string, reason?: string) => void;
-  onUpdated: () => void;
+// ── Booking Detail — Inline expand-in-place (below row) ──────────
+function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
+  booking: Booking;
+  statusLabels: Record<string, { label: string; class: string }>;
+  onClose: () => void;
+  onRefresh: () => void;
 }) {
-  const t = useTranslations('Dashboard');
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [editMode, setEditMode] = useState(false);
@@ -918,23 +928,19 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
     notes: booking.notes || '',
   });
   const [saving, setSaving] = useState(false);
-
-  // Check-in form state (controlled)
   const [ciIdType, setCiIdType] = useState('aadhaar');
   const [ciIdNumber, setCiIdNumber] = useState('');
   const [ciArrivingFrom, setCiArrivingFrom] = useState('');
   const [ciGoingTo, setCiGoingTo] = useState('');
   const [ciPurpose, setCiPurpose] = useState('leisure');
-
-  // Check-out form state (controlled)
   const [coBalance, setCoBalance] = useState('');
   const [coPayMode, setCoPayMode] = useState('cash');
-
-  // Room change state
   const [changingRoomId, setChangingRoomId] = useState<string | null>(null);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [submittingCForm, setSubmittingCForm] = useState<string | null>(null);
 
-  const nights = Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / (1000 * 60 * 60 * 24));
+  const nights = Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / 86400000);
+  const canEdit = !['cancelled', 'checked_out', 'no_show'].includes(booking.status);
 
   async function handleSaveEdits() {
     setSaving(true);
@@ -942,287 +948,342 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
       await bookingsApi.update(booking.id, editData);
       toast.success('Booking updated');
       setEditMode(false);
-      onUpdated();
+      onRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
+  }
+
+  async function handleConfirm() {
+    setSaving(true);
+    try {
+      await bookingsApi.confirm(booking.id);
+      toast.success('Booking confirmed');
+      onRefresh();
+    } catch (err: any) { toast.error(err.message || 'Failed to confirm'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleCancel() {
+    setSaving(true);
+    try {
+      await bookingsApi.cancel(booking.id, cancelReason || undefined);
+      toast.success('Booking cancelled');
+      onClose();
+      onRefresh();
+    } catch (err: any) { toast.error(err.message || 'Failed to cancel'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleCheckIn() {
+    setSaving(true);
+    try {
+      await checkinApi.checkIn(booking.id, {
+        idProofType: ciIdType, idProofNumber: ciIdNumber,
+        arrivingFrom: ciArrivingFrom, goingTo: ciGoingTo, purposeOfVisit: ciPurpose,
+      });
+      toast.success('Successfully Checked In');
+      onRefresh();
+    } catch (err: any) { toast.error(err.message || 'Check-in failed'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleCheckOut() {
+    setSaving(true);
+    try {
+      await checkinApi.checkOut(booking.id, { balanceDue: parseFloat(coBalance) || 0, paymentMode: coPayMode });
+      toast.success('Successfully Checked Out');
+      onRefresh();
+    } catch (err: any) { toast.error(err.message || 'Check-out failed'); }
+    finally { setSaving(false); }
   }
 
   async function handleChangeRoom(bookingRoomId: string, newRoomId: string) {
     try {
       await bookingsApi.assignRoom(booking.id, { bookingRoomId, roomId: newRoomId });
-      toast.success('Room updated!');
+      toast.success('Room updated');
       setChangingRoomId(null);
-      onUpdated();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to change room');
-    }
+      onRefresh();
+    } catch (err: any) { toast.error(err.message || 'Failed to change room'); }
   }
 
   async function loadAvailableRooms() {
     try {
-      // Use date-aware availability so already-booked rooms (including this booking's current room) don't block display
-      const checkIn = booking.checkInDate.split('T')[0];
-      const checkOut = booking.checkOutDate.split('T')[0];
-      const res = await roomsApi.checkAvailability(checkIn, checkOut);
+      const res = await roomsApi.checkAvailability(booking.checkInDate.split('T')[0], booking.checkOutDate.split('T')[0]);
       setAvailableRooms(res.data || []);
     } catch {
-      // Fallback to status-only
-      try {
-        const res = await roomsApi.getRooms({ status: 'available' });
-        setAvailableRooms(res.data || []);
-      } catch { }
+      try { const res = await roomsApi.getRooms({ status: 'available' }); setAvailableRooms(res.data || []); }
+      catch {}
     }
   }
-
-  const [submittingCForm, setSubmittingCForm] = useState<string | null>(null);
 
   async function handleCFormSubmit(guestId: string) {
     setSubmittingCForm(guestId);
     try {
       const res = await complianceApi.submitCForm(guestId);
       if (!res.success) throw new Error(res.error || 'Failed to submit C-Form');
-      toast.success('Successfully submitted C-Form to FRRO!');
-      onUpdated();
-    } catch (err: any) {
-      toast.error(err.message || 'Error communicating with FRRO');
-    } finally {
-      setSubmittingCForm(null);
-    }
+      toast.success('C-Form submitted to FRRO!');
+      onRefresh();
+    } catch (err: any) { toast.error(err.message || 'FRRO error'); }
+    finally { setSubmittingCForm(null); }
   }
 
-  const canEdit = !['cancelled', 'checked_out', 'no_show'].includes(booking.status);
+  const inputCls = 'h-9 px-3 rounded-lg border border-surface-200 bg-white text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 w-full';
+  const indigoCls = 'h-9 px-3 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/30 w-full';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl border border-surface-200 shadow-lg overflow-hidden"
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 sm:p-5 border-b border-surface-100 bg-gradient-to-r from-primary-50 to-transparent">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-display font-bold text-surface-900">Booking Details</h2>
+      <div className="mx-3 sm:mx-5 my-3 rounded-2xl border border-surface-200 bg-white shadow-xl overflow-hidden" style={{ borderTop: '3px solid #166534' }}>
+
+        {/* ── HEADER ── */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-surface-100 bg-gradient-to-r from-primary-50/80 to-transparent">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="font-mono text-sm font-bold text-primary-700 shrink-0">{booking.bookingNumber}</span>
+            <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider shrink-0 ${statusLabels[booking.status]?.class || 'bg-surface-100 text-surface-500'}`}>
+              {statusLabels[booking.status]?.label || booking.status}
+            </span>
+            <span className="text-xs text-surface-400 hidden sm:block truncate">{booking.guestName}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             {canEdit && (
-              <button onClick={() => setEditMode(!editMode)} 
-                className={`p-1.5 rounded-lg transition-all ${editMode ? 'bg-primary-100 text-primary-600' : 'hover:bg-surface-100 text-surface-400'}`}
+              <button onClick={() => setEditMode(!editMode)}
+                className={`p-1.5 rounded-lg transition-all ${editMode ? 'bg-primary-100 text-primary-600' : 'text-surface-400 hover:bg-surface-100 hover:text-surface-700'}`}
                 title="Edit booking">
                 <Edit2 className="w-4 h-4" />
               </button>
             )}
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-700 transition-all">
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <p className="text-sm text-primary-600 font-mono font-medium mt-0.5">{booking.bookingNumber}</p>
         </div>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
 
-      <div className="p-4 sm:p-5 space-y-5">
-        {/* Guest Card */}
-        <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">
-          <h3 className="text-[11px] uppercase text-surface-500 font-semibold tracking-wider mb-3 flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5" /> Guest Information
-          </h3>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-lg font-bold shrink-0">
-              {booking.guestName?.[0]?.toUpperCase() || '?'}
-            </div>
-            <div className="flex-1 space-y-1.5">
-              {editMode ? (
-                <>
-                  <input value={editData.guestName} onChange={e => setEditData({...editData, guestName: e.target.value})}
-                    className="w-full h-9 px-3 rounded-lg border border-surface-200 bg-white text-sm font-medium text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={editData.guestPhone} onChange={e => setEditData({...editData, guestPhone: e.target.value})} placeholder="Phone"
-                      className="h-9 px-3 rounded-lg border border-surface-200 bg-white text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
-                    <input value={editData.guestEmail} onChange={e => setEditData({...editData, guestEmail: e.target.value})} placeholder="Email"
-                      className="h-9 px-3 rounded-lg border border-surface-200 bg-white text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
+        {/* ── PRIMARY ACTION ZONE (always at top, never buried) ── */}
+        {!editMode && (
+          <div className="px-4 sm:px-5 pt-4">
+            {booking.status === 'pending_confirmation' && (
+              <button onClick={handleConfirm} disabled={saving}
+                className="w-full h-12 rounded-xl bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-emerald-500 active:scale-[0.98] transition-all shadow-md shadow-emerald-500/20 disabled:opacity-60">
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                Confirm Booking
+              </button>
+            )}
+
+            {booking.status === 'confirmed' && !showCancelPrompt && (
+              <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-4">
+                <h4 className="text-sm font-bold text-indigo-900 flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-indigo-600" /> Fast-Track Check-In
+                </h4>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-indigo-700 mb-1 uppercase tracking-wider">ID Type</label>
+                    <select value={ciIdType} onChange={e => setCiIdType(e.target.value)} className={indigoCls + ' cursor-pointer'}>
+                      <option value="aadhaar">Aadhaar</option>
+                      <option value="passport">Passport</option>
+                      <option value="dl">Driving License</option>
+                      <option value="voter_id">Voter ID</option>
+                    </select>
                   </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-base font-semibold text-surface-900">{booking.guestName}</p>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {booking.guestPhone && (
-                      <a href={`tel:${booking.guestPhone}`} className="text-sm text-primary-600 hover:text-primary-500 flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" /> {booking.guestPhone}
-                      </a>
-                    )}
-                    {booking.guestEmail && (
-                      <a href={`mailto:${booking.guestEmail}`} className="text-sm text-primary-600 hover:text-primary-500 flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5" /> {booking.guestEmail}
-                      </a>
-                    )}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-indigo-700 mb-1 uppercase tracking-wider">ID Number</label>
+                    <input type="text" placeholder="Enter number" value={ciIdNumber} onChange={e => setCiIdNumber(e.target.value)} className={indigoCls} />
                   </div>
-                </>
-              )}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-indigo-700 mb-1 uppercase tracking-wider">Arriving From</label>
+                    <input type="text" placeholder="City / Country" value={ciArrivingFrom} onChange={e => setCiArrivingFrom(e.target.value)} className={indigoCls} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-indigo-700 mb-1 uppercase tracking-wider">Going To</label>
+                    <input type="text" placeholder="City / Country" value={ciGoingTo} onChange={e => setCiGoingTo(e.target.value)} className={indigoCls} />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select value={ciPurpose} onChange={e => setCiPurpose(e.target.value)} className="flex-1 h-10 px-3 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/30 cursor-pointer">
+                    <option value="leisure">Leisure / Tourism</option>
+                    <option value="business">Business</option>
+                    <option value="transit">Transit</option>
+                    <option value="medical">Medical</option>
+                  </select>
+                  <button onClick={handleCheckIn} disabled={saving}
+                    className="flex-1 sm:flex-none sm:px-8 h-10 rounded-lg bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors disabled:opacity-60 shadow-md shadow-indigo-500/20">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Complete Check-In
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {booking.status === 'checked_in' && (
+              <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
+                <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
+                  <Building2 className="w-4 h-4 text-amber-600" /> Complete Check-Out
+                </h4>
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium pointer-events-none">₹</span>
+                    <input type="number" placeholder="Balance Due" value={coBalance} onChange={e => setCoBalance(e.target.value)}
+                      className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30" />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {['cash', 'card', 'upi'].map(mode => (
+                      <label key={mode} className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer capitalize">
+                        <input type="radio" name={`co-pay-${booking.id}`} value={mode} checked={coPayMode === mode} onChange={() => setCoPayMode(mode)} className="accent-amber-600" /> {mode}
+                      </label>
+                    ))}
+                  </div>
+                  <button onClick={handleCheckOut} disabled={saving}
+                    className="h-10 px-6 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-60 shadow-md shadow-amber-500/20">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Check Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── INFO GRID: Guest | Stay | Billing ── */}
+        <div className="px-4 sm:px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-5 border-b border-surface-100 mt-4">
+          {/* Guest */}
+          <div>
+            <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2 flex items-center gap-1.5"><User className="w-3 h-3" /> Guest</p>
+            {editMode ? (
+              <div className="space-y-2">
+                <input value={editData.guestName} onChange={e => setEditData({...editData, guestName: e.target.value})} placeholder="Full name" className={inputCls + ' font-medium'} />
+                <input value={editData.guestPhone} onChange={e => setEditData({...editData, guestPhone: e.target.value})} placeholder="Phone" className={inputCls} />
+                <input value={editData.guestEmail} onChange={e => setEditData({...editData, guestEmail: e.target.value})} placeholder="Email (optional)" className={inputCls} />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold text-surface-900">{booking.guestName}</p>
+                {booking.guestPhone && (
+                  <a href={`tel:${booking.guestPhone}`} className="text-sm text-primary-600 hover:text-primary-500 flex items-center gap-1.5 transition-colors">
+                    <Phone className="w-3.5 h-3.5" /> {booking.guestPhone}
+                  </a>
+                )}
+                {booking.guestEmail && (
+                  <a href={`mailto:${booking.guestEmail}`} className="text-sm text-primary-600 hover:text-primary-500 flex items-center gap-1.5 transition-colors truncate">
+                    <Mail className="w-3.5 h-3.5 shrink-0" /> {booking.guestEmail}
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Stay */}
+          <div>
+            <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2 flex items-center gap-1.5"><CalendarDays className="w-3 h-3" /> Stay</p>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div>
+                <p className="text-[10px] text-surface-400 mb-0.5">Check-in</p>
+                <p className="text-sm font-bold text-surface-900">{new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+              </div>
+              <div className="flex flex-col items-center gap-0.5 px-1.5">
+                <div className="h-px w-5 bg-surface-300" />
+                <span className="text-[10px] font-bold text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full">{nights}N</span>
+                <div className="h-px w-5 bg-surface-300" />
+              </div>
+              <div>
+                <p className="text-[10px] text-surface-400 mb-0.5">Check-out</p>
+                <p className="text-sm font-bold text-surface-900">{new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+              </div>
             </div>
+            <p className="text-xs text-surface-500">
+              {booking.numAdults} adult{booking.numAdults !== 1 ? 's' : ''}{booking.numChildren ? ` · ${booking.numChildren} child${booking.numChildren !== 1 ? 'ren' : ''}` : ''}
+              {' · '}<span className="capitalize">{booking.source?.replace(/_/g, ' ')}</span>
+            </p>
+          </div>
+
+          {/* Billing */}
+          <div>
+            <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2">Billing</p>
+            <p className="text-2xl font-bold text-surface-900 leading-none">₹{booking.totalAmount?.toLocaleString('en-IN')}</p>
+            {booking.discountAmount ? (
+              <p className="text-xs text-emerald-600 font-medium mt-1">Saved ₹{booking.discountAmount.toLocaleString('en-IN')}</p>
+            ) : null}
+            <p className="text-xs text-surface-400 mt-1">{nights} night{nights !== 1 ? 's' : ''} · {booking.numRooms} room{booking.numRooms !== 1 ? 's' : ''}</p>
           </div>
         </div>
 
-        {/* Stay Timeline */}
-        <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">
-          <h3 className="text-[11px] uppercase text-surface-500 font-semibold tracking-wider mb-3 flex items-center gap-1.5">
-            <CalendarDays className="w-3.5 h-3.5" /> Stay Details
-          </h3>
-          <div className="flex items-center gap-3">
-            <div className="text-center flex-1 bg-white rounded-lg p-3 border border-surface-100">
-              <p className="text-[10px] uppercase text-surface-500 font-semibold">Check-in</p>
-              <p className="text-sm font-bold text-surface-900 mt-1">{new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <ArrowRight className="w-4 h-4 text-surface-400" />
-              <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{nights}N</span>
-            </div>
-            <div className="text-center flex-1 bg-white rounded-lg p-3 border border-surface-100">
-              <p className="text-[10px] uppercase text-surface-500 font-semibold">Check-out</p>
-              <p className="text-sm font-bold text-surface-900 mt-1">{new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center justify-between text-sm">
-            <span className="text-surface-500">Guests</span>
-            <span className="text-surface-900 font-medium">{booking.numAdults} adult{booking.numAdults !== 1 ? 's' : ''}{booking.numChildren ? `, ${booking.numChildren} child${booking.numChildren !== 1 ? 'ren' : ''}` : ''}</span>
-          </div>
-          <div className="mt-1 flex items-center justify-between text-sm">
-            <span className="text-surface-500">Source</span>
-            <span className="text-surface-900 font-medium capitalize">{booking.source?.replace(/_/g, ' ')}</span>
-          </div>
-        </div>
-
-        {/* FRRO & Sarai Compliance */}
-        {booking.bookingGuests && booking.bookingGuests.length > 0 && (
-          <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">
-            <h3 className="text-[11px] uppercase text-surface-500 font-semibold tracking-wider mb-3 flex items-center gap-1.5">
-              <Globe className="w-3.5 h-3.5" /> FRRO & Police Compliance
-            </h3>
-            <div className="space-y-2">
-              {booking.bookingGuests.map((guest: any) => {
-                const isForeigner = guest.nationality && guest.nationality.toLowerCase() !== 'indian' && guest.nationality.toLowerCase() !== 'india';
-                return (
-                  <div key={guest.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded-lg border border-surface-100 gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-surface-900 flex items-center gap-2">
-                        {guest.fullName} 
-                        {isForeigner && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 font-bold uppercase tracking-wider">
-                            Foreign National
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-surface-500 mt-0.5">
-                        {guest.idProof && `ID: ${guest.idProof}`} {guest.visaDetails && `| Visa: ${guest.visaDetails}`}
-                      </p>
-                    </div>
-                    {isForeigner ? (
-                      <div>
-                        {guest.cFormSubmitted ? (
-                          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100">
-                            <CheckCircle className="w-3.5 h-3.5" /> FRRO Submitted
-                          </span>
-                        ) : (
-                          <button 
-                            onClick={() => handleCFormSubmit(guest.id)} 
-                            disabled={submittingCForm === guest.id}
-                            className="flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-50 px-2.5 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors disabled:opacity-50"
-                          >
-                            {submittingCForm === guest.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
-                            Submit to FRRO
-                          </button>
-                        )}
-                      </div>
+        {/* ── ROOMS ── */}
+        <div className="px-4 sm:px-5 py-3.5 border-b border-surface-100">
+          <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2.5 flex items-center gap-1.5"><BedDouble className="w-3 h-3" /> Rooms ({booking.numRooms})</p>
+          <div className="flex flex-wrap gap-2">
+            {booking.bookingRooms && booking.bookingRooms.length > 0 ? (
+              booking.bookingRooms.map((br: any, i: number) => (
+                <div key={i} className="flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-xl border border-surface-200 bg-surface-50">
+                  <div>
+                    <p className="text-sm font-medium text-surface-900 leading-none">{br.room ? `Room ${br.room.roomNumber}` : 'Unassigned'}</p>
+                    <p className="text-xs text-surface-400 mt-0.5">{br.roomType?.name || 'Room'}{br.extraBeds > 0 ? ` · +${br.extraBeds} extra bed` : ''}</p>
+                  </div>
+                  {canEdit && (
+                    changingRoomId === br.id ? (
+                      <select autoFocus defaultValue=""
+                        className="h-8 px-2 rounded-lg border border-violet-200 bg-white text-xs min-w-[140px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-300"
+                        onChange={(e) => { if (e.target.value) handleChangeRoom(br.id, e.target.value); }}>
+                        <option value="" disabled>Select room...</option>
+                        {availableRooms.map(r => <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name}</option>)}
+                      </select>
                     ) : (
-                      <span className="flex items-center gap-1.5 text-xs text-surface-500 font-medium">
-                        Domestic Guest
-                      </span>
+                      <button onClick={() => { setChangingRoomId(br.id); loadAvailableRooms(); }}
+                        className="text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50 px-2 py-1 rounded-lg transition-colors font-medium">
+                        {br.room ? 'Change' : 'Assign'}
+                      </button>
+                    )
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-surface-400">{booking.numRooms} room(s) — not yet assigned</p>
+            )}
+          </div>
+        </div>
+
+        {/* ── FRRO COMPLIANCE ── */}
+        {booking.bookingGuests && booking.bookingGuests.length > 0 && (
+          <div className="px-4 sm:px-5 py-3.5 border-b border-surface-100">
+            <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2.5 flex items-center gap-1.5"><Globe className="w-3 h-3" /> FRRO & Police Compliance</p>
+            <div className="flex flex-wrap gap-2">
+              {booking.bookingGuests.map((guest: any) => {
+                const isForeigner = guest.nationality && !['indian', 'india'].includes(guest.nationality.toLowerCase());
+                return (
+                  <div key={guest.id} className="flex items-center gap-3 pl-3 pr-2 py-2 rounded-xl border border-surface-200 bg-surface-50">
+                    <div>
+                      <p className="text-sm font-medium text-surface-900 leading-none flex items-center gap-1.5">
+                        {guest.fullName}
+                        {isForeigner && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-bold uppercase">Foreign</span>}
+                      </p>
+                      {guest.idProof && <p className="text-xs text-surface-400 mt-0.5">ID: {guest.idProof}</p>}
+                    </div>
+                    {isForeigner && (
+                      guest.cFormSubmitted ? (
+                        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                          <CheckCircle className="w-3 h-3" /> FRRO ✓
+                        </span>
+                      ) : (
+                        <button onClick={() => handleCFormSubmit(guest.id)} disabled={submittingCForm === guest.id}
+                          className="flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors disabled:opacity-50">
+                          {submittingCForm === guest.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />} Submit FRRO
+                        </button>
+                      )
                     )}
                   </div>
                 );
               })}
             </div>
-            <p className="text-[10px] text-surface-400 mt-3 italic">
-              All guests listed here will automatically be included in your Sarai Act Police Register for the relevant dates.
-            </p>
           </div>
         )}
 
-        {/* Room Cards */}
-        <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">
-          <h3 className="text-[11px] uppercase text-surface-500 font-semibold tracking-wider mb-3 flex items-center gap-1.5">
-            <BedDouble className="w-3.5 h-3.5" /> Rooms ({booking.numRooms})
-          </h3>
-          <div className="space-y-2">
-            {booking.bookingRooms && booking.bookingRooms.length > 0 ? (
-              booking.bookingRooms.map((br: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-surface-100">
-                  <div>
-                    <p className="text-sm font-medium text-surface-900">{br.roomType?.name || 'Room'}</p>
-                    <p className="text-xs text-surface-500">{br.room ? `Room ${br.room.roomNumber}` : 'Not assigned'}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {br.extraBeds > 0 && <span className="text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">+{br.extraBeds} bed</span>}
-                    {canEdit && (
-                      changingRoomId === br.id ? (
-                        <select
-                          className="h-8 px-2 rounded-lg border border-violet-200 bg-white text-xs text-surface-700 min-w-[140px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-300"
-                          defaultValue=""
-                          onChange={(e) => { if (e.target.value) handleChangeRoom(br.id, e.target.value); }}
-                          autoFocus
-                        >
-                          <option value="" disabled>Select room...</option>
-                          {availableRooms.map(r => (
-                            <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <button onClick={() => { setChangingRoomId(br.id); loadAvailableRooms(); }}
-                          className="text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-50 px-2 py-1 rounded-lg transition-colors font-medium">
-                          {br.room ? 'Change' : 'Assign'}
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-surface-500 text-center py-3">{booking.numRooms} Room(s)</p>
-            )}
-          </div>
-        </div>
-
-        {/* Billing */}
-        <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">
-          <h3 className="text-[11px] uppercase text-surface-500 font-semibold tracking-wider mb-3">Billing</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-surface-500">Subtotal</span>
-              <span className="text-surface-900">₹{(booking.totalAmount + (booking.discountAmount || 0)).toLocaleString('en-IN')}</span>
-            </div>
-            {booking.discountAmount ? (
-              <div className="flex justify-between text-sm text-emerald-600 font-medium">
-                <span>Discount</span>
-                <span>- ₹{booking.discountAmount.toLocaleString('en-IN')}</span>
-              </div>
-            ) : null}
-            <div className="flex justify-between text-base font-bold pt-2 border-t border-surface-200">
-              <span className="text-surface-700">Total</span>
-              <span className="text-surface-900">₹{booking.totalAmount?.toLocaleString('en-IN')}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Notes */}
+        {/* ── NOTES ── */}
         {(editMode || booking.notes) && (
-          <div className="bg-surface-50 rounded-xl p-4 border border-surface-100">
-            <h3 className="text-[11px] uppercase text-surface-500 font-semibold tracking-wider mb-2">Notes</h3>
+          <div className="px-4 sm:px-5 py-3.5 border-b border-surface-100">
+            <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2">Notes</p>
             {editMode ? (
-              <textarea value={editData.notes} onChange={e => setEditData({...editData, notes: e.target.value})} rows={2}
+              <textarea value={editData.notes} onChange={e => setEditData({...editData, notes: e.target.value})}
+                rows={2} placeholder="Special requests, notes..."
                 className="w-full px-3 py-2 rounded-lg border border-surface-200 bg-white text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 resize-none" />
             ) : (
               <p className="text-sm text-surface-600">{booking.notes}</p>
@@ -1230,149 +1291,42 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
           </div>
         )}
 
-        {/* Edit Save */}
-        {editMode && (
-          <div className="flex gap-3">
-            <button onClick={() => setEditMode(false)} className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">Cancel</button>
-            <button onClick={handleSaveEdits} disabled={saving} className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
-            </button>
-          </div>
-        )}
-
-        {/* Status Actions */}
-        {!editMode && (
-          <div className="space-y-4 pt-2 border-t border-surface-100">
-            {booking.status === 'pending_confirmation' && (
-              <button onClick={() => onConfirm(booking.id)} className="w-full h-10 rounded-xl bg-emerald-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-emerald-500 transition-colors">
-                <CheckCircle className="w-4 h-4" /> Confirm Booking
+        {/* ── FOOTER ACTIONS ── */}
+        <div className="px-4 sm:px-5 py-3 flex items-center gap-3 flex-wrap">
+          {editMode ? (
+            <>
+              <button onClick={() => setEditMode(false)} className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">Cancel Edit</button>
+              <button onClick={handleSaveEdits} disabled={saving}
+                className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
               </button>
-            )}
-
-            {booking.status === 'confirmed' && (
-              !showCancelPrompt ? (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100 shadow-inner">
-                    <h4 className="text-sm font-bold text-indigo-900 flex items-center gap-2 mb-3">
-                      <Zap className="w-4 h-4 text-indigo-600" /> Fast-Track Check-In
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-indigo-800 mb-1">ID Type</label>
-                          <select value={ciIdType} onChange={e => setCiIdType(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
-                            <option value="aadhaar">Aadhaar</option>
-                            <option value="passport">Passport</option>
-                            <option value="dl">Driving License</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-indigo-800 mb-1">ID Number</label>
-                          <input type="text" placeholder="12-digit" value={ciIdNumber} onChange={e => setCiIdNumber(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-indigo-800 mb-1">Arriving From</label>
-                          <input type="text" placeholder="City/Country" value={ciArrivingFrom} onChange={e => setCiArrivingFrom(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-indigo-800 mb-1">Going To</label>
-                          <input type="text" placeholder="City/Country" value={ciGoingTo} onChange={e => setCiGoingTo(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <select value={ciPurpose} onChange={e => setCiPurpose(e.target.value)} className="flex-1 h-10 px-2 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
-                          <option value="leisure">Leisure</option>
-                          <option value="business">Business</option>
-                          <option value="transit">Transit</option>
-                        </select>
-                        <button 
-                          onClick={async () => {
-                            try {
-                              setSaving(true);
-                              await checkinApi.checkIn(booking.id, {
-                                idProofType: ciIdType,
-                                idProofNumber: ciIdNumber,
-                                arrivingFrom: ciArrivingFrom,
-                                goingTo: ciGoingTo,
-                                purposeOfVisit: ciPurpose,
-                              });
-                              toast.success('Successfully Checked In');
-                              onUpdated();
-                            } catch (err: any) {
-                              toast.error(err.message || 'Check-in failed');
-                            } finally { setSaving(false); }
-                          }}
-                          disabled={saving}
-                          className="flex-1 h-10 rounded-lg bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors disabled:opacity-50"
-                        >
-                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Complete Check-In
-                        </button>
-                      </div>
-                    </div>
+            </>
+          ) : (
+            <>
+              {booking.status === 'confirmed' && (
+                showCancelPrompt ? (
+                  <div className="flex-1 flex items-center gap-2">
+                    <input value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Cancel reason (optional)" autoFocus
+                      className="flex-1 h-9 px-3 rounded-lg border border-red-200 bg-red-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-red-300" />
+                    <button onClick={() => setShowCancelPrompt(false)} className="h-9 px-3 rounded-lg border border-surface-200 text-surface-600 text-sm hover:bg-surface-50 transition-colors whitespace-nowrap">Back</button>
+                    <button onClick={handleCancel} disabled={saving}
+                      className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition-colors disabled:opacity-50 whitespace-nowrap">
+                      Confirm Cancel
+                    </button>
                   </div>
-                  <button onClick={() => setShowCancelPrompt(true)} className="w-full h-10 rounded-xl bg-red-50 text-red-600 border border-red-200 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                ) : (
+                  <button onClick={() => setShowCancelPrompt(true)}
+                    className="h-9 px-4 rounded-xl bg-red-50 text-red-600 border border-red-200 text-sm font-medium flex items-center gap-1.5 hover:bg-red-100 transition-colors">
                     <XCircle className="w-4 h-4" /> Cancel Booking
                   </button>
-                </div>
-              ) : (
-                <div className="space-y-2 p-3 rounded-xl bg-red-50 border border-red-200">
-                  <input value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Reason (optional)" autoFocus
-                    className="w-full h-9 px-3 rounded-lg border border-red-200 bg-white text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-red-300" />
-                  <div className="flex gap-2">
-                    <button onClick={() => setShowCancelPrompt(false)} className="flex-1 h-9 rounded-lg border border-surface-200 bg-white text-surface-700 text-sm hover:bg-surface-50">Back</button>
-                    <button onClick={() => onCancel(booking.id, cancelReason)} className="flex-1 h-9 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500">Confirm Cancel</button>
-                  </div>
-                </div>
-              )
-            )}
-
-            {booking.status === 'checked_in' && (
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 shadow-inner">
-                <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-amber-600" /> Complete Check-Out
-                </h4>
-                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium">₹</span>
-                    <input type="number" placeholder="Balance Due" value={coBalance} onChange={e => setCoBalance(e.target.value)} className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer">
-                      <input type="radio" name={`payMode-${booking.id}`} value="cash" checked={coPayMode === 'cash'} onChange={() => setCoPayMode('cash')} className="accent-amber-600" /> Cash
-                    </label>
-                    <label className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer">
-                      <input type="radio" name={`payMode-${booking.id}`} value="card" checked={coPayMode === 'card'} onChange={() => setCoPayMode('card')} className="accent-amber-600" /> Card
-                    </label>
-                    <label className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer">
-                      <input type="radio" name={`payMode-${booking.id}`} value="upi" checked={coPayMode === 'upi'} onChange={() => setCoPayMode('upi')} className="accent-amber-600" /> UPI
-                    </label>
-                  </div>
-                </div>
-                <button 
-                  onClick={async () => {
-                    try {
-                      setSaving(true);
-                      await checkinApi.checkOut(booking.id, {
-                        balanceDue: parseFloat(coBalance) || 0,
-                        paymentMode: coPayMode,
-                      });
-                      toast.success('Successfully Checked Out');
-                      onUpdated();
-                    } catch (err: any) {
-                      toast.error(err.message || 'Check-out failed');
-                    } finally { setSaving(false); }
-                  }}
-                  disabled={saving}
-                  className="mt-3 w-full h-10 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Complete Check-out
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                )
+              )}
+              <button onClick={onClose} className="ml-auto h-9 px-4 rounded-xl border border-surface-200 bg-white text-surface-500 text-sm hover:bg-surface-50 transition-colors flex items-center gap-1.5">
+                <ChevronDown className="w-4 h-4" /> Collapse
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </motion.div>
   );
