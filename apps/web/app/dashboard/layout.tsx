@@ -11,6 +11,7 @@ import {
 import { Toaster } from 'sonner';
 import { NextIntlClientProvider } from 'next-intl';
 import messages from '@/messages/en.json';
+import { PropertyTypeProvider, type PropertyType } from '@/lib/property-context';
 
 const sidebarGroups = [
   {
@@ -66,6 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null);
   const [propertyName, setPropertyName] = useState('My Property');
   const [plan, setPlan] = useState('free');
+  const [propertyType, setPropertyType] = useState<PropertyType>('hotel');
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -80,6 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (parsed?.[0]?.tenant) {
           setPropertyName(parsed[0].tenant.name || 'My Property');
           setPlan(parsed[0].tenant.plan || 'free');
+          setPropertyType((parsed[0].tenant.propertyType as PropertyType) || 'hotel');
         }
       } catch { /* ignore */ }
     }
@@ -198,7 +201,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Page content */}
         <main className="flex-1 p-6 lg:p-8">
           <Toaster position="top-right" />
+          <PropertyTypeProvider propertyType={propertyType}>
           {children}
+          </PropertyTypeProvider>
         </main>
       </div>
     </div>

@@ -18,6 +18,7 @@ import ThemedLocation from './themes/themed-location';
 import ThemedAwards from './themes/themed-awards';
 import ThemedOffers from './themes/themed-offers';
 import ThemedContact from './themes/themed-contact';
+import ThemedRateComparison from './themes/themed-rate-comparison';
 
 export default async function PropertyHomePage({ params }: { params: { slug: string; locale: string } }) {
   let property = null;
@@ -35,6 +36,17 @@ export default async function PropertyHomePage({ params }: { params: { slug: str
     notFound();
   }
 
+  // Fetch competitor rates; widget is optional — never block page load on failure
+  let rateComparisonData: { enabled: boolean; rates: Record<string, Record<string, number>>; lastUpdated?: string } | null = null;
+  try {
+    const rateRes = await publicApi.getRateComparison(params.slug);
+    if (rateRes.success && rateRes.data) {
+      rateComparisonData = rateRes.data;
+    }
+  } catch {
+    // silently skip — widget is decorative / additive
+  }
+
   const config = property.config?.websiteBuilder || {};
   const components = config.components || {};
   const themeTokens = getThemeTokens(config.theme || 'default', property.primaryColor || '#2563eb', config);
@@ -50,6 +62,11 @@ export default async function PropertyHomePage({ params }: { params: { slug: str
         <ThemedAbout config={components.about || {}} property={property} themeTokens={themeTokens} />
         <ThemedAmenities config={components.amenities || {}} themeTokens={themeTokens} />
         <ThemedRooms config={components.rooms || {}} property={property} locale={params.locale} propertySlug={params.slug} themeTokens={themeTokens} />
+        <ThemedRateComparison
+          rateData={rateComparisonData}
+          roomTypes={(property.roomTypes || []).map((rt: { id: string; name: string; baseRate: number }) => ({ id: rt.id, name: rt.name, baseRate: rt.baseRate }))}
+          themeTokens={themeTokens}
+        />
         <ThemedGallery config={components.gallery || {}} themeTokens={themeTokens} />
         <ThemedStats config={components.stats || {}} themeTokens={themeTokens} />
         <ThemedNearby config={components.nearby || {}} themeTokens={themeTokens} />

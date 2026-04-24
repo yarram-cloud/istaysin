@@ -7,6 +7,16 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { bookingsApi, roomsApi, checkinApi, complianceApi } from '@/lib/api';
 import { COUNTRY_CODES } from '@/lib/constants';
+import { usePropertyType } from '@/lib/property-context';
+
+const statusLabels: Record<string, { label: string; class: string }> = {
+  pending_confirmation: { label: 'Pending',     class: 'bg-amber-100 text-amber-700 border border-amber-200' },
+  confirmed:            { label: 'Confirmed',   class: 'bg-primary-100 text-primary-700 border border-primary-200' },
+  checked_in:           { label: 'Checked In',  class: 'bg-emerald-100 text-emerald-700 border border-emerald-200' },
+  checked_out:          { label: 'Checked Out', class: 'bg-surface-100 text-surface-600 border border-surface-200' },
+  cancelled:            { label: 'Cancelled',   class: 'bg-red-100 text-red-700 border border-red-200' },
+  no_show:              { label: 'No Show',     class: 'bg-red-100 text-red-700 border border-red-200' },
+};
 
 interface Booking {
   id: string; bookingNumber: string; guestName: string; guestPhone: string; guestEmail: string;
@@ -17,6 +27,7 @@ interface Booking {
 
 export default function BookingsPage() {
   const t = useTranslations('Dashboard');
+  const { isLongStay } = usePropertyType();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -32,8 +43,9 @@ export default function BookingsPage() {
     guestPhone: '', 
     roomId: '', 
     durationValue: 1, 
-    durationUnit: 'days', 
-    paymentMode: 'cash' 
+    durationUnit: (isLongStay ? 'months' : 'days') as 'days' | 'months', 
+    paymentMode: 'cash',
+    deposit: 0,
   });
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [roomSearch, setRoomSearch] = useState('');
@@ -57,7 +69,7 @@ export default function BookingsPage() {
     if (showWalkInCard && availableRooms.length === 0) {
       roomsApi.getRooms({ status: 'available' })
         .then(res => setAvailableRooms(res.data || []))
-        .catch(console.error);
+        .catch(() => {});
     }
   }, [showWalkInCard, availableRooms.length]);
 
@@ -73,7 +85,7 @@ export default function BookingsPage() {
       await bookingsApi.walkIn(formattedPayload);
       toast.success(t('walkInSuccess') || 'Walk-in booking created and checked in successfully!');
       setShowWalkInCard(false);
-      setWalkInForm({ guestName: '', countryCode: '+91', guestPhone: '', roomId: '', durationValue: 1, durationUnit: 'days', paymentMode: 'cash' });
+      setWalkInForm({ guestName: '', countryCode: '+91', guestPhone: '', roomId: '', durationValue: 1, durationUnit: 'days', paymentMode: 'cash', deposit: 0 });
       setRoomSearch('');
       fetchBookings();
       setAvailableRooms([]);
@@ -90,8 +102,8 @@ export default function BookingsPage() {
       if (statusFilter) params.status = statusFilter;
       const res = await bookingsApi.list(params);
       if (res.success) setBookings(res.data || []);
-    } catch (err) {
-      console.error('Bookings fetch failed:', err);
+    } catch {
+      // silently ignore — UI stays with last known data
     } finally {
       setLoading(false);
     }
@@ -99,12 +111,12 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
-  // Keep expanded detail in sync after any action refreshes the list
+  // Keep expanded row in sync with refreshed bookings list (functional update avoids stale closure)
   useEffect(() => {
-    if (selectedBooking) {
-      const updated = bookings.find(b => b.id === selectedBooking.id);
-      if (updated) setSelectedBooking(updated);
-    }
+    setSelectedBooking(prev => {
+      if (!prev) return prev;
+      return bookings.find(b => b.id === prev.id) ?? prev;
+    });
   }, [bookings]);
 
   const filtered = searchQuery
@@ -138,15 +150,6 @@ export default function BookingsPage() {
     } catch { return { label: '', isExpired: false, urgencyClass: '' }; }
   }
 
-  const statusLabels: Record<string, { label: string; class: string }> = {
-    pending_confirmation: { label: 'Pending', class: 'bg-amber-100 text-amber-700 border border-amber-200' },
-    confirmed: { label: 'Confirmed', class: 'bg-primary-100 text-primary-700 border border-primary-200' },
-    checked_in: { label: 'Checked In', class: 'bg-emerald-100 text-emerald-700 border border-emerald-200' },
-    checked_out: { label: 'Checked Out', class: 'bg-surface-100 text-surface-600 border border-surface-200' },
-    cancelled: { label: 'Cancelled', class: 'bg-red-100 text-red-700 border border-red-200' },
-    no_show: { label: 'No Show', class: 'bg-red-100 text-red-700 border border-red-200' },
-  };
-
   async function handleConfirm(id: string) {
     try {
       await bookingsApi.confirm(id);
@@ -171,7 +174,7 @@ export default function BookingsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-display font-bold mb-0.5 text-surface-900">Bookings</h1>
-          <p className="text-sm text-surface-500">Manage all reservations and walk-ins</p>
+          <p className="text-sm text-surface-500">{isLongStay ? 'Manage tenant move-ins and bookings' : 'Manage all reservations and walk-ins'}</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <button 
@@ -183,8 +186,8 @@ export default function BookingsPage() {
             }`}
           >
             <Zap className="w-4 h-4 text-amber-500" />
-            <span className="hidden sm:inline">{t('quickWalkIn') || 'Quick Walk-in'}</span>
-            <span className="sm:hidden">Walk-in</span>
+            <span className="hidden sm:inline">{isLongStay ? 'Quick Move-in' : (t('quickWalkIn') || 'Quick Walk-in')}</span>
+            <span className="sm:hidden">{isLongStay ? 'Move-in' : 'Walk-in'}</span>
           </button>
           <button onClick={() => setShowNewBooking(!showNewBooking)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
             showNewBooking
@@ -214,9 +217,9 @@ export default function BookingsPage() {
                   </div>
                   <div>
                     <h3 className="font-display text-base sm:text-lg text-surface-900 leading-tight">
-                      {t('expressWalkIn') || 'Express Walk-in'}
+                      {isLongStay ? 'Express Move-in' : (t('expressWalkIn') || 'Express Walk-in')}
                     </h3>
-                    <p className="text-xs text-surface-500 mt-0.5">Book & check-in in under 30 seconds</p>
+                    <p className="text-xs text-surface-500 mt-0.5">{isLongStay ? 'Register a tenant & assign room instantly' : 'Book & check-in in under 30 seconds'}</p>
                   </div>
                 </div>
                 <button onClick={() => setShowWalkInCard(false)} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all" type="button">
@@ -225,7 +228,7 @@ export default function BookingsPage() {
               </div>
 
               <form onSubmit={handleWalkInSubmit} className="p-4 sm:p-5 pt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3 sm:gap-4">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isLongStay ? 'xl:grid-cols-[1fr_1.3fr_1fr_auto_auto_auto_auto]' : 'xl:grid-cols-[1fr_1.3fr_1fr_auto_auto_auto]'} gap-3 sm:gap-4`}>
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">
                       Guest Name <span className="text-red-400">*</span>
@@ -241,8 +244,9 @@ export default function BookingsPage() {
                     <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">
                       Phone Number <span className="text-red-400">*</span>
                     </label>
-                    <div className="flex rounded-xl border border-surface-200 bg-surface-50 focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-400 transition-all overflow-hidden">
+                    <div className="flex rounded-xl border border-surface-200 bg-surface-50 focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-400 transition-all">
                       <select value={walkInForm.countryCode} onChange={e => setWalkInForm({...walkInForm, countryCode: e.target.value})}
+                        tabIndex={-1}
                         className="h-11 w-[78px] bg-transparent border-r border-surface-200 text-surface-700 text-sm px-2 outline-none cursor-pointer shrink-0">
                         {COUNTRY_CODES.map((c) => (
                           <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
@@ -250,7 +254,7 @@ export default function BookingsPage() {
                       </select>
                       <input required type="tel" inputMode="numeric" value={walkInForm.guestPhone} 
                         onChange={e => setWalkInForm({...walkInForm, guestPhone: e.target.value.replace(/\D/g, '')})}
-                        placeholder="10 digit number" className="flex-1 h-11 px-3 text-sm text-surface-900 bg-transparent outline-none" />
+                        placeholder="10 digit number" className="flex-1 h-11 px-3 text-sm text-surface-900 bg-transparent outline-none min-w-0" />
                     </div>
                   </div>
 
@@ -279,7 +283,7 @@ export default function BookingsPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">Stay Duration</label>
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">{isLongStay ? 'Duration' : 'Stay Duration'}</label>
                     <div className="flex rounded-xl border border-surface-200 bg-surface-50 focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-400 transition-all overflow-hidden">
                       <input required type="number" min="1" max="365" inputMode="numeric"
                         className="w-16 h-11 text-center text-sm font-semibold text-surface-800 bg-transparent border-r border-surface-200 outline-none shrink-0" 
@@ -305,19 +309,31 @@ export default function BookingsPage() {
                       <option value="card">💳 Card</option>
                     </select>
                   </div>
+
+                  {isLongStay && (
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">Deposit (₹)</label>
+                      <input type="number" min="0" inputMode="numeric"
+                        className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all"
+                        placeholder="e.g. 5000"
+                        value={walkInForm.deposit || ''}
+                        onChange={e => setWalkInForm({...walkInForm, deposit: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+                  )}
                   
                   <div className="flex items-end">
                     <button type="submit" disabled={submittingWalkIn || !walkInForm.roomId} 
-                      className="w-full h-11 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.97] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full h-11 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.97] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                       style={{ background: 'linear-gradient(135deg, #f59e0b, #ea580c)', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)' }}>
-                      {submittingWalkIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Zap className="w-4 h-4" /><span>Book & Check-in</span></>}
+                      {submittingWalkIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Zap className="w-4 h-4" /><span>{isLongStay ? 'Book & Move-in' : 'Book & Check-in'}</span></>}
                     </button>
                   </div>
                 </div>
                 {availableRooms.length > 0 && (
                   <p className="text-xs text-surface-500 mt-3 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                    {availableRooms.filter(r => r.status === 'available').length} rooms available
+                    {availableRooms.filter(r => r.status === 'available').length} {isLongStay ? 'beds' : 'rooms'} available
                   </p>
                 )}
               </form>
@@ -383,8 +399,8 @@ export default function BookingsPage() {
                   </div>
                   <div className="hidden md:flex items-center gap-6 px-4 shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-surface-500">Check-in</p>
-                      <p className="text-sm font-medium text-surface-700">{new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                      <p className="text-xs text-surface-500">{isLongStay ? 'Move-in' : 'Check-in'}</p>
+                      <p className="text-sm font-medium text-surface-700">{new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-surface-500">Amount Due</p>
@@ -457,8 +473,8 @@ export default function BookingsPage() {
                 <tr className="border-b border-surface-100 bg-surface-50">
                   <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider">Booking</th>
                   <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider">Guest</th>
-                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">Check-in</th>
-                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">Check-out</th>
+                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">{isLongStay ? 'Move-in' : 'Check-in'}</th>
+                  <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">{isLongStay ? 'Lease End' : 'Check-out'}</th>
                   <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider hidden lg:table-cell">Room</th>
                   <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider">Amount</th>
                   <th className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider">Status</th>
@@ -499,6 +515,7 @@ function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, o
   onRefresh: () => void;
   onAssignRoom: () => void;
 }) {
+  const { isLongStay } = usePropertyType();
   const [showAssign, setShowAssign] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [assigning, setAssigning] = useState(false);
@@ -561,10 +578,10 @@ function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, o
           <p className="text-xs text-surface-500">{booking.guestPhone}</p>
         </td>
         <td className="px-4 sm:px-5 py-3.5 text-sm text-surface-600 hidden md:table-cell">
-          {new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+          {new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}
         </td>
         <td className="px-4 sm:px-5 py-3.5 text-sm text-surface-600 hidden md:table-cell">
-          {new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+          {new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}
         </td>
         <td className="px-4 sm:px-5 py-3.5 text-sm hidden lg:table-cell">
           {booking.bookingRooms?.map((br: any) => br.room?.roomNumber || br.roomType?.name).join(', ') || `${booking.numRooms} room(s)`}
@@ -671,6 +688,7 @@ function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, o
 // ── New Booking — Inline Expandable Form (No Modal) ─────────────
 function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const t = useTranslations('Dashboard');
+  const { isLongStay } = usePropertyType();
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
@@ -679,9 +697,11 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
     const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   });
   const [checkOut, setCheckOut] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const d = new Date();
+    if (isLongStay) { d.setMonth(d.getMonth() + 1); } else { d.setDate(d.getDate() + 1); }
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   });
-  const [source, setSource] = useState('walk_in');
+  const [source, setSource] = useState('walkin');
   const [notes, setNotes] = useState('');
   
   const [roomSelections, setRoomSelections] = useState<{ roomTypeId: string; quantity: number; extraBeds: number }[]>([]);
@@ -691,6 +711,8 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
   const [roomTypes, setRoomTypes] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [availCount, setAvailCount] = useState<number | null>(null);
+  const [checkingAvail, setCheckingAvail] = useState(false);
 
   useEffect(() => {
     roomsApi.getRoomTypes().then((res) => {
@@ -700,6 +722,19 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
       }
     }).catch(() => {});
   }, []);
+
+  // Check availability whenever dates change
+  useEffect(() => {
+    if (!checkIn || !checkOut || new Date(checkOut) <= new Date(checkIn)) {
+      setAvailCount(null);
+      return;
+    }
+    setCheckingAvail(true);
+    roomsApi.checkAvailability(checkIn, checkOut)
+      .then(res => setAvailCount(res.data?.length ?? null))
+      .catch(() => setAvailCount(null))
+      .finally(() => setCheckingAvail(false));
+  }, [checkIn, checkOut]);
 
   function handleAddRoom() {
     if (!activeRoomTypeId) return;
@@ -762,8 +797,8 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
             <CalendarDays className="w-5 h-5 text-primary-600" />
           </div>
           <div>
-            <h3 className="font-display text-base sm:text-lg text-surface-900 leading-tight">New Booking</h3>
-            <p className="text-xs text-surface-500 mt-0.5">Create a reservation for walk-in, phone, or agent bookings</p>
+            <h3 className="font-display text-base sm:text-lg text-surface-900 leading-tight">{isLongStay ? 'New Tenant Registration' : 'New Booking'}</h3>
+            <p className="text-xs text-surface-500 mt-0.5">{isLongStay ? 'Register a tenant with move-in date and room type' : 'Create a reservation for walk-in, phone, or agent bookings'}</p>
           </div>
         </div>
         <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all">
@@ -814,12 +849,20 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-surface-500 mb-1">Check-in <span className="text-red-400">*</span></label>
-              <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} required
+              <label className="block text-xs text-surface-500 mb-1">{isLongStay ? 'Move-in' : 'Check-in'} <span className="text-red-400">*</span></label>
+              <input type="date" value={checkIn} onChange={(e) => {
+                  setCheckIn(e.target.value);
+                  // Auto-set checkout: +1 month for PG, +1 day for hotel
+                  if (e.target.value) {
+                    const next = new Date(e.target.value + 'T12:00:00');
+                    if (isLongStay) { next.setMonth(next.getMonth() + 1); } else { next.setDate(next.getDate() + 1); }
+                    setCheckOut(`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`);
+                  }
+                }} required
                 className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
             </div>
             <div>
-              <label className="block text-xs text-surface-500 mb-1">Check-out <span className="text-red-400">*</span></label>
+              <label className="block text-xs text-surface-500 mb-1">{isLongStay ? 'Lease End' : 'Check-out'} <span className="text-red-400">*</span></label>
               <input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} required
                 className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
             </div>
@@ -827,7 +870,7 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
               <label className="block text-xs text-surface-500 mb-1">Source</label>
               <select value={source} onChange={(e) => setSource(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
-                <option value="walk_in">Walk-in</option>
+                <option value="walkin">Walk-in</option>
                 <option value="phone">Phone</option>
                 <option value="email">Email</option>
                 <option value="website">Website</option>
@@ -845,6 +888,25 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
           <h4 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3 flex items-center gap-2">
             <BedDouble className="w-3.5 h-3.5" /> 3. Room Selection
           </h4>
+
+          {/* Availability indicator */}
+          {checkingAvail ? (
+            <div className="mb-3 p-3 rounded-xl bg-surface-50 border border-surface-200 flex items-center gap-2 text-xs text-surface-500">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking room availability...
+            </div>
+          ) : availCount !== null && (
+            <div className={`mb-3 p-3 rounded-xl border flex items-center gap-2 text-xs font-medium ${
+              availCount === 0
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            }`}>
+              {availCount === 0 ? (
+                <><span className="text-sm">⚠️</span> No rooms available for selected dates. Booking will be waitlisted — assign a room when one frees up.</>
+              ) : (
+                <><span className="text-sm">✓</span> {availCount} room{availCount !== 1 ? 's' : ''} available for {new Date(checkIn + 'T12:00:00+05:30').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })} → {new Date(checkOut + 'T12:00:00+05:30').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}</>
+              )}
+            </div>
+          )}
           
           {roomSelections.length > 0 && (
             <div className="mb-3 space-y-2">
@@ -918,6 +980,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   onClose: () => void;
   onRefresh: () => void;
 }) {
+  const { isLongStay } = usePropertyType();
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [editMode, setEditMode] = useState(false);
@@ -938,8 +1001,21 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   const [changingRoomId, setChangingRoomId] = useState<string | null>(null);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [submittingCForm, setSubmittingCForm] = useState<string | null>(null);
+  // Guests come from GET /bookings/:id (the list endpoint doesn't include them)
+  const [loadedGuests, setLoadedGuests] = useState<any[]>(booking.bookingGuests || []);
+
+  useEffect(() => {
+    bookingsApi.get(booking.id).then(res => {
+      if (res.success && res.data?.bookingGuests) {
+        setLoadedGuests(res.data.bookingGuests);
+      }
+    }).catch(() => {});
+  }, [booking.id]);
 
   const nights = Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / 86400000);
+  const durationLabel = isLongStay && nights >= 28
+    ? `${Math.round(nights / 30)}M`
+    : `${nights}N`;
   const canEdit = !['cancelled', 'checked_out', 'no_show'].includes(booking.status);
 
   async function handleSaveEdits() {
@@ -1022,7 +1098,11 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
     try {
       const res = await complianceApi.submitCForm(guestId);
       if (!res.success) throw new Error(res.error || 'Failed to submit C-Form');
-      toast.success('C-Form submitted to FRRO!');
+      toast.success('Successfully submitted C-Form to FRRO!');
+      // Re-fetch guests so FRRO Submitted badge renders immediately
+      bookingsApi.get(booking.id).then(r => {
+        if (r.success && r.data?.bookingGuests) setLoadedGuests(r.data.bookingGuests);
+      }).catch(() => {});
       onRefresh();
     } catch (err: any) { toast.error(err.message || 'FRRO error'); }
     finally { setSubmittingCForm(null); }
@@ -1077,7 +1157,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
             {booking.status === 'confirmed' && !showCancelPrompt && (
               <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-4">
                 <h4 className="text-sm font-bold text-indigo-900 flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-indigo-600" /> Fast-Track Check-In
+                  <Zap className="w-4 h-4 text-indigo-600" /> {isLongStay ? 'Fast-Track Move-In' : 'Fast-Track Check-In'}
                 </h4>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                   <div>
@@ -1111,7 +1191,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
                   </select>
                   <button onClick={handleCheckIn} disabled={saving}
                     className="flex-1 sm:flex-none sm:px-8 h-10 rounded-lg bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors disabled:opacity-60 shadow-md shadow-indigo-500/20">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Complete Check-In
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Complete Move-In' : 'Complete Check-In'}
                   </button>
                 </div>
               </div>
@@ -1120,7 +1200,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
             {booking.status === 'checked_in' && (
               <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
                 <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-amber-600" /> Complete Check-Out
+                  <Building2 className="w-4 h-4 text-amber-600" /> {isLongStay ? 'Complete Move-Out' : 'Complete Check-Out'}
                 </h4>
                 <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                   <div className="relative flex-1">
@@ -1137,7 +1217,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
                   </div>
                   <button onClick={handleCheckOut} disabled={saving}
                     className="h-10 px-6 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-60 shadow-md shadow-amber-500/20">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Check Out
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Move Out' : 'Check Out'}
                   </button>
                 </div>
               </div>
@@ -1178,17 +1258,17 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
             <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2 flex items-center gap-1.5"><CalendarDays className="w-3 h-3" /> Stay</p>
             <div className="flex items-center gap-2 mb-1.5">
               <div>
-                <p className="text-[10px] text-surface-400 mb-0.5">Check-in</p>
-                <p className="text-sm font-bold text-surface-900">{new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                <p className="text-[10px] text-surface-400 mb-0.5">{isLongStay ? 'Move-in' : 'Check-in'}</p>
+                <p className="text-sm font-bold text-surface-900">{new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata' })}</p>
               </div>
               <div className="flex flex-col items-center gap-0.5 px-1.5">
                 <div className="h-px w-5 bg-surface-300" />
-                <span className="text-[10px] font-bold text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full">{nights}N</span>
+                <span className="text-[10px] font-bold text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full">{durationLabel}</span>
                 <div className="h-px w-5 bg-surface-300" />
               </div>
               <div>
-                <p className="text-[10px] text-surface-400 mb-0.5">Check-out</p>
-                <p className="text-sm font-bold text-surface-900">{new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                <p className="text-[10px] text-surface-400 mb-0.5">{isLongStay ? 'Lease End' : 'Check-out'}</p>
+                <p className="text-sm font-bold text-surface-900">{new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata' })}</p>
               </div>
             </div>
             <p className="text-xs text-surface-500">
@@ -1204,7 +1284,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
             {booking.discountAmount ? (
               <p className="text-xs text-emerald-600 font-medium mt-1">Saved ₹{booking.discountAmount.toLocaleString('en-IN')}</p>
             ) : null}
-            <p className="text-xs text-surface-400 mt-1">{nights} night{nights !== 1 ? 's' : ''} · {booking.numRooms} room{booking.numRooms !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-surface-400 mt-1">{isLongStay && nights >= 28 ? `${Math.round(nights / 30)} month${Math.round(nights / 30) !== 1 ? 's' : ''}` : `${nights} night${nights !== 1 ? 's' : ''}`} · {booking.numRooms} {isLongStay ? 'bed' : 'room'}{booking.numRooms !== 1 ? 's' : ''}</p>
           </div>
         </div>
 

@@ -21,6 +21,8 @@ const PROPERTY_TYPES = [
   { value: 'resort', label: 'Resort' },
   { value: 'homestay', label: 'Homestay' },
   { value: 'guest_house', label: 'Guest House' },
+  { value: 'pg', label: 'PG / Paying Guest' },
+  { value: 'hostel', label: 'Hostel' },
 ];
 
 const PLANS = [
@@ -216,6 +218,13 @@ export default function RegisterPage() {
                 </select>
               </div>
             </div>
+
+            {(propertyType === 'pg' || propertyType === 'hostel') && (
+              <div className="col-span-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm flex items-start gap-2">
+                <span className="text-base mt-0.5">💡</span>
+                <span>Monthly billing will be enabled by default for {propertyType === 'pg' ? 'PG' : 'Hostel'} properties. You can configure billing cycle day and deposit settings later in Dashboard → Settings.</span>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

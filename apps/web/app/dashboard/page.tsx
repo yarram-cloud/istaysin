@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { BedDouble, CalendarDays, Users, ArrowRight, TrendingUp, ClipboardList, IndianRupee, PieChart, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { dashboardApi, analyticsApi } from '@/lib/api';
+import { usePropertyType } from '@/lib/property-context';
 
 interface DashboardData {
   today: string;
@@ -17,6 +18,7 @@ interface DashboardData {
 
 export default function DashboardOverview() {
   const router = useRouter();
+  const { isLongStay } = usePropertyType();
   const [data, setData] = useState<DashboardData | null>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -59,9 +61,9 @@ export default function DashboardOverview() {
 
   const stats = [
     {
-      label: 'Monthly Revenue',
+      label: isLongStay ? 'Monthly Rent Collection' : 'Monthly Revenue',
       value: `₹${totalRevenueThisMonth.toLocaleString('en-IN')}`,
-      detail: `${totalBookingsThisMonth} total bookings`,
+      detail: isLongStay ? `${totalBookingsThisMonth} active tenants` : `${totalBookingsThisMonth} total bookings`,
       icon: TrendingUp,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
@@ -71,7 +73,7 @@ export default function DashboardOverview() {
     {
       label: 'Occupancy',
       value: `${data?.rooms.occupancyPercent || 0}%`,
-      detail: `${data?.rooms.occupied || 0} / ${data?.rooms.total || 0} rooms`,
+      detail: `${data?.rooms.occupied || 0} / ${data?.rooms.total || 0} ${isLongStay ? 'beds' : 'rooms'}`,
       icon: BedDouble,
       color: 'text-primary-600',
       bgColor: 'bg-primary-50',
@@ -79,9 +81,9 @@ export default function DashboardOverview() {
       href: '/dashboard/rooms',
     },
     {
-      label: 'Average Daily Rate (ADR)',
+      label: isLongStay ? 'Avg Monthly Rent' : 'Average Daily Rate (ADR)',
       value: `₹${Math.round(adr).toLocaleString('en-IN')}`,
-      detail: 'Average rate per booking',
+      detail: isLongStay ? 'Average rent per tenant' : 'Average rate per booking',
       icon: IndianRupee,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
@@ -89,9 +91,9 @@ export default function DashboardOverview() {
       href: '/dashboard/analytics',
     },
     {
-      label: 'RevPAR',
+      label: isLongStay ? 'Revenue per Bed' : 'RevPAR',
       value: `₹${Math.round(revPar).toLocaleString('en-IN')}`,
-      detail: 'Revenue per available room',
+      detail: isLongStay ? 'Revenue per available bed' : 'Revenue per available room',
       icon: PieChart,
       color: 'text-violet-600',
       bgColor: 'bg-violet-50',
@@ -101,9 +103,9 @@ export default function DashboardOverview() {
   ];
 
   const operations = [
-    { label: 'Expected Check-ins', value: data?.todayCheckIns || 0, color: 'text-emerald-600 bg-emerald-50', href: '/dashboard/bookings?status=confirmed' },
-    { label: 'Expected Check-outs', value: data?.todayCheckOuts || 0, color: 'text-amber-600 bg-amber-50', href: '/dashboard/bookings?status=checked_in' },
-    { label: 'Pending Bookings', value: data?.pendingBookings || 0, color: 'text-primary-600 bg-primary-50', href: '/dashboard/bookings?status=pending_confirmation' },
+    { label: isLongStay ? 'Expected Move-ins' : 'Expected Check-ins', value: data?.todayCheckIns || 0, color: 'text-emerald-600 bg-emerald-50', href: '/dashboard/bookings?status=confirmed' },
+    { label: isLongStay ? 'Expected Move-outs' : 'Expected Check-outs', value: data?.todayCheckOuts || 0, color: 'text-amber-600 bg-amber-50', href: '/dashboard/bookings?status=checked_in' },
+    { label: isLongStay ? 'Pending Renewals' : 'Pending Bookings', value: data?.pendingBookings || 0, color: 'text-primary-600 bg-primary-50', href: '/dashboard/bookings?status=pending_confirmation' },
     { label: 'Housekeeping Tasks', value: data?.pendingHousekeeping || 0, color: 'text-surface-600 bg-surface-100', href: '/dashboard/housekeeping' },
   ];
 

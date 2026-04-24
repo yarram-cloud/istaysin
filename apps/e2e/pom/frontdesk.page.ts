@@ -39,15 +39,15 @@ export class FrontdeskPage {
 
     // Check-in Inputs
     this.idProofTypeSelect = this.checkInContainer.locator('select').first();
-    this.idProofNumberInput = this.checkInContainer.locator('input[placeholder="12-digit"]');
-    this.arrivingFromInput = this.checkInContainer.getByPlaceholder('City/Country').first();
-    this.goingToInput = this.checkInContainer.getByPlaceholder('City/Country').nth(1);
+    this.idProofNumberInput = this.checkInContainer.locator('input[placeholder="Enter number"]');
+    this.arrivingFromInput = this.checkInContainer.getByPlaceholder('City / Country').first();
+    this.goingToInput = this.checkInContainer.getByPlaceholder('City / Country').nth(1);
     this.purposeOfVisitSelect = this.checkInContainer.locator('select').last();
 
     // Check-out Inputs
     this.balanceDueInput = page.getByPlaceholder('Balance Due');
     this.paymentCardRadio = page.getByText('Card', { exact: true });
-    this.completeCheckOutBtn = page.getByRole('button', { name: 'Complete Check-out' });
+    this.completeCheckOutBtn = page.getByRole('button', { name: 'Check Out' });
     this.checkoutSuccessHeading = page.getByRole('heading', { name: 'Successfully Checked Out' });
   }
 

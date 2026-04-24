@@ -56,12 +56,11 @@ test.describe('Front Desk Operations', () => {
     // 1. Traverse to Bookings Dashboard
     await frontdeskPage.gotoBookings('premium-resort-pro');
 
-    // 2. Open our programmatic booking
+    // 2. Open our programmatic booking — panel expands inline below the row
     await frontdeskPage.openBookingDetails(testBookingNumber);
     await frontdeskPage.completeConfirmation();
-    
-    // 2.5 Re-open the booking details (as confirming clears the active selection sheet)
-    await frontdeskPage.openBookingDetails(testBookingNumber);
+
+    // Panel stays open after confirm; Fast-Track Check-In form is now visible
 
     // 3. Perform Check-In
     await frontdeskPage.performCheckIn(
@@ -73,8 +72,7 @@ test.describe('Front Desk Operations', () => {
     // Verify UI Status updated to 'Checked In' in the datatable
     await expect(frontdeskPage.page.locator('tr', { hasText: testBookingNumber }).locator('td', { hasText: 'Checked In' })).toBeVisible();
 
-    // Re-open booking details for checkout as check-in might close the slide-over
-    await frontdeskPage.openBookingDetails(testBookingNumber);
+    // Panel stays open after check-in; Check-Out form is now visible
 
     // 4. Perform Check-Out and settle folios
     await frontdeskPage.performCheckOut(500); // Random settlement balance amount

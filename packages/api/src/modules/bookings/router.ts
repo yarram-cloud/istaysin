@@ -51,9 +51,11 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
 
       const bookingNumber = generateBookingNumber(tenantConfig.bookingPrefix);
 
-      // Calculate nights
+      // Calculate nights — anchor dates to noon IST to avoid UTC midnight drift
+      const checkInDt = new Date(data.checkInDate + 'T12:00:00+05:30');
+      const checkOutDt = new Date(data.checkOutDate + 'T12:00:00+05:30');
       const nights = Math.ceil(
-        (new Date(data.checkOutDate).getTime() - new Date(data.checkInDate).getTime()) / (1000 * 60 * 60 * 24),
+        (checkOutDt.getTime() - checkInDt.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       if (nights <= 0) {
@@ -73,8 +75,8 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
         const pricing = await calculatePricing(
           req.tenantId!,
           sel.roomTypeId,
-          new Date(data.checkInDate),
-          new Date(data.checkOutDate),
+          checkInDt,
+          checkOutDt,
           sel.extraBeds
         );
 
@@ -182,8 +184,8 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
           guestEmail: data.guestEmail?.toLowerCase() || null,
           guestPhone: data.guestPhone,
           source: data.source,
-          checkInDate: new Date(data.checkInDate),
-          checkOutDate: new Date(data.checkOutDate),
+          checkInDate: checkInDt,
+          checkOutDate: checkOutDt,
           numAdults: data.numAdults,
           numChildren: data.numChildren,
           numRooms: data.roomSelections.length,
@@ -352,6 +354,7 @@ bookingsRouter.post('/:id/guests', authorize('property_owner', 'general_manager'
           bookingId: booking.id,
           fullName: parsed.data.fullName,
           nationality: parsed.data.nationality || 'Indian',
+          idProofType: parsed.data.idProofType,
           idProofNumber: parsed.data.idProofNumber,
           visaNumber: parsed.data.visaNumber,
           visaExpiryDate: parsed.data.visaExpiryDate ? new Date(parsed.data.visaExpiryDate) : null,
@@ -580,7 +583,9 @@ bookingsRouter.post('/walk-in', authorize('property_owner', 'general_manager', '
 
       // 3. Calculate Check-Out Date and Pricing
       // Use IST (Asia/Kolkata) for all date operations to avoid timezone drift
-      const checkInDate = getLocalDate();
+      const checkInStr = getLocalDate();
+      // Anchor to noon IST so Prisma DateTime doesn't drift to previous day in UTC
+      const checkInDate = new Date(checkInStr + 'T12:00:00+05:30');
       const checkOutDate = new Date(checkInDate);
       
       if (durationUnit === 'days') {
@@ -592,7 +597,7 @@ bookingsRouter.post('/walk-in', authorize('property_owner', 'general_manager', '
       const pricing = await calculatePricing(
         req.tenantId!,
         room.roomTypeId,
-        new Date(checkInDate),
+        checkInDate,
         checkOutDate,
         0
       );
@@ -813,8 +818,8 @@ bookingsRouter.put('/:id', validateRequest(updateBookingSchema), authorize('prop
       if (guestPhone !== undefined) updateData.guestPhone = guestPhone.trim();
       if (guestEmail !== undefined) updateData.guestEmail = guestEmail?.trim()?.toLowerCase() || null;
       if (notes !== undefined) updateData.notes = notes?.trim() || null;
-      if (checkInDate !== undefined) updateData.checkInDate = new Date(checkInDate);
-      if (checkOutDate !== undefined) updateData.checkOutDate = new Date(checkOutDate);
+      if (checkInDate !== undefined) updateData.checkInDate = new Date(checkInDate + 'T12:00:00+05:30');
+      if (checkOutDate !== undefined) updateData.checkOutDate = new Date(checkOutDate + 'T12:00:00+05:30');
 
       const updated = await prisma.booking.update({
         where: { id: req.params.id },

@@ -86,7 +86,19 @@
     "privacyPolicy": "Privacy Policy",
     "termsOfService": "Terms of Service",
     "refundPolicy": "Refund Policy",
-    "allRightsReserved": "All rights reserved."
+    "allRightsReserved": "All rights reserved.",
+    "bookDirectAndSave": "Book Direct & Save",
+    "bookDirectTitle": "Best Price — Book Direct",
+    "bookDirectTagline": "Save money by booking directly with us instead of third-party platforms.",
+    "bookDirectLabel": "Book Direct",
+    "youSave": "You Save",
+    "whyBookDirect": "Why Book Direct?",
+    "whyBookDirectReason1": "Best Rate Guarantee — lowest price, period",
+    "whyBookDirectReason2": "Free cancellation up to 48 hours before arrival",
+    "whyBookDirectReason3": "Earn loyalty points on every direct booking",
+    "whyBookDirectReason4": "Priority room selection and complimentary upgrades",
+    "whyBookDirectReason5": "Direct support from our property team — no middlemen",
+    "otaDisclaimer": "* OTA rates are manually entered by the property and may vary. Rates shown are per night."
   },
   "Dashboard": {
     "print": "Print",

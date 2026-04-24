@@ -50,6 +50,10 @@ tenantsRouter.post('/register-property', authenticate, async (req: Request, res:
         latitude: data.latitude,
         longitude: data.longitude,
         ownerId: req.userId!,
+        // Auto-set monthly billing for PG/Hostel properties
+        config: ['pg', 'hostel'].includes(data.propertyType)
+          ? { defaultBillingMode: 'monthly', billingCycleDay: 1 }
+          : { defaultBillingMode: 'nightly' },
       },
     });
 

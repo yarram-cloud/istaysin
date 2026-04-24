@@ -7,12 +7,15 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { roomsApi } from '@/lib/api';
 import Link from 'next/link';
+import { usePropertyType } from '@/lib/property-context';
 
 interface Floor { id: string; name: string; level: number; }
 interface RoomType { id: string; name: string; maxOccupancy: number; baseRate: number; description?: string; }
 interface Room { id: string; roomNumber: string; status: string; baseRate: number; floor?: Floor; roomType?: RoomType; floorId: string; roomTypeId: string; }
 
 const STATUS_OPTIONS = ['available', 'occupied', 'blocked', 'maintenance', 'dirty', 'cleaning'];
+const PG_STATUS_OPTIONS = ['available', 'occupied', 'maintenance'];
+const STATUS_LABELS_PG: Record<string, string> = { available: 'Vacant', occupied: 'Occupied', maintenance: 'Maintenance' };
 const STATUS_CLASSES: Record<string, string> = {
   available: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   occupied: 'bg-primary-100 text-primary-700 border-primary-200',
@@ -33,6 +36,8 @@ const STATUS_DOT: Record<string, string> = {
 
 export default function RoomsPage() {
   const t = useTranslations('Dashboard');
+  const { isLongStay } = usePropertyType();
+  const activeStatusOptions = isLongStay ? PG_STATUS_OPTIONS : STATUS_OPTIONS;
   const [rooms, setRooms] = useState<Room[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +124,11 @@ export default function RoomsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-display font-bold mb-0.5 text-surface-900">Room Status & Operations</h1>
-          <p className="text-sm text-surface-500">Live overview of {stats.total} rooms across {floors.length} floors</p>
+          <p className="text-sm text-surface-500">
+            {isLongStay ? 'Occupancy overview' : `Live overview of ${stats.total} rooms across ${floors.length} floors`}
+            <span className="mx-1">·</span>
+            <span className="font-medium text-surface-600">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })}</span>
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/dashboard/settings/inventory" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white border border-surface-200 text-surface-700 hover:bg-surface-50 transition-all shadow-sm">
@@ -132,7 +141,7 @@ export default function RoomsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total', value: stats.total, color: 'text-surface-900', bg: 'bg-surface-50 border-surface-200' },
-          { label: 'Available', value: stats.available, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+          { label: isLongStay ? 'Vacant' : 'Available', value: stats.available, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
           { label: 'Occupied', value: stats.occupied, color: 'text-primary-700', bg: 'bg-primary-50 border-primary-200' },
           { label: 'Maintenance', value: stats.maintenance, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
         ].map(s => (
@@ -154,7 +163,10 @@ export default function RoomsPage() {
         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setLoading(true); }}
           className="h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
           <option value="all">All Status</option>
-          {STATUS_OPTIONS.map(s => <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+          {activeStatusOptions.map(s => {
+            const label = isLongStay ? (STATUS_LABELS_PG[s] || s.charAt(0).toUpperCase() + s.slice(1)) : s.charAt(0).toUpperCase() + s.slice(1);
+            return <option key={s} value={s}>{label}</option>;
+          })}
         </select>
         <select value={floorFilter} onChange={(e) => setFloorFilter(e.target.value)}
           className="h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
@@ -187,7 +199,10 @@ export default function RoomsPage() {
         <div className="space-y-4">
           {groupedByFloor.map(([floorId, group]) => (
             <FloorGroup key={floorId} floor={group.floor} rooms={group.rooms}
-              onStatusChange={handleStatusChange} />
+              onStatusChange={handleStatusChange}
+              statusOptions={activeStatusOptions}
+              statusLabels={isLongStay ? STATUS_LABELS_PG : undefined}
+            />
           ))}
         </div>
       ) : (
@@ -207,7 +222,10 @@ export default function RoomsPage() {
                   onChange={(e) => handleStatusChange(room.id, e.target.value)}
                   className={`w-full text-[10px] sm:text-xs px-2 py-1 rounded-lg border font-semibold cursor-pointer outline-none ${STATUS_CLASSES[room.status] || 'bg-surface-100 text-surface-600 border-surface-200'}`}
                 >
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                  {activeStatusOptions.map(s => {
+                    const label = isLongStay ? (STATUS_LABELS_PG[s] || s.charAt(0).toUpperCase() + s.slice(1)) : s.charAt(0).toUpperCase() + s.slice(1);
+                    return <option key={s} value={s}>{label}</option>;
+                  })}
                 </select>
               </div>
             </div>
@@ -219,8 +237,9 @@ export default function RoomsPage() {
 }
 
 // ── Floor Group for Table View ─────────────────────────────────
-function FloorGroup({ floor, rooms, onStatusChange }: {
+function FloorGroup({ floor, rooms, onStatusChange, statusOptions, statusLabels }: {
   floor: Floor | null; rooms: Room[]; onStatusChange: (id: string, s: string) => void;
+  statusOptions: string[]; statusLabels?: Record<string, string>;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -261,7 +280,10 @@ function FloorGroup({ floor, rooms, onStatusChange }: {
                       onChange={(e) => onStatusChange(room.id, e.target.value)}
                       className={`text-[10px] sm:text-xs px-2 py-1 rounded-lg border font-semibold cursor-pointer outline-none focus:ring-2 focus:ring-primary-500/30 ${STATUS_CLASSES[room.status] || 'bg-surface-100 text-surface-600 border-surface-200'}`}
                     >
-                      {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                      {statusOptions.map(s => {
+                        const label = statusLabels?.[s] || s.charAt(0).toUpperCase() + s.slice(1);
+                        return <option key={s} value={s}>{label}</option>;
+                      })}
                     </select>
                   </td>
                 </tr>

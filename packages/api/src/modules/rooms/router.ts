@@ -367,11 +367,15 @@ roomsRouter.get('/availability', async (req: Request, res: Response) => {
     }
 
     await withTenant(req.tenantId!, async () => {
-      // Get all available rooms that are not booked for the given date range
+      // Get all active rooms excluding permanently blocked ones.
+      // Do NOT filter by current room.status — a room occupied TODAY
+      // may be free on future requested dates.
+      const checkInDt = new Date(checkIn as string + 'T12:00:00+05:30');
+      const checkOutDt = new Date(checkOut as string + 'T12:00:00+05:30');
       const where: any = {
         tenantId: req.tenantId!,
         isActive: true,
-        status: 'available',
+        status: { notIn: ['blocked', 'maintenance'] },
       };
       if (roomTypeId) where.roomTypeId = roomTypeId;
 
@@ -384,8 +388,8 @@ roomsRouter.get('/availability', async (req: Request, res: Response) => {
             where: {
               booking: {
                 status: { in: ['pending_confirmation', 'confirmed', 'checked_in'] },
-                checkInDate: { lt: new Date(checkOut as string) },
-                checkOutDate: { gt: new Date(checkIn as string) },
+                checkInDate: { lt: checkOutDt },
+                checkOutDate: { gt: checkInDt },
               },
             },
           },

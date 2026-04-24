@@ -235,6 +235,7 @@ export const brandingSchema = z.object({
 export const bookingGuestSchema = z.object({
   fullName: z.string().min(2).max(100),
   nationality: z.string().optional(),
+  idProofType: z.string().optional(),
   idProofNumber: z.string().optional(),
   visaNumber: z.string().optional(),
   visaExpiryDate: z.string().refine(

@@ -438,6 +438,7 @@ export const publicApi = {
   },
   property: (slug: string) => apiFetch(`/public/properties/${slug}`),
   getAvailabilityHints: (slug: string) => apiFetch(`/public/properties/${slug}/availability-hints`),
+  getRateComparison: (slug: string) => apiFetch(`/public/properties/${slug}/rate-comparison`),
   search: (q: string) => apiFetch(`/public/search?q=${encodeURIComponent(q)}`),
   createBooking: (body: any) => apiFetch('/public/bookings', { method: 'POST', body: JSON.stringify(body) }),
   createRazorpayOrder: (body: { bookingId: string; amount: number }) => 
