@@ -3,6 +3,9 @@ export type ThemeStyleMap = {
   archetype: 'MINIMAL' | 'VIBRANT' | 'CHIC' | 'CLASSIC';
   primaryText: string;
   primaryBg: string;
+  primaryBgHover: string;
+  glassPanel: string;
+  shadowStrong: string;
   fontHeadingClass: string;
   fontBodyClass: string;
   radiusClass: string;
@@ -35,8 +38,11 @@ export const getThemeTokens = (templateId: string, customColor: string = '#2563e
   return {
     templateId: id,
     archetype,
-    primaryText: '',
-    primaryBg: '',
+    primaryText: 'text-primary-600',
+    primaryBg: 'bg-primary-600',
+    primaryBgHover: 'hover:bg-primary-700',
+    glassPanel: 'bg-white/95 backdrop-blur-md border border-surface-200',
+    shadowStrong: 'shadow-xl',
     fontHeadingClass: fontMap[fontH] || 'font-sans',
     fontBodyClass: fontMap[fontB] || 'font-sans',
     radiusClass: radius,

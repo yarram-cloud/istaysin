@@ -20,7 +20,7 @@ export default function ThemedHero({ config, property, themeTokens }: { config: 
   const opacityFade = useTransform(scrollYProgress, [0, 1], [1, 0]);
 
   // Motion Variants
-  const fadeUpStringent = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1] } } };
+  const fadeUpStringent = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1] as const } } };
   const straggerContainer = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.2 } } };
 
   switch (themeTokens.templateId) {
@@ -40,7 +40,7 @@ export default function ThemedHero({ config, property, themeTokens }: { config: 
                 {buttonText}
               </motion.button>
             </motion.div>
-            <motion.div initial={{ opacity: 0, clipPath: 'inset(10% 10% 10% 10%)' }} animate={{ opacity: 1, clipPath: 'inset(0% 0% 0% 0%)' }} transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }} className="order-1 lg:order-2 h-[60vh] lg:h-[90vh] w-full relative">
+            <motion.div initial={{ opacity: 0, clipPath: 'inset(10% 10% 10% 10%)' }} animate={{ opacity: 1, clipPath: 'inset(0% 0% 0% 0%)' }} transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] as const }} className="order-1 lg:order-2 h-[60vh] lg:h-[90vh] w-full relative">
               {property.heroImage ? (
                 <SafeNextImage src={property.heroImage} alt="Hero" containerClassName={`w-full h-full ${radius} overflow-hidden shadow-2xl`} className="object-cover" />
               ) : <div className={`w-full h-full bg-gray-100 ${radius}`} />}

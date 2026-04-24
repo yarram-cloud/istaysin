@@ -50,7 +50,7 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
   }
 
   // Add tenant ID
-  const tenant = tenantId || (typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null);
+  const tenant = tenantId || (typeof window !== 'undefined' ? (localStorage.getItem('tenantId') || localStorage.getItem('tenant_id')) : null) || 'unassigned';
   if (tenant) {
     headers['x-tenant-id'] = tenant;
   }
@@ -120,8 +120,8 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
 
 // Helper to get tenantId from localStorage
 function getTenantId(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('tenantId') || '';
+  if (typeof window === 'undefined') return 'unassigned';
+  return localStorage.getItem('tenantId') || localStorage.getItem('tenant_id') || 'unassigned';
 }
 
 // Helper to save auth data after login/register
@@ -131,6 +131,7 @@ export function saveAuthData(data: { accessToken: string; refreshToken: string; 
   localStorage.setItem('user', JSON.stringify(data.user));
   if (data.tenantId) {
     localStorage.setItem('tenantId', data.tenantId);
+    localStorage.setItem('tenant_id', data.tenantId); // backwards compatibility
   }
   if (data.memberships) {
     localStorage.setItem('memberships', JSON.stringify(data.memberships));
@@ -229,6 +230,8 @@ export const roomsApi = {
   getRoomTypes: () => apiFetch('/rooms/types'),
   createRoomType: (body: { name: string; maxOccupancy: number; baseRate: number; pricingUnit: string; description?: string }) =>
     apiFetch('/rooms/types', { method: 'POST', body: JSON.stringify(body) }),
+  updateRoomType: (id: string, body: { name: string; maxOccupancy: number; baseRate: number; pricingUnit: string; description?: string }) =>
+    apiFetch(`/rooms/types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   // No DELETE /types/:id in backend - we need to add it
   deleteRoomType: (id: string) => apiFetch(`/rooms/types/${id}`, { method: 'DELETE' }),
 

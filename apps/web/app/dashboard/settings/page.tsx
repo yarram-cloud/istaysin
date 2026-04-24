@@ -1,21 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt, TrendingUp, FileText } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt, TrendingUp, FileText, Layers, BedDouble, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import { tenantsApi } from '@/lib/api';
 import { DomainSettings } from './domain-settings';
 import { CompetitorRatesSettings } from './competitor-rates';
 import { ComplianceSettings } from './compliance';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 
 const LocationPicker = dynamic(() => import('./location-picker'), { ssr: false });
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const router = useRouter();
 
   const sections = [
     { id: 'property', icon: Building2, title: 'Property Details', desc: 'Name, address, type, contact info, check-in/out times' },
+    { id: 'inventory', icon: Building2, title: 'Property Inventory', desc: 'Floors, room types, rooms & pricing — all in one place', href: '/dashboard/settings/inventory' },
     { id: 'domain', icon: Globe, title: 'Domain Settings', desc: 'Subdomain, custom domain, and DNS configuration' },
     { id: 'billing', icon: Receipt, title: 'Billing & Taxes', desc: 'GST settings, invoicing details' },
     { id: 'competitor', icon: TrendingUp, title: 'Rate Comparison', desc: 'Manage your direct booking rate widget (OTA comparisons)' },
@@ -36,15 +39,21 @@ export default function SettingsPage() {
           {sections.map((section) => {
             const Icon = section.icon;
             return (
-              <button key={section.id} onClick={() => setActiveSection(section.id)}
-                className="glass-card p-6 border border-white/[0.06] hover:bg-white/[0.08] transition-all cursor-pointer group text-left">
+              <button key={section.id} onClick={() => {
+                  if (section.href) {
+                    router.push(section.href);
+                  } else {
+                    setActiveSection(section.id);
+                  }
+                }}
+                className="bg-white p-6 border border-surface-200 rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 transition-all cursor-pointer group text-left">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Icon className="w-5 h-5 text-primary-400" />
+                  <div className="w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Icon className="w-5 h-5 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold mb-1">{section.title}</h3>
-                    <p className="text-sm text-surface-400">{section.desc}</p>
+                    <h3 className="text-lg font-semibold text-surface-900 mb-1">{section.title}</h3>
+                    <p className="text-sm text-surface-500">{section.desc}</p>
                   </div>
                 </div>
               </button>
@@ -488,41 +497,41 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
           </div>
 
           {gstEnabled && (
-            <div className="space-y-4 pt-2 border-t border-white/[0.08]">
+            <div className="space-y-4 pt-2 border-t border-surface-100">
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-1">GSTIN (Goods and Services Tax Identification Number)</label>
+                <label className="block text-sm font-medium text-surface-700 mb-1">GSTIN (Goods and Services Tax Identification Number)</label>
                 <input value={gstNumber} onChange={(e) => setGstNumber(e.target.value.toUpperCase())} className="input-field uppercase" placeholder="e.g. 29ABCDE1234F1Z5" maxLength={15} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-1">Registered Legal Entity Name</label>
+                <label className="block text-sm font-medium text-surface-700 mb-1">Registered Legal Entity Name</label>
                 <input value={legalName} onChange={(e) => setLegalName(e.target.value)} className="input-field" placeholder="Name as per GST registration" />
               </div>
 
-              <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 mt-4">
-                <h4 className="text-sm font-medium text-primary-300 mb-2">Automated GST Slabs (Hotel Room Tariff)</h4>
-                <ul className="text-xs text-primary-400 space-y-1 list-disc pl-4">
+              <div className="p-4 rounded-xl bg-primary-50 border border-primary-200 mt-4">
+                <h4 className="text-sm font-medium text-primary-700 mb-2">Automated GST Slabs (Hotel Room Tariff)</h4>
+                <ul className="text-xs text-primary-600 space-y-1 list-disc pl-4">
                   <li>Up to ₹1,000 / night: <strong>0% GST</strong></li>
                   <li>₹1,001 to ₹7,500 / night: <strong>12% GST</strong></li>
                   <li>Above ₹7,500 / night: <strong>18% GST</strong></li>
                 </ul>
-                <p className="text-xs text-primary-400/70 mt-2 italic">Note: The system determines Intra-state vs Inter-state supply based on your Property Address state settings.</p>
+                <p className="text-xs text-primary-500 mt-2 italic">Note: The system determines Intra-state vs Inter-state supply based on your Property Address state settings.</p>
               </div>
             </div>
           )}
 
           {/* Pay at Hotel Toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-surface-50 border border-surface-200">
             <div>
-              <p className="font-medium text-white">Allow Pay at Hotel</p>
-              <p className="text-sm text-surface-400">Let guests book via your website without making an advance payment. Payment is collected on arrival.</p>
+              <p className="font-medium text-surface-900">Allow Pay at Hotel</p>
+              <p className="text-sm text-surface-500">Let guests book via your website without making an advance payment. Payment is collected on arrival.</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" checked={allowPayAtHotel} onChange={(e) => setAllowPayAtHotel(e.target.checked)} />
-              <div className="w-11 h-6 bg-surface-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+              <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
             </label>
           </div>
 
-          <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 mt-4">
+          <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center justify-center gap-2 mt-6 w-full sm:w-auto px-6 py-2.5">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Settings
           </button>
         </div>

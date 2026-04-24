@@ -3,124 +3,98 @@ import { Page, Locator } from '@playwright/test';
 export class RoomsPage {
   readonly page: Page;
 
-  // Actions
-  readonly addFloorButton: Locator;
-  readonly addRoomTypeButton: Locator;
-  readonly addRoomButton: Locator;
-
-  // Modals (now inline)
-  readonly modalTitle: Locator;
-  // Floor Modal
-  readonly floorNameInput: Locator;
-  readonly floorLevelInput: Locator;
-  readonly saveFloorButton: Locator;
-  // Room Type Modal
-  readonly typeNameInput: Locator;
-  readonly typeGuestsInput: Locator;
-  readonly typeRateInput: Locator;
-  readonly saveTypeButton: Locator;
-  // Room Modal
-  readonly roomNumberInput: Locator;
-  readonly roomFloorSelect: Locator;
-  readonly roomTypeSelect: Locator;
-  readonly roomRateInput: Locator;
-  readonly saveRoomButton: Locator;
-
   constructor(page: Page) {
     this.page = page;
-
-    // Top action bar
-    this.addFloorButton = page.getByRole('button', { name: /Floors/i }).first();
-    this.addRoomTypeButton = page.getByRole('button', { name: /Types/i }).first();
-    this.addRoomButton = page.getByRole('button', { name: /Add Room/i }).first();
-
-    // Modals
-    this.modalTitle = page.locator('h3');
-    
-    // Manage Floors Page
-    this.floorNameInput = page.getByPlaceholder('e.g. Ground Floor');
-    this.floorLevelInput = page.locator('input[type="number"]').first();
-    // The button says "Add Floor"
-    this.saveFloorButton = page.getByRole('button', { name: /Add Floor|Add/i }); 
-
-    // Manage Room Types Page
-    this.typeNameInput = page.getByPlaceholder('e.g. Deluxe Suite');
-    this.typeGuestsInput = page.locator('input[type="number"]').first();
-    this.typeRateInput = page.locator('input[type="number"]').nth(1);
-    this.saveTypeButton = page.getByRole('button', { name: /Add Type/i });
-
-    // Manage Rooms Form
-    this.roomNumberInput = page.getByPlaceholder('e.g. 101');
-    this.roomFloorSelect = page.locator('select').first();
-    this.roomTypeSelect = page.locator('select').nth(1);
-    this.roomRateInput = page.locator('input[type="number"]').first();
-    this.saveRoomButton = page.getByRole('button', { name: /Create|Add Room/i }).last();
   }
 
   async goto() {
     await this.page.goto('/dashboard/rooms');
   }
 
+  // ── Floors ──
+
   async createFloor(name: string, level: string) {
-    await this.addFloorButton.click();
-    await this.floorNameInput.waitFor({ state: 'visible' });
-    await this.floorNameInput.fill(name);
-    // await this.floorLevelInput.fill(level); // Removed because the new input has no empty state by default, it just defaults to max length, we can just save it or set it manually
-    
+    // Navigate to floors settings page
+    await this.page.goto('/dashboard/settings/floors/new');
+    await this.page.waitForLoadState('networkidle');
+
+    const nameInput = this.page.getByPlaceholder('e.g. Ground Floor');
+    await nameInput.waitFor({ state: 'visible' });
+    await nameInput.fill(name);
+
+    // Fill sort order / level
+    const levelInput = this.page.locator('input[type="number"]').first();
+    if (await levelInput.isVisible()) {
+      await levelInput.fill(level);
+    }
+
     await Promise.all([
       this.page.waitForResponse(r => r.url().includes('rooms/floors') && r.request().method() === 'POST'),
-      this.saveFloorButton.click()
+      this.page.getByRole('button', { name: /Create Floor|Add Floor|Save/i }).click()
     ]);
-    
+
     await this.page.waitForTimeout(1000);
   }
+
+  // ── Room Types ──
 
   async createRoomType(name: string, maxGuests: string, rate: string) {
-    await this.addRoomTypeButton.click();
-    await this.typeNameInput.waitFor({ state: 'visible' });
-    await this.typeNameInput.fill(name);
-    await this.typeGuestsInput.fill(maxGuests);
-    await this.typeRateInput.fill(rate);
-    
+    // Navigate to room types settings page
+    await this.page.goto('/dashboard/settings/room-types/new');
+    await this.page.waitForLoadState('networkidle');
+
+    const nameInput = this.page.getByPlaceholder('e.g. Deluxe Suite');
+    await nameInput.waitFor({ state: 'visible' });
+    await nameInput.fill(name);
+
+    // Fill max occupancy
+    const guestsInput = this.page.locator('input[type="number"]').first();
+    await guestsInput.fill(maxGuests);
+
+    // Fill base rate
+    const rateInput = this.page.locator('input[type="number"]').nth(1);
+    await rateInput.fill(rate);
+
     await Promise.all([
       this.page.waitForResponse(r => r.url().includes('rooms/types') && r.request().method() === 'POST'),
-      this.saveTypeButton.click()
+      this.page.getByRole('button', { name: /Create Room Type|Add Type|Save/i }).click()
     ]);
 
     await this.page.waitForTimeout(1000);
   }
 
+  // ── Rooms ──
+
   async createRoom(number: string, floorName: string, typeName: string, overrideRate?: string) {
-    await this.addRoomButton.click();
-    await this.roomNumberInput.waitFor({ state: 'visible' });
-    await this.roomNumberInput.fill(number);
+    // Navigate to new room page
+    await this.page.goto('/dashboard/settings/inventory-rooms/new');
+    await this.page.waitForLoadState('networkidle');
 
-    const floorVal = await this.roomFloorSelect.locator(`option:has-text("${floorName}")`).getAttribute('value');
-    if (floorVal) await this.roomFloorSelect.selectOption(floorVal);
+    const roomNumberInput = this.page.getByPlaceholder('e.g. 101');
+    await roomNumberInput.waitFor({ state: 'visible' });
+    await roomNumberInput.fill(number);
 
-    // Re-evaluate roomType locator because we have 3 selects on the page actually: 
-    // Top bar has 2 selects (Status Filter, Floor filter). Inline form has 2 selects (Floor, Room Type).
-    // Let's use `getByLabel` or specific locators. But our POM is using `.first()` which might be brittle.
-    // However, I'll let standard selectors run, but actually the inline form is at the bottom or top depending.
-    // Better to just click Add Room which brings up the form.
-    
-    // Instead of brittleness:
-    const floorSelects = await this.page.locator('select').all();
-    for (const s of floorSelects) {
-       const text = await s.textContent();
-       if (text?.includes(floorName)) {
-         await s.selectOption(floorVal!);
-       }
-       if (text?.includes(typeName)) {
-         const typeVal = await s.locator(`option`, { hasText: typeName }).getAttribute('value');
-         if (typeVal) await s.selectOption(typeVal);
-       }
-    }
-    
+    // Select floor from dropdown
+    const floorSelect = this.page.locator('select').first();
+    const floorVal = await floorSelect.locator(`option:has-text("${floorName}")`).getAttribute('value');
+    if (floorVal) await floorSelect.selectOption(floorVal);
+
+    // Select room type from dropdown
+    const typeSelect = this.page.locator('select').nth(1);
+    const typeVal = await typeSelect.locator(`option:has-text("${typeName}")`).getAttribute('value');
+    if (typeVal) await typeSelect.selectOption(typeVal);
+
+    // Override rate if provided
     if (overrideRate) {
-      await this.roomRateInput.fill(overrideRate);
+      const rateInput = this.page.locator('input[type="number"]').first();
+      await rateInput.fill(overrideRate);
     }
-    await this.saveRoomButton.click();
+
+    await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/rooms') && r.request().method() === 'POST' && !r.url().includes('types') && !r.url().includes('floors')),
+      this.page.getByRole('button', { name: /Create Room|Add Room|Save/i }).click()
+    ]);
+
     await this.page.waitForTimeout(1000);
   }
 }

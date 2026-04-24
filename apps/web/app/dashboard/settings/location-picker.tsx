@@ -14,6 +14,7 @@ export default function LocationPicker({ lat, lng, onChange }: { lat: number; ln
     async function init() {
       try {
         const L = (await import('leaflet')).default;
+        // @ts-ignore — leaflet CSS has no type declarations; loaded at runtime only
         await import('leaflet/dist/leaflet.css');
 
         // Fix default icon paths

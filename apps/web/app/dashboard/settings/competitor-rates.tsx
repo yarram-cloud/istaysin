@@ -20,7 +20,7 @@ export function CompetitorRatesSettings() {
   useEffect(() => {
     Promise.all([
       tenantsApi.getSettings(),
-      roomsApi.getTypes()
+      roomsApi.getRoomTypes()
     ]).then(([settingsRes, roomsRes]) => {
       if (settingsRes.success && roomsRes.success) {
         setRoomTypes(roomsRes.data || []);

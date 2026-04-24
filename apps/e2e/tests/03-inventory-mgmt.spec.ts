@@ -17,17 +17,15 @@ test.describe('Rooms & Inventory Management Flow', () => {
     await expect(page).toHaveURL(/.*\/dashboard/);
   });
 
-  test('Owner can create floors, room types, and rooms successfully', async ({ page }) => {
+  test('Owner can create floors, room types, and rooms via dedicated settings pages', async ({ page }) => {
     page.on('dialog', dialog => {
       console.log(`[DIALOG ALERT] ${dialog.message()}`);
       dialog.accept();
     });
     
-    // Also log console messages:
     page.on('console', msg => console.log(`[BROWSER CONSOLE] ${msg.type()}: ${msg.text()}`));
 
     const roomsPage = new RoomsPage(page);
-    await roomsPage.goto();
 
     // Generate unique names to prevent conflict if test runs multiple times
     const runId = Date.now().toString().slice(-4);
@@ -35,26 +33,42 @@ test.describe('Rooms & Inventory Management Flow', () => {
     const typeName = `Suite ${runId}`;
     const roomNumber = `S-${runId}`;
 
-    // 1. Create Floor
+    // 1. Create Floor — navigates to /dashboard/settings/floors/new
     await roomsPage.createFloor(floorName, '2');
-    
-    // We expect the newly created floor to be somewhat verifiable, 
-    // but the modal doesn't close immediately. Wait, in createFloor we press Escape.
-    // So the modal should be closed. We can verify floor created by opening the modal again,
-    // or just proceeding to create a room involving this floor.
-    
-    // 2. Create Room Type
+    // Verify redirect to floors list after creation
+    await expect(page).toHaveURL(/settings\/floors/);
+
+    // 2. Create Room Type — navigates to /dashboard/settings/room-types/new
     await roomsPage.createRoomType(typeName, '4', '5000');
+    await expect(page).toHaveURL(/settings\/room-types/);
 
-    // 3. Create Room using newly created floor and type
+    // 3. Create Room — navigates to /dashboard/settings/inventory-rooms/new
     await roomsPage.createRoom(roomNumber, floorName, typeName);
+    await expect(page).toHaveURL(/settings\/inventory-rooms/);
 
-    // 4. Verify room appears in the table or grid 
-    // New UI uses white rounded-xl cards in grid view or table rows in table view
+    // 4. Navigate to operational dashboard and verify room appears
+    await roomsPage.goto();
+    
+    // Room should appear in the rooms dashboard as a card or table row
     const roomCard = page.locator('tr, [class*="rounded-xl"]').filter({ hasText: roomNumber });
     await expect(roomCard.first()).toBeVisible({ timeout: 10000 });
     await expect(roomCard.first()).toContainText(typeName);
-    await expect(roomCard.first()).toContainText(/available/i); // Default status
+    await expect(roomCard.first()).toContainText(/available/i);
+  });
+
+  test('Settings pages are accessible from dashboard rooms view', async ({ page }) => {
+    // Go to rooms dashboard
+    await page.goto('/dashboard/rooms');
+    await page.waitForLoadState('networkidle');
+
+    // Verify links to settings pages exist
+    const manageFloorsLink = page.getByRole('link', { name: /Manage Floors|Floors/i });
+    const manageTypesLink = page.getByRole('link', { name: /Manage Types|Room Types/i });
+    const addRoomLink = page.getByRole('link', { name: /Add Room|New Room/i });
+
+    // At least one of these navigation elements should be present
+    const hasNavigation = await manageFloorsLink.isVisible() || await manageTypesLink.isVisible() || await addRoomLink.isVisible();
+    expect(hasNavigation).toBe(true);
   });
 
 });

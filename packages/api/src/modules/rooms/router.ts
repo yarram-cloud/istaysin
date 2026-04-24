@@ -122,6 +122,40 @@ roomsRouter.post('/types', authorize('property_owner', 'general_manager'), async
   }
 });
 
+// PUT /rooms/types/:id
+roomsRouter.put('/types/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const parsed = roomTypeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+      return;
+    }
+
+    const slug = parsed.data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    await withTenant(req.tenantId!, async () => {
+      // First, fetch the existing record to verify it belongs to this tenant
+      const existing = await prisma.roomType.findFirst({
+        where: { id: req.params.id, tenantId: req.tenantId! }
+      });
+      if (!existing) {
+        res.status(404).json({ success: false, error: 'Room type not found' });
+        return;
+      }
+
+      const roomType = await prisma.roomType.update({
+        where: { id: req.params.id },
+        data: { ...parsed.data, slug },
+      });
+      await logAudit(req.tenantId!, req.userId, 'UPDATE', 'room_type', roomType.id, parsed.data, req.ip || undefined);
+      res.json({ success: true, data: roomType });
+    });
+  } catch (err) {
+    console.error('[ROOMS UPDATE TYPE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to update room type' });
+  }
+});
+
 // ── Rooms ──
 
 // GET /rooms
