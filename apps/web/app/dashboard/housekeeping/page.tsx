@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { ClipboardList, Plus, X, Loader2, CheckCircle, Clock, AlertTriangle, CheckSquare, Square, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { housekeepingApi, roomsApi } from '@/lib/api';
@@ -108,10 +109,34 @@ export default function HousekeepingPage() {
           <h1 className="text-2xl font-display font-bold mb-1">Housekeeping</h1>
           <p className="text-surface-400">Room cleaning and maintenance tasks</p>
         </div>
-        <button onClick={() => setShowAddTask(true)} className="btn-primary flex items-center gap-2">
+        <button
+          onClick={() => setShowAddTask(!showAddTask)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            showAddTask ? 'bg-primary-100 text-primary-700 border border-primary-200' : 'btn-primary'
+          }`}
+        >
           <Plus className="w-4 h-4" /> Add Task
         </button>
       </div>
+
+      {/* Inline Add Task Form */}
+      <AnimatePresence>
+        {showAddTask && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <AddTaskInline
+              onClose={() => setShowAddTask(false)}
+              onCreated={() => { setShowAddTask(false); fetchData(); }}
+              staff={staff}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Status Filters */}
       <div className="flex items-center gap-2">
@@ -141,6 +166,7 @@ export default function HousekeepingPage() {
           <h3 className="text-lg font-semibold mb-2">No tasks</h3>
           <p className="text-surface-400 mb-4">Tasks are created automatically on guest checkout, or add them manually.</p>
           <button onClick={() => setShowAddTask(true)} className="btn-primary">Add Task</button>
+
         </div>
       ) : (
         <div className="grid lg:grid-cols-3 gap-6">
@@ -249,12 +275,12 @@ export default function HousekeepingPage() {
         </div>
       )}
 
-      {showAddTask && <AddTaskModal onClose={() => setShowAddTask(false)} onCreated={() => { setShowAddTask(false); fetchData(); }} staff={staff} />}
+
     </div>
   );
 }
 
-function AddTaskModal({ onClose, onCreated, staff }: { onClose: () => void; onCreated: () => void; staff: StaffMember[] }) {
+function AddTaskInline({ onClose, onCreated, staff }: { onClose: () => void; onCreated: () => void; staff: StaffMember[] }) {
   const t = useTranslations('Dashboard');
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomId, setRoomId] = useState('');
@@ -275,13 +301,7 @@ function AddTaskModal({ onClose, onCreated, staff }: { onClose: () => void; onCr
     if (!roomId) return;
     setSaving(true);
     try {
-      await housekeepingApi.createTask({ 
-        roomId, 
-        taskType, 
-        priority, 
-        assignedTo: assignedTo || undefined,
-        notes: notes.trim() || undefined 
-      });
+      await housekeepingApi.createTask({ roomId, taskType, priority, assignedTo: assignedTo || undefined, notes: notes.trim() || undefined });
       onCreated();
       toast.success(t('taskCreated') || 'Task created successfully');
     } catch (err: any) { toast.error(err.message || t('actionFailed')); }
@@ -289,61 +309,71 @@ function AddTaskModal({ onClose, onCreated, staff }: { onClose: () => void; onCr
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface-900 border border-white/[0.08] rounded-2xl w-full max-w-md p-6 mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-display font-bold">Add Task</h2>
-          <button onClick={onClose} className="text-surface-400 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+    <div className="bg-white rounded-2xl border border-primary-200 shadow-sm overflow-hidden" style={{ borderTop: '3px solid #166534' }}>
+      <div className="flex items-center justify-between p-4 border-b border-surface-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+            <ClipboardList className="w-4 h-4 text-primary-600" />
+          </div>
+          <h3 className="font-display text-base font-bold text-surface-900">New Housekeeping Task</h3>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Room</label>
-            <select value={roomId} onChange={(e) => setRoomId(e.target.value)} className="input-field">
-              {rooms.map((r: any) => <option key={r.id} value={r.id}>Room {r.roomNumber} ({r.floor?.name})</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Task Type</label>
-              <select value={taskType} onChange={(e) => setTaskType(e.target.value)} className="input-field">
-                <option value="cleaning">Cleaning</option>
-                <option value="deep_cleaning">Deep Cleaning</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="inspection">Inspection</option>
-                <option value="laundry">Laundry</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Priority</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)} className="input-field">
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Assign To (Optional)</label>
-            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="input-field">
-              <option value="">Unassigned</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.fullName} ({s.role.replace(/_/g, ' ')})</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input-field" rows={2} placeholder="Optional notes for staff..." />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Create Task
-            </button>
-          </div>
-        </form>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 transition-all">
+          <X className="w-4 h-4" />
+        </button>
       </div>
+      <form onSubmit={handleSubmit} className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Room</label>
+          <select value={roomId} onChange={(e) => setRoomId(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+            {rooms.map((r: any) => <option key={r.id} value={r.id}>Room {r.roomNumber} — {r.floor?.name || 'Ground Floor'}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Task Type</label>
+          <select value={taskType} onChange={(e) => setTaskType(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+            <option value="cleaning">Cleaning</option>
+            <option value="deep_cleaning">Deep Cleaning</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="inspection">Inspection</option>
+            <option value="laundry">Laundry</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Priority</label>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Assign To</label>
+          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+            <option value="">Unassigned</option>
+            {staff.map((s) => <option key={s.id} value={s.id}>{s.fullName} ({s.role.replace(/_/g, ' ')})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Notes</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes for staff..."
+            className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
+        </div>
+        <div className="sm:col-span-2 flex gap-3 pt-1 border-t border-surface-100">
+          <button type="button" onClick={onClose}
+            className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" disabled={saving}
+            className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50">
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />} Create Task
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

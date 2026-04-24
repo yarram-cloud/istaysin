@@ -122,7 +122,7 @@ export default function RoomsPage() {
           <p className="text-sm text-surface-500">Live overview of {stats.total} rooms across {floors.length} floors</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard/settings/inventory-rooms" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white border border-surface-200 text-surface-700 hover:bg-surface-50 transition-all shadow-sm">
+          <Link href="/dashboard/settings/inventory" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white border border-surface-200 text-surface-700 hover:bg-surface-50 transition-all shadow-sm">
             <Settings className="w-4 h-4" /> Manage Inventory
           </Link>
         </div>
@@ -179,7 +179,7 @@ export default function RoomsPage() {
           <h3 className="text-lg font-semibold text-surface-900 mb-2">No rooms found</h3>
           <p className="text-sm text-surface-500 mb-6">{rooms.length === 0 ? 'Map your first physical room in settings.' : 'Try adjusting your filters.'}</p>
           {rooms.length === 0 && (
-            <Link href="/dashboard/settings/inventory-rooms" className="inline-block bg-primary-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm hover:bg-primary-600 transition-colors">Configure Rooms</Link>
+            <Link href="/dashboard/settings/inventory" className="inline-block bg-primary-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm hover:bg-primary-600 transition-colors">Configure Rooms</Link>
           )}
         </div>
       ) : viewMode === 'table' ? (

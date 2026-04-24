@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { 
   ClipboardList, CheckCircle2, AlertCircle, Clock, 
   CreditCard, Banknote, LayoutDashboard, ChevronRight,
-  TrendingDown, ShieldAlert, FileWarning, Printer
+  TrendingDown, ShieldAlert, FileWarning, Printer, X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { nightAuditApi } from '@/lib/api';
-import { toast } from 'sonner';
+import { toast } from 'sonner' ;
 
 export default function NightAuditDashboard() {
   const [loading, setLoading] = useState(true);
@@ -118,15 +119,62 @@ export default function NightAuditDashboard() {
             </div>
           ) : (
             <button
-              onClick={() => setShowConfirm(true)}
-              className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2"
+              onClick={() => setShowConfirm(!showConfirm)}
+              className={`px-6 py-2.5 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2 ${
+                showConfirm
+                  ? 'bg-surface-100 text-surface-700 border border-surface-200'
+                  : 'bg-primary-600 hover:bg-primary-700 text-white'
+              }`}
             >
               <ClipboardList className="w-5 h-5" />
-              Run Night Audit
+              {showConfirm ? 'Cancel' : 'Run Night Audit'}
             </button>
           )}
         </div>
       </div>
+
+      {/* Inline Confirm Section */}
+      <AnimatePresence>
+        {showConfirm && !isAuditCompleted && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5" style={{ borderTop: '3px solid #d97706' }}>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-display font-bold text-surface-900 mb-1">Run Night Audit for {targetDateStr}?</h3>
+                  <p className="text-sm text-surface-600 leading-relaxed">
+                    This will post all room charges for occupied rooms and advance the business date. This action cannot be undone.
+                  </p>
+                  {hasCriticalAlerts && (
+                    <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                      <p className="text-sm text-red-700 font-medium">{openFolios.length} open folio(s) with unpaid balances — settle before running audit.</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3 mt-4">
+                    <button onClick={() => setShowConfirm(false)} disabled={running}
+                      className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors disabled:opacity-50">
+                      Cancel
+                    </button>
+                    <button onClick={handleRunAudit} disabled={running}
+                      className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50">
+                      {running ? <><ClipboardList className="w-4 h-4 animate-spin" /> Running...</> : 'Confirm & Run Audit'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* OVERVIEW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -310,48 +358,6 @@ export default function NightAuditDashboard() {
         </div>
       </div>
 
-      {/* CONFIRMATION MODAL */}
-      {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600 mb-4">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-display font-bold text-surface-900 mb-2">Run Night Audit?</h2>
-              <p className="text-surface-600 text-sm mb-4 leading-relaxed">
-                You are about to run the Night Audit for <strong className="text-surface-900">{targetDateStr}</strong>. 
-                This action will post all room charges for occupied rooms and advance the business date.
-              </p>
-              
-              {hasCriticalAlerts && (
-                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
-                  <p className="text-sm text-orange-800 font-medium flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" /> You have open folios with unpaid balances.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-3 mt-8">
-                <button 
-                  onClick={() => setShowConfirm(false)}
-                  disabled={running}
-                  className="flex-1 px-4 py-2.5 text-surface-600 font-medium hover:bg-surface-100 rounded-xl transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleRunAudit}
-                  disabled={running}
-                  className="flex-1 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {running ? 'Running...' : 'Confirm Run'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

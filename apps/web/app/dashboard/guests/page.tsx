@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Users, Search, Plus, X, Loader2, Phone, Mail, Calendar, Printer } from 'lucide-react';
+import { Users, Search, Plus, X, Loader2, Phone, Mail, Calendar, Printer, User, Globe, ArrowRight, FileText, Shield } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { guestsApi } from '@/lib/api';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 
 interface Guest {
   id: string; fullName: string; phone?: string; email?: string;
   totalStays?: number; lastVisit?: string; createdAt: string;
-  idProofType?: string; idProofNumber?: string;
+  idProofType?: string; idProofNumber?: string; nationality?: string;
+  address?: string; city?: string; state?: string;
 }
 
 export default function GuestsPage() {
@@ -35,99 +38,148 @@ export default function GuestsPage() {
   }, [fetchGuests, searchQuery]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1">{t('guests')}</h1>
-          <p className="text-surface-400">{t('guestsSub')}</p>
+          <h1 className="text-xl sm:text-2xl font-display font-bold mb-0.5 text-surface-900">{t('guests')}</h1>
+          <p className="text-sm text-surface-500">{t('guestsSub')}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button 
+        <div className="flex items-center gap-2 print:hidden">
+          <button
             onClick={() => window.print()}
-            className="btn-secondary flex items-center gap-2 print:hidden"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white border border-surface-200 text-surface-700 hover:bg-surface-50 transition-all shadow-sm"
           >
             <Printer className="w-4 h-4" /> {t('printRegister')}
           </button>
-          <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => { setShowAdd(!showAdd); setSelectedGuest(null); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
+              showAdd
+                ? 'bg-primary-100 border border-primary-200 text-primary-700'
+                : 'bg-primary-700 text-white hover:bg-primary-600 border border-primary-700'
+            }`}
+          >
             <Plus className="w-4 h-4" /> Add Guest
           </button>
         </div>
       </div>
 
+      {/* ── Inline Add Guest Form ── */}
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <AddGuestInline
+              onClose={() => setShowAdd(false)}
+              onCreated={() => { setShowAdd(false); fetchGuests(); }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Search */}
       <div className="relative max-w-md print:hidden">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
         <input type="text" placeholder="Search by name, phone, or email..." value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-10 py-2.5" />
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full h-10 pl-10 pr-4 rounded-xl border border-surface-200 bg-white text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
       </div>
 
       {/* Guest List */}
       {loading ? (
-        <div className="glass-card p-6 space-y-4">
-          {[...Array(5)].map((_, i) => <div key={i} className="h-14 bg-white/[0.04] rounded-lg animate-pulse" />)}
+        <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-6 space-y-3">
+          {[...Array(5)].map((_, i) => <div key={i} className="h-14 bg-surface-100 rounded-lg animate-pulse" />)}
         </div>
       ) : guests.length === 0 ? (
-        <div className="glass-card p-12 text-center">
-          <Users className="w-12 h-12 text-surface-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">{searchQuery ? 'No guests found' : 'No guests yet'}</h3>
-          <p className="text-surface-400 mb-4">{searchQuery ? 'Try a different search term.' : 'Guest profiles will appear here as bookings are created.'}</p>
+        <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-12 text-center">
+          <Users className="w-12 h-12 text-surface-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2 text-surface-900">{searchQuery ? 'No guests found' : 'No guests yet'}</h3>
+          <p className="text-sm text-surface-500 mb-4">{searchQuery ? 'Try a different search term.' : 'Guest profiles will appear here as bookings are created.'}</p>
         </div>
       ) : (
-        <div className="glass-card overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase hidden print:table-cell">{t('srNo')}</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Name</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Phone</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Email</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Stays</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-surface-400 uppercase">Registered</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.04]">
-              {guests.map((guest, index) => (
-                <tr key={guest.id} className="hover:bg-white/[0.02] cursor-pointer transition-colors"
-                  onClick={() => setSelectedGuest(guest)}>
-                  <td className="px-6 py-4 text-sm text-surface-400 hidden print:table-cell">{index + 1}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary-600/20 flex items-center justify-center text-sm font-medium text-primary-400">
-                        {guest.fullName?.[0]?.toUpperCase() || '?'}
-                      </div>
-                      <span className="text-sm font-medium">{guest.fullName}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-surface-300">{guest.phone || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-surface-300">{guest.email || '-'}</td>
-                  <td className="px-6 py-4 text-sm">{guest.totalStays || 0}</td>
-                  <td className="px-6 py-4 text-sm text-surface-400">
-                    {new Date(guest.createdAt).toLocaleDateString('en-IN')}
-                  </td>
+        <div className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-surface-100 bg-surface-50">
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden print:table-cell">{t('srNo')}</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Name</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden sm:table-cell">Phone</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">Email</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden lg:table-cell">Stays</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">Registered</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-surface-100">
+                {guests.map((guest, index) => (
+                  <tr key={guest.id}
+                    className={`hover:bg-primary-50/30 cursor-pointer transition-colors ${selectedGuest?.id === guest.id ? 'bg-primary-50/50' : ''}`}
+                    onClick={() => { setSelectedGuest(selectedGuest?.id === guest.id ? null : guest); setShowAdd(false); }}>
+                    <td className="px-5 py-3.5 text-sm text-surface-400 hidden print:table-cell">{index + 1}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-sm font-bold text-primary-700 shrink-0">
+                          {guest.fullName?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-surface-900">{guest.fullName}</p>
+                          {guest.nationality && guest.nationality !== 'Indian' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold">{guest.nationality}</span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-sm text-surface-600 hidden sm:table-cell">{guest.phone || '—'}</td>
+                    <td className="px-5 py-3.5 text-sm text-surface-600 hidden md:table-cell">{guest.email || '—'}</td>
+                    <td className="px-5 py-3.5 text-sm text-surface-900 font-medium hidden lg:table-cell">{guest.totalStays || 0}</td>
+                    <td className="px-5 py-3.5 text-sm text-surface-500 hidden md:table-cell">
+                      {new Date(guest.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Add Guest Modal */}
-      {showAdd && <AddGuestModal onClose={() => setShowAdd(false)} onCreated={() => { setShowAdd(false); fetchGuests(); }} />}
-
-      {/* Guest Detail */}
-      {selectedGuest && <GuestDetail guest={selectedGuest} onClose={() => setSelectedGuest(null)} />}
+      {/* ── Inline Guest Detail Panel ── */}
+      <AnimatePresence>
+        {selectedGuest && (
+          <motion.div
+            key={selectedGuest.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.3 }}
+          >
+            <GuestDetailPanel guest={selectedGuest} onClose={() => setSelectedGuest(null)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function AddGuestModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+// ── Inline Add Guest Form ─────────────────────────────────────
+function AddGuestInline({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [nationality, setNationality] = useState('Indian');
   const [idProofType, setIdProofType] = useState('aadhaar');
   const [idProofNumber, setIdProofNumber] = useState('');
+  const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const isForeigner = nationality !== 'Indian' && nationality !== 'India';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -136,112 +188,225 @@ function AddGuestModal({ onClose, onCreated }: { onClose: () => void; onCreated:
     setError('');
     try {
       await guestsApi.create({
-        fullName: fullName.trim(), phone: phone.trim() || undefined,
+        fullName: fullName.trim(),
+        phone: phone.trim() || undefined,
         email: email.trim() || undefined,
+        nationality: nationality || 'Indian',
         idProofType: idProofNumber ? idProofType : undefined,
         idProofNumber: idProofNumber.trim() || undefined,
+        address: address.trim() || undefined,
       });
+      toast.success('Guest added successfully');
       onCreated();
-    } catch (err: any) { setError(err.message); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      setError(err.message || 'Failed to add guest');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface-900 border border-white/[0.08] rounded-2xl w-full max-w-md p-6 mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-display font-bold">Add Guest</h2>
-          <button onClick={onClose} className="text-surface-400 hover:text-white"><X className="w-5 h-5" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
+    <div className="bg-white rounded-2xl border border-primary-200 shadow-sm overflow-hidden" style={{ borderTop: '3px solid var(--color-primary-500, #166534)' }}>
+      <div className="flex items-center justify-between p-4 sm:p-5 border-b border-surface-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+            <User className="w-5 h-5 text-primary-600" />
+          </div>
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Full Name *</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="input-field" required />
+            <h3 className="font-display text-base font-bold text-surface-900">Add Guest</h3>
+            <p className="text-xs text-surface-500 mt-0.5">Create a guest profile for Sarai Act compliance</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Phone</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">ID Proof Type</label>
-              <select value={idProofType} onChange={(e) => setIdProofType(e.target.value)} className="input-field">
-                <option value="aadhaar">Aadhaar</option>
-                <option value="pan">PAN</option>
-                <option value="passport">Passport</option>
-                <option value="driving_license">Driving License</option>
-                <option value="voter_id">Voter ID</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">ID Number</label>
-              <input value={idProofNumber} onChange={(e) => setIdProofNumber(e.target.value)} className="input-field" placeholder="Optional" />
-            </div>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Add Guest
-            </button>
-          </div>
-        </form>
+        </div>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all">
+          <X className="w-4 h-4" />
+        </button>
       </div>
+
+      <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
+        {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">{error}</div>}
+
+        {/* Row 1 */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Full Name <span className="text-red-400">*</span></label>
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder="Guest full name"
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Phone</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210"
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="guest@email.com"
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+          </div>
+        </div>
+
+        {/* Row 2 */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Nationality</label>
+            <select value={nationality} onChange={(e) => setNationality(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+              <option value="Indian">Indian</option>
+              <option value="Afghan">Afghan</option>
+              <option value="American">American</option>
+              <option value="Australian">Australian</option>
+              <option value="Bangladeshi">Bangladeshi</option>
+              <option value="British">British</option>
+              <option value="Canadian">Canadian</option>
+              <option value="Chinese">Chinese</option>
+              <option value="French">French</option>
+              <option value="German">German</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Nepali">Nepali</option>
+              <option value="Pakistani">Pakistani</option>
+              <option value="Russian">Russian</option>
+              <option value="Sri Lankan">Sri Lankan</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+              ID Proof Type{isForeigner && <span className="ml-1 text-orange-500">*</span>}
+            </label>
+            <select value={idProofType} onChange={(e) => setIdProofType(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+              {isForeigner ? (
+                <>
+                  <option value="passport">Passport</option>
+                  <option value="visa">Visa</option>
+                </>
+              ) : (
+                <>
+                  <option value="aadhaar">Aadhaar</option>
+                  <option value="pan">PAN</option>
+                  <option value="passport">Passport</option>
+                  <option value="driving_license">Driving License</option>
+                  <option value="voter_id">Voter ID</option>
+                </>
+              )}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">ID Number</label>
+            <input value={idProofNumber} onChange={(e) => setIdProofNumber(e.target.value)} placeholder="Optional"
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+          </div>
+        </div>
+
+        {/* Address */}
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Permanent Address (for Sarai Act Register)</label>
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, City, State, PIN"
+            className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+        </div>
+
+        {isForeigner && (
+          <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-xs font-medium flex items-center gap-2">
+            <Shield className="w-4 h-4 shrink-0" />
+            Foreign national detected — C-Form submission to FRRO will be required after check-in.
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-2 border-t border-surface-100">
+          <button type="button" onClick={onClose}
+            className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" disabled={saving}
+            className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />} Add Guest
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
 
-function GuestDetail({ guest, onClose }: { guest: Guest; onClose: () => void }) {
+// ── Inline Guest Detail Panel ─────────────────────────────────
+function GuestDetailPanel({ guest, onClose }: { guest: Guest; onClose: () => void }) {
+  const isForeigner = guest.nationality && !['Indian', 'India', 'IND'].includes(guest.nationality);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface-900 border-l border-white/[0.08] w-full max-w-md h-full overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-display font-bold">Guest Profile</h2>
-          <button onClick={onClose} className="text-surface-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="bg-white rounded-2xl border border-surface-200 shadow-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 sm:p-5 border-b border-surface-100 bg-gradient-to-r from-primary-50 to-transparent">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-xl font-bold text-primary-700">
+            {guest.fullName?.[0]?.toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-display font-bold text-surface-900">{guest.fullName}</h2>
+              {isForeigner && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold uppercase tracking-wider border border-orange-200">
+                  Foreign National
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-surface-500 mt-0.5">
+              Guest since {new Date(guest.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+              {(guest.totalStays || 0) > 0 && ` · ${guest.totalStays} stay${guest.totalStays !== 1 ? 's' : ''}`}
+            </p>
+          </div>
         </div>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-primary-600/20 flex items-center justify-center text-xl font-bold text-primary-400">
-              {guest.fullName?.[0]?.toUpperCase()}
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">{guest.fullName}</h3>
-              <p className="text-sm text-surface-400">Guest since {new Date(guest.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
-            </div>
-          </div>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-          <div className="space-y-3">
-            {guest.phone && (
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="w-4 h-4 text-surface-500" /><span>{guest.phone}</span>
-              </div>
-            )}
-            {guest.email && (
-              <div className="flex items-center gap-3 text-sm">
-                <Mail className="w-4 h-4 text-surface-500" /><span>{guest.email}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-3 text-sm">
-              <Calendar className="w-4 h-4 text-surface-500" /><span>{guest.totalStays || 0} stay(s)</span>
-            </div>
-          </div>
+      <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Contact */}
+        <div className="space-y-3">
+          <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">Contact</h3>
+          {guest.phone ? (
+            <a href={`tel:${guest.phone}`} className="flex items-center gap-2.5 text-sm text-primary-600 hover:text-primary-500 transition-colors">
+              <Phone className="w-4 h-4" /> {guest.phone}
+            </a>
+          ) : <p className="text-sm text-surface-400">No phone recorded</p>}
+          {guest.email ? (
+            <a href={`mailto:${guest.email}`} className="flex items-center gap-2.5 text-sm text-primary-600 hover:text-primary-500 transition-colors">
+              <Mail className="w-4 h-4" /> {guest.email}
+            </a>
+          ) : <p className="text-sm text-surface-400">No email recorded</p>}
+        </div>
 
+        {/* ID & Nationality */}
+        <div className="space-y-3">
+          <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">Identity</h3>
+          <div className="flex items-center gap-2.5 text-sm text-surface-700">
+            <Globe className="w-4 h-4 text-surface-400" />
+            <span>{guest.nationality || 'Indian'}</span>
+          </div>
           {guest.idProofType && (
-            <section>
-              <h4 className="text-xs uppercase text-surface-500 font-medium mb-2">ID Proof</h4>
-              <div className="px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                <p className="text-sm capitalize">{guest.idProofType?.replace(/_/g, ' ')}</p>
-                {guest.idProofNumber && <p className="text-xs text-surface-400 mt-0.5">{guest.idProofNumber}</p>}
-              </div>
-            </section>
+            <div className="px-3 py-2 rounded-xl bg-surface-50 border border-surface-100">
+              <p className="text-xs text-surface-500 capitalize">{guest.idProofType?.replace(/_/g, ' ')}</p>
+              {guest.idProofNumber && <p className="text-sm font-mono font-medium text-surface-900 mt-0.5">{guest.idProofNumber}</p>}
+            </div>
           )}
         </div>
+
+        {/* Address */}
+        {guest.address && (
+          <div className="sm:col-span-2">
+            <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider mb-2">Address</h3>
+            <p className="text-sm text-surface-700 bg-surface-50 rounded-xl px-3 py-2 border border-surface-100">{guest.address}</p>
+          </div>
+        )}
+
+        {/* FRRO notice for foreigners */}
+        {isForeigner && (
+          <div className="sm:col-span-2 flex items-start gap-3 p-3 rounded-xl bg-orange-50 border border-orange-200">
+            <Shield className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-orange-800">C-Form Required</p>
+              <p className="text-xs text-orange-600 mt-0.5">Foreign national guest — C-Form submission to FRRO is mandatory within 24 hours of check-in. Submit from the booking detail view.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

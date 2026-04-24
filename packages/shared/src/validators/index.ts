@@ -442,12 +442,14 @@ export const updateRoomSchema = z.object({
   roomNumber: z.string().min(1).max(20).optional(),
   roomTypeId: z.string().uuid().optional(),
   floorId: z.string().uuid().optional(),
-  status: z.enum(['available', 'occupied', 'dirty', 'maintenance', 'out_of_order']).optional(),
-  rateOverride: z.number().min(0).optional()
+  // Canonical status list — must match PATCH /:id/status validation in rooms router
+  status: z.enum(['available', 'occupied', 'blocked', 'maintenance', 'dirty', 'cleaning']).optional(),
+  rateOverride: z.number().min(0).optional().nullable(),
 });
 
 export const updateRoomStatusSchema = z.object({
-  status: z.enum(['available', 'occupied', 'dirty', 'maintenance', 'out_of_order'])
+  // Canonical status list — must match rooms/page.tsx STATUS_OPTIONS and router.ts validation
+  status: z.enum(['available', 'occupied', 'blocked', 'maintenance', 'dirty', 'cleaning'])
 });
 
 // ============================================================

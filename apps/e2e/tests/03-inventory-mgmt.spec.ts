@@ -33,18 +33,17 @@ test.describe('Rooms & Inventory Management Flow', () => {
     const typeName = `Suite ${runId}`;
     const roomNumber = `S-${runId}`;
 
-    // 1. Create Floor — navigates to /dashboard/settings/floors/new
+    // 1. Create Floor
     await roomsPage.createFloor(floorName, '2');
-    // Verify redirect to floors list after creation
-    await expect(page).toHaveURL(/settings\/floors/);
+    await expect(page).toHaveURL(/settings\/inventory/);
 
-    // 2. Create Room Type — navigates to /dashboard/settings/room-types/new
+    // 2. Create Room Type
     await roomsPage.createRoomType(typeName, '4', '5000');
-    await expect(page).toHaveURL(/settings\/room-types/);
+    await expect(page).toHaveURL(/settings\/inventory/);
 
-    // 3. Create Room — navigates to /dashboard/settings/inventory-rooms/new
+    // 3. Create Room
     await roomsPage.createRoom(roomNumber, floorName, typeName);
-    await expect(page).toHaveURL(/settings\/inventory-rooms/);
+    await expect(page).toHaveURL(/settings\/inventory/);
 
     // 4. Navigate to operational dashboard and verify room appears
     await roomsPage.goto();
@@ -61,14 +60,11 @@ test.describe('Rooms & Inventory Management Flow', () => {
     await page.goto('/dashboard/rooms');
     await page.waitForLoadState('networkidle');
 
-    // Verify links to settings pages exist
-    const manageFloorsLink = page.getByRole('link', { name: /Manage Floors|Floors/i });
-    const manageTypesLink = page.getByRole('link', { name: /Manage Types|Room Types/i });
-    const addRoomLink = page.getByRole('link', { name: /Add Room|New Room/i });
+    // Verify links to settings pages exist (now just Property Inventory)
+    const manageInventoryLink = page.getByRole('link', { name: /Property Inventory|Manage Inventory|Inventory/i });
 
-    // At least one of these navigation elements should be present
-    const hasNavigation = await manageFloorsLink.isVisible() || await manageTypesLink.isVisible() || await addRoomLink.isVisible();
-    expect(hasNavigation).toBe(true);
+    // Ensure the link is present
+    await expect(manageInventoryLink.first()).toBeVisible({ timeout: 5000 });
   });
 
 });

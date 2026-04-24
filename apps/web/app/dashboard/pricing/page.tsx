@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, X, Loader2, CalendarRange, Trash2, Edit2, TrendingUp, Filter } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { pricingApi, roomsApi } from '@/lib/api';
@@ -91,10 +92,35 @@ export default function PricingPage() {
           <h1 className="text-2xl font-display font-bold mb-1">Revenue Management</h1>
           <p className="text-surface-400">Configure seasonal pricing, weekend surges, and dynamic rules</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Rule
+        <button
+          onClick={() => { setShowAddModal(!showAddModal); if (showAddModal) setEditingRule(null); }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            showAddModal ? 'bg-primary-100 text-primary-700 border border-primary-200' : 'btn-primary'
+          }`}
+        >
+          <Plus className="w-4 h-4" /> {showAddModal ? 'Cancel' : 'Add Rule'}
         </button>
       </div>
+
+      {/* Inline Rule Form */}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <RuleForm
+              onClose={() => { setShowAddModal(false); setEditingRule(null); }}
+              onSaved={() => { setShowAddModal(false); setEditingRule(null); fetchData(); }}
+              roomTypes={roomTypes}
+              editingRule={editingRule}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="space-y-4">
@@ -161,7 +187,7 @@ export default function PricingPage() {
                     className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${rule.isActive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-surface-800 text-surface-400 border-white/[0.06]'}`}>
                     {rule.isActive ? 'Active' : 'Paused'}
                   </button>
-                  <button onClick={() => { setEditingRule(rule); setShowAddModal(true); }} className="p-2 rounded-lg hover:bg-white/[0.06] text-surface-400 transition-colors">
+                  <button onClick={() => { setEditingRule(rule); setShowAddModal(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 rounded-lg hover:bg-white/[0.06] text-surface-400 transition-colors">
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button onClick={() => handleDelete(rule.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-surface-400 hover:text-red-400 transition-colors">
@@ -174,19 +200,11 @@ export default function PricingPage() {
         </div>
       )}
 
-      {showAddModal && (
-        <RuleModal 
-          onClose={() => { setShowAddModal(false); setEditingRule(null); }} 
-          onSaved={() => { setShowAddModal(false); setEditingRule(null); fetchData(); }} 
-          roomTypes={roomTypes} 
-          editingRule={editingRule} 
-        />
-      )}
     </div>
   );
 }
 
-function RuleModal({ onClose, onSaved, roomTypes, editingRule }: { onClose: () => void; onSaved: () => void; roomTypes: RoomType[]; editingRule: PricingRule | null }) {
+function RuleForm({ onClose, onSaved, roomTypes, editingRule }: { onClose: () => void; onSaved: () => void; roomTypes: RoomType[]; editingRule: PricingRule | null }) {
   const t = useTranslations('Dashboard');
   const [formData, setFormData] = useState({
     name: editingRule?.name || '',
@@ -238,96 +256,108 @@ function RuleModal({ onClose, onSaved, roomTypes, editingRule }: { onClose: () =
   const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface-900 border border-white/[0.08] rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-surface-900/90 backdrop-blur border-b border-white/[0.08] px-6 py-5 flex items-center justify-between z-10">
-          <h2 className="text-xl font-display font-bold">{editingRule ? 'Edit Rule' : 'New Pricing Rule'}</h2>
-          <button onClick={onClose} className="text-surface-400 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+    <div className="bg-white rounded-2xl border border-primary-200 shadow-sm overflow-hidden" style={{ borderTop: '3px solid #166534' }}>
+      <div className="sticky top-0 bg-white border-b border-surface-100 px-5 py-4 flex items-center justify-between z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-primary-600" />
+          </div>
+          <h3 className="font-display text-base font-bold text-surface-900">{editingRule ? 'Edit Rule' : 'New Pricing Rule'}</h3>
         </div>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 transition-all">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-5 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Rule Name</label>
-            <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="input-field" placeholder="e.g. Christmas Pricing, Weekend Surge" />
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Rule Name</label>
+            <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+              placeholder="e.g. Christmas Pricing, Weekend Surge" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">Start Date (Optional)</label>
-              <input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="input-field" />
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Start Date</label>
+              <input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">End Date (Optional)</label>
-              <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="input-field" />
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">End Date</label>
+              <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-2">Apply on specific days (Optional)</label>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">Apply on specific days</label>
             <div className="flex flex-wrap gap-2">
               {daysMap.map((day, idx) => (
-                <button 
-                  type="button" 
-                  key={day} 
-                  onClick={() => toggleDay(idx)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border
-                    ${formData.daysOfWeek.includes(idx) ? 'bg-primary-500/20 text-primary-400 border-primary-500/30' : 'bg-surface-800 text-surface-400 border-white/[0.06] hover:bg-white/[0.1]'}`}>
-                  {day}
+                <button type="button" key={day} onClick={() => toggleDay(idx)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border ${
+                    formData.daysOfWeek.includes(idx) ? 'bg-primary-100 text-primary-700 border-primary-300' : 'bg-surface-100 text-surface-500 border-surface-200 hover:bg-surface-200'
+                  }`}>{day}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-surface-500 mt-1.5">If none selected, applies to all days in date range.</p>
+            <p className="text-xs text-surface-400 mt-1.5">If none selected, applies to all days in date range.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Apply to Room Type</label>
-            <select value={formData.roomTypeId} onChange={e => setFormData({...formData, roomTypeId: e.target.value})} className="input-field">
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Apply to Room Type</label>
+            <select value={formData.roomTypeId} onChange={e => setFormData({...formData, roomTypeId: e.target.value})}
+              className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
               <option value="">All Room Types</option>
               {roomTypes.map(rt => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/[0.04]">
-            <div className="col-span-2"><h4 className="text-sm font-bold text-surface-200">Rate Adjustment</h4></div>
+          <div className="grid grid-cols-2 gap-4 bg-surface-50 p-4 rounded-xl border border-surface-200">
+            <div className="col-span-2"><h4 className="text-sm font-bold text-surface-800">Rate Adjustment</h4></div>
             <div>
-              <label className="block text-xs font-medium text-surface-400 mb-1">Type</label>
-              <select value={formData.adjustmentType} onChange={e => setFormData({...formData, adjustmentType: e.target.value as any})} className="input-field">
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1">Type</label>
+              <select value={formData.adjustmentType} onChange={e => setFormData({...formData, adjustmentType: e.target.value as any})}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
                 <option value="percentage">Percentage (+/- %)</option>
-                <option value="fixed_addition">Fixed Amount Addition (+ $)</option>
-                <option value="fixed_override">Override Fixed Rate ($)</option>
+                <option value="fixed_addition">Fixed Amount Addition (+ ₹)</option>
+                <option value="fixed_override">Override Fixed Rate (₹)</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-surface-400 mb-1">Amount</label>
-              <input required type="number" step="any" value={formData.adjustmentValue} onChange={e => setFormData({...formData, adjustmentValue: e.target.value})} className="input-field" placeholder="e.g. 15 or -10" />
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1">Amount</label>
+              <input required type="number" step="any" value={formData.adjustmentValue} onChange={e => setFormData({...formData, adjustmentValue: e.target.value})}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                placeholder="e.g. 15 or -10" />
             </div>
-            {formData.adjustmentType === 'percentage' && <p className="col-span-2 text-xs text-surface-500">Use negative values to signify discounts (e.g. -15%).</p>}
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between">
             <div>
-               <label className="block text-sm font-medium text-surface-300 mb-1">Execution Priority</label>
-               <input required type="number" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})} className="input-field max-w-[120px]" />
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1">Priority</label>
+              <input required type="number" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}
+                className="h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 w-28 focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
             </div>
             <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-surface-300">Rule Active</label>
-              <button 
-                type="button" 
-                onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
-                className={`w-12 h-6 rounded-full relative transition-colors ${formData.isActive ? 'bg-primary-500' : 'bg-surface-700'}`}>
+              <label className="text-sm font-semibold text-surface-700">Rule Active</label>
+              <button type="button" onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                className={`w-12 h-6 rounded-full relative transition-colors ${formData.isActive ? 'bg-primary-600' : 'bg-surface-300'}`}>
                 <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${formData.isActive ? 'left-7' : 'left-1'}`} />
               </button>
             </div>
           </div>
 
-          <div className="flex gap-3 pt-6 border-t border-white/[0.08]">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
+          <div className="flex gap-3 pt-2 border-t border-surface-100">
+            <button type="button" onClick={onClose}
+              className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />} {editingRule ? 'Save Changes' : 'Create Rule'}
             </button>
           </div>
         </form>
-      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt, TrendingUp, FileText, Layers, BedDouble, Key } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { tenantsApi } from '@/lib/api';
 import { DomainSettings } from './domain-settings';
@@ -335,8 +336,13 @@ function StaffSettings({ onBack }: { onBack: () => void }) {
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-display font-bold">Staff Members</h2>
-          <button onClick={() => setShowInvite(true)} className="btn-primary flex items-center gap-2 text-sm">
-            <Plus className="w-4 h-4" /> Invite Staff
+          <button
+            onClick={() => setShowInvite(!showInvite)}
+            className={`flex items-center gap-2 text-sm px-4 py-2 rounded-xl font-semibold transition-all ${
+              showInvite ? 'bg-primary-100 text-primary-700 border border-primary-200' : 'btn-primary'
+            }`}
+          >
+            <Plus className="w-4 h-4" /> {showInvite ? 'Cancel' : 'Invite Staff'}
           </button>
         </div>
 
@@ -374,15 +380,27 @@ function StaffSettings({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      {showInvite && (
-        <InviteStaffModal onClose={() => setShowInvite(false)}
-          onInvited={() => { setShowInvite(false); tenantsApi.getStaff().then((r) => { if (r.success) setStaff(r.data || []); }); }} />
-      )}
+      <AnimatePresence>
+        {showInvite && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <InviteStaffInline
+              onClose={() => setShowInvite(false)}
+              onInvited={() => { setShowInvite(false); tenantsApi.getStaff().then((r) => { if (r.success) setStaff(r.data || []); }); }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function InviteStaffModal({ onClose, onInvited }: { onClose: () => void; onInvited: () => void }) {
+function InviteStaffInline({ onClose, onInvited }: { onClose: () => void; onInvited: () => void }) {
   const [phone, setPhone] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('front_desk');
@@ -396,44 +414,50 @@ function InviteStaffModal({ onClose, onInvited }: { onClose: () => void; onInvit
     try {
       await tenantsApi.inviteStaff({ phone: phone.trim(), fullName: fullName.trim(), role, passcode: '123456' });
       onInvited();
+      toast.success('Staff member invited!');
     } catch (err: any) { setError(err.message); }
     finally { setSaving(false); }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface-900 border border-white/[0.08] rounded-2xl w-full max-w-md p-6 mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-display font-bold">Invite Staff</h2>
-          <button onClick={onClose} className="text-surface-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="bg-white rounded-2xl border border-primary-200 shadow-sm overflow-hidden" style={{ borderTop: '3px solid #166534' }}>
+      <div className="flex items-center justify-between p-4 border-b border-surface-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+            <Users className="w-4 h-4 text-primary-600" />
+          </div>
+          <h3 className="font-display text-base font-bold text-surface-900">Invite Staff Member</h3>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Full Name</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="input-field" required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Phone Number</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field" required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">Role</label>
-            <select value={role} onChange={(e) => setRole(e.target.value)} className="input-field">
-              <option value="general_manager">General Manager</option>
-              <option value="front_desk">Front Desk</option>
-              <option value="housekeeping">Housekeeping</option>
-              <option value="accountant">Accountant</option>
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Send Invite
-            </button>
-          </div>
-        </form>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 transition-all">
+          <X className="w-4 h-4" />
+        </button>
       </div>
+      <form onSubmit={handleSubmit} className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {error && <div className="sm:col-span-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">{error}</div>}
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Full Name</label>
+          <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30" required />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Phone Number</label>
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30" required />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Role</label>
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+            <option value="general_manager">General Manager</option>
+            <option value="front_desk">Front Desk</option>
+            <option value="housekeeping">Housekeeping</option>
+            <option value="accountant">Accountant</option>
+          </select>
+        </div>
+        <div className="sm:col-span-3 flex gap-3 pt-1 border-t border-surface-100">
+          <button type="button" onClick={onClose} className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">Cancel</button>
+          <button type="submit" disabled={saving} className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50">
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />} Send Invite
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

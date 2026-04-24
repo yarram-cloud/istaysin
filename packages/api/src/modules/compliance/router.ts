@@ -85,10 +85,14 @@ complianceRouter.get('/guest-register', authorize('property_owner', 'general_man
       const guests = await prisma.bookingGuest.findMany({
         where: {
           tenantId: req.tenantId!,
-          createdAt: {
-            gte: startDate,
-            lte: endDate
-          }
+          booking: {
+            // Filter by when guests actually checked in, not when the record was created
+            checkInDate: {
+              gte: startDate,
+              lte: endDate,
+            },
+            status: { in: ['confirmed', 'checked_in', 'checked_out'] },
+          },
         },
         include: {
           booking: {
@@ -99,14 +103,14 @@ complianceRouter.get('/guest-register', authorize('property_owner', 'general_man
             }
           }
         },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { booking: { checkInDate: 'asc' } }
       });
 
       registerData = guests.map((g, idx) => ({
         sNo: idx + 1,
         fullName: g.fullName,
-        fathersName: 'Not Recorded', // Fallback
-        address: 'Not Recorded', // Fallback
+        fathersName: 'Not Recorded',
+        address: 'Not Recorded',
         nationality: g.nationality,
         idProof: `${g.idProofType || 'N/A'} - ${g.idProofNumber || 'N/A'}`,
         visaDetails: g.visaNumber ? `${g.visaNumber} (Exp: ${g.visaExpiryDate ? g.visaExpiryDate.toISOString().split('T')[0] : 'N/A'})` : 'N/A',
@@ -114,10 +118,12 @@ complianceRouter.get('/guest-register', authorize('property_owner', 'general_man
         checkIn: g.booking.checkInDate.toISOString(),
         checkOut: g.booking.checkOutDate.toISOString(),
         purpose: g.purposeOfVisit || 'Tourist',
-        accompanying: 0, // Fallback
+        arrivingFrom: g.arrivingFrom || 'N/A',
+        goingTo: g.goingTo || 'N/A',
+        accompanying: 0,
         cFormSubmitted: g.cFormSubmitted,
         cFormSubmittedAt: g.cFormSubmittedAt,
-        guestId: g.id 
+        guestId: g.id
       }));
 
       await logAudit(req.tenantId!, req.userId, 'READ', 'compliance', 'register', { count: registerData.length }, req.ip || undefined);

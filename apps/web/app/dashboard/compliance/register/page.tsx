@@ -133,7 +133,10 @@ export default function ComplianceRegisterPage() {
                 <th className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black">Room</th>
                 <th className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black">Check-In</th>
                 <th className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black">Check-Out</th>
+                <th className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black">Arriving From</th>
+                <th className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black">Going To</th>
                 <th className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black">Purpose</th>
+                <th className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black print:hidden">C-Form</th>
               </tr>
             </thead>
             <tbody>
@@ -153,7 +156,18 @@ export default function ComplianceRegisterPage() {
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-center text-surface-700 font-medium">{guest.roomNo}</td>
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{formatDate(guest.checkIn)}</td>
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{formatDate(guest.checkOut)}</td>
+                  <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{(guest as any).arrivingFrom || 'N/A'}</td>
+                  <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{(guest as any).goingTo || 'N/A'}</td>
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{guest.purpose}</td>
+                  <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black print:hidden">
+                    {guest.nationality.toLowerCase() !== 'indian' && guest.nationality.toLowerCase() !== 'india' ? (
+                      guest.cFormSubmitted ? (
+                        <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">✓ Submitted</span>
+                      ) : (
+                        <span className="text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">⚠ Pending</span>
+                      )
+                    ) : <span className="text-xs text-surface-400">N/A</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

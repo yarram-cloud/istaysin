@@ -428,6 +428,10 @@ model Booking {
   notes              String?
   couponId           String?   @map("coupon_id")
   discountAmount     Float     @default(0) @map("discount_amount")
+  // PG / Long-stay billing
+  billingMode        String    @default("nightly") @map("billing_mode") @db.VarChar(20) // 'nightly' | 'monthly'
+  billingCycleDay    Int?      @map("billing_cycle_day") // Day of month the cycle renews (1–28), e.g. 10 = 10th-to-10th
+  monthlyRate        Float?    @map("monthly_rate")      // Agreed monthly rent for PG stays
   createdBy          String?   @map("created_by")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")

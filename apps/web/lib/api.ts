@@ -98,7 +98,21 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
     throw new Error('Session expired. Please log in again.');
   }
 
-  const data = await response.json();
+  let data: any;
+  const contentType = response.headers.get('content-type');
+  
+  if (contentType && contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    // If it is not JSON, it is likely a server error (HTML)
+    if (!response.ok) {
+       console.error(`API Error (${response.status}):`, text.slice(0, 1000));
+       throw new Error(`Server returned an error (${response.status}). Please check console for details.`);
+    }
+    // If it's OK but not JSON, still try to return something or throw
+    data = { success: true, message: text };
+  }
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== 'undefined') {
@@ -112,7 +126,7 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
         window.location.href = '/login?reason=timeout';
       }
     }
-    throw new Error(data.error || `API error: ${response.status}`);
+    throw new Error(data?.error || `API error: ${response.status}`);
   }
 
   return data;
@@ -215,7 +229,9 @@ export const dashboardApi = {
 };
 
 // Rooms helpers
-// Backend routes: GET /floors, POST /floors, GET /types, POST /types, GET /, POST /, PATCH /:id/status, GET /availability
+// Backend routes: GET /floors, POST /floors, PUT /floors/:id, DELETE /floors/:id
+//                 GET /types, POST /types, PUT /types/:id, DELETE /types/:id
+//                 GET /, POST /, PUT /:id, DELETE /:id, PATCH /:id/status, GET /availability
 export const roomsApi = {
   // Floors
   getFloors: () => apiFetch('/rooms/floors'),
@@ -223,16 +239,30 @@ export const roomsApi = {
     apiFetch('/rooms/floors', { method: 'POST', body: JSON.stringify(body) }),
   updateFloor: (id: string, body: { name: string; sortOrder: number }) =>
     apiFetch(`/rooms/floors/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  // No DELETE /floors/:id in backend - we need to add it
   deleteFloor: (id: string) => apiFetch(`/rooms/floors/${id}`, { method: 'DELETE' }),
 
   // Room Types
   getRoomTypes: () => apiFetch('/rooms/types'),
-  createRoomType: (body: { name: string; maxOccupancy: number; baseRate: number; pricingUnit: string; description?: string }) =>
-    apiFetch('/rooms/types', { method: 'POST', body: JSON.stringify(body) }),
-  updateRoomType: (id: string, body: { name: string; maxOccupancy: number; baseRate: number; pricingUnit: string; description?: string }) =>
-    apiFetch(`/rooms/types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  // No DELETE /types/:id in backend - we need to add it
+  createRoomType: (body: {
+    name: string;
+    maxOccupancy: number;
+    baseOccupancy?: number;
+    baseRate: number;
+    pricingUnit: string;
+    description?: string;
+    maxExtraBeds?: number;
+    extraBedCharge?: number;
+  }) => apiFetch('/rooms/types', { method: 'POST', body: JSON.stringify(body) }),
+  updateRoomType: (id: string, body: {
+    name: string;
+    maxOccupancy: number;
+    baseOccupancy?: number;
+    baseRate: number;
+    pricingUnit: string;
+    description?: string;
+    maxExtraBeds?: number;
+    extraBedCharge?: number;
+  }) => apiFetch(`/rooms/types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteRoomType: (id: string) => apiFetch(`/rooms/types/${id}`, { method: 'DELETE' }),
 
   // Rooms
@@ -240,14 +270,17 @@ export const roomsApi = {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/rooms${query}`);
   },
-  createRoom: (body: { roomNumber: string; floorId: string; roomTypeId: string; baseRate?: number }) =>
+  createRoom: (body: { roomNumber: string; floorId: string; roomTypeId: string; status?: string; baseRate?: number }) =>
     apiFetch('/rooms', { method: 'POST', body: JSON.stringify(body) }),
-  // No PUT /:id in backend - we need to add it
-  updateRoom: (id: string, body: any) =>
-    apiFetch(`/rooms/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  // No DELETE /:id in backend - we need to add it
+  updateRoom: (id: string, body: {
+    roomNumber?: string;
+    floorId?: string;
+    roomTypeId?: string;
+    status?: string;
+    rateOverride?: number | null;
+  }) => apiFetch(`/rooms/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteRoom: (id: string) => apiFetch(`/rooms/${id}`, { method: 'DELETE' }),
-  // PATCH /:id/status exists in backend
+  // PATCH /:id/status — uses canonical status list: available, occupied, blocked, maintenance, dirty, cleaning
   updateStatus: (id: string, status: string) =>
     apiFetch(`/rooms/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   checkAvailability: (checkIn: string, checkOut: string) =>

@@ -125,13 +125,11 @@ roomsRouter.post('/types', authorize('property_owner', 'general_manager'), async
 // PUT /rooms/types/:id
 roomsRouter.put('/types/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
-    const parsed = roomTypeSchema.safeParse(req.body);
+    const parsed = roomTypeSchema.partial().safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ success: false, error: parsed.error.errors[0].message });
       return;
     }
-
-    const slug = parsed.data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
     await withTenant(req.tenantId!, async () => {
       // First, fetch the existing record to verify it belongs to this tenant
@@ -143,9 +141,14 @@ roomsRouter.put('/types/:id', authorize('property_owner', 'general_manager'), as
         return;
       }
 
+      const updateData: any = { ...parsed.data };
+      if (parsed.data.name) {
+        updateData.slug = parsed.data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      }
+
       const roomType = await prisma.roomType.update({
         where: { id: req.params.id },
-        data: { ...parsed.data, slug },
+        data: updateData,
       });
       await logAudit(req.tenantId!, req.userId, 'UPDATE', 'room_type', roomType.id, parsed.data, req.ip || undefined);
       res.json({ success: true, data: roomType });
@@ -153,6 +156,58 @@ roomsRouter.put('/types/:id', authorize('property_owner', 'general_manager'), as
   } catch (err) {
     console.error('[ROOMS UPDATE TYPE ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to update room type' });
+  }
+});
+
+// ── Room Type Delete (must be before DELETE /:id to avoid shadowing) ──
+
+// DELETE /rooms/types/:id (soft-delete)
+roomsRouter.delete('/types/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      const roomCount = await prisma.room.count({
+        where: { roomTypeId: req.params.id, tenantId: req.tenantId!, isActive: true },
+      });
+      if (roomCount > 0) {
+        res.status(400).json({ success: false, error: `Cannot delete type with ${roomCount} active room(s). Remove rooms first.` });
+        return;
+      }
+
+      await prisma.roomType.update({
+        where: { id: req.params.id },
+        data: { isActive: false },
+      });
+      await logAudit(req.tenantId!, req.userId, 'DELETE', 'room_type', req.params.id, {}, req.ip || undefined);
+      res.json({ success: true, message: 'Room type deleted' });
+    });
+  } catch (err) {
+    console.error('[ROOMS DELETE TYPE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete room type' });
+  }
+});
+
+// ── Floor Delete (must be before DELETE /:id to avoid shadowing) ──
+
+// DELETE /rooms/floors/:id
+roomsRouter.delete('/floors/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      // Check if floor has active rooms
+      const roomCount = await prisma.room.count({
+        where: { floorId: req.params.id, tenantId: req.tenantId!, isActive: true },
+      });
+      if (roomCount > 0) {
+        res.status(400).json({ success: false, error: `Cannot delete floor with ${roomCount} active room(s). Remove rooms first.` });
+        return;
+      }
+
+      await prisma.floor.delete({ where: { id: req.params.id } });
+      await logAudit(req.tenantId!, req.userId, 'DELETE', 'floor', req.params.id, {}, req.ip || undefined);
+      res.json({ success: true, message: 'Floor deleted' });
+    });
+  } catch (err) {
+    console.error('[ROOMS DELETE FLOOR ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete floor' });
   }
 });
 
@@ -213,7 +268,7 @@ roomsRouter.post('/', authorize('property_owner', 'general_manager'), async (req
 // PUT /rooms/:id
 roomsRouter.put('/:id', validateRequest(updateRoomSchema), authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
-    const { roomNumber, floorId, roomTypeId, baseRate } = req.body;
+    const { roomNumber, floorId, roomTypeId, status, rateOverride } = req.body;
     if (!roomNumber?.trim()) {
       res.status(400).json({ success: false, error: 'Room number is required' });
       return;
@@ -232,10 +287,11 @@ roomsRouter.put('/:id', validateRequest(updateRoomSchema), authorize('property_o
       const room = await prisma.room.update({
         where: { id: req.params.id },
         data: {
-          roomNumber: roomNumber.trim(),
+          ...(roomNumber && { roomNumber: roomNumber.trim() }),
           ...(floorId && { floorId }),
           ...(roomTypeId && { roomTypeId }),
-          ...(baseRate !== undefined && { baseRate: parseFloat(baseRate) }),
+          ...(status && { status }),
+          ...(rateOverride !== undefined && { rateOverride: rateOverride === null ? null : parseFloat(rateOverride) }),
         },
         include: {
           floor: { select: { id: true, name: true } },
@@ -276,58 +332,11 @@ roomsRouter.delete('/:id', authorize('property_owner', 'general_manager'), async
   }
 });
 
-// DELETE /rooms/floors/:id
-roomsRouter.delete('/floors/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
-  try {
-    await withTenant(req.tenantId!, async () => {
-      // Check if floor has active rooms
-      const roomCount = await prisma.room.count({
-        where: { floorId: req.params.id, tenantId: req.tenantId!, isActive: true },
-      });
-      if (roomCount > 0) {
-        res.status(400).json({ success: false, error: `Cannot delete floor with ${roomCount} active room(s). Remove rooms first.` });
-        return;
-      }
-
-      await prisma.floor.delete({ where: { id: req.params.id } });
-      await logAudit(req.tenantId!, req.userId, 'DELETE', 'floor', req.params.id, {}, req.ip || undefined);
-      res.json({ success: true, message: 'Floor deleted' });
-    });
-  } catch (err) {
-    console.error('[ROOMS DELETE FLOOR ERROR]', err);
-    res.status(500).json({ success: false, error: 'Failed to delete floor' });
-  }
-});
-
-// DELETE /rooms/types/:id (soft-delete)
-roomsRouter.delete('/types/:id', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
-  try {
-    await withTenant(req.tenantId!, async () => {
-      const roomCount = await prisma.room.count({
-        where: { roomTypeId: req.params.id, tenantId: req.tenantId!, isActive: true },
-      });
-      if (roomCount > 0) {
-        res.status(400).json({ success: false, error: `Cannot delete type with ${roomCount} active room(s). Remove rooms first.` });
-        return;
-      }
-
-      await prisma.roomType.update({
-        where: { id: req.params.id },
-        data: { isActive: false },
-      });
-      await logAudit(req.tenantId!, req.userId, 'DELETE', 'room_type', req.params.id, {}, req.ip || undefined);
-      res.json({ success: true, message: 'Room type deleted' });
-    });
-  } catch (err) {
-    console.error('[ROOMS DELETE TYPE ERROR]', err);
-    res.status(500).json({ success: false, error: 'Failed to delete room type' });
-  }
-});
-
 // PATCH /rooms/:id/status
 roomsRouter.patch('/:id/status', validateRequest(updateRoomStatusSchema), authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {
     const { status } = req.body;
+    // Canonical status list — keep in sync with updateRoomStatusSchema in @istays/shared
     const validStatuses = ['available', 'occupied', 'blocked', 'maintenance', 'dirty', 'cleaning'];
     if (!validStatuses.includes(status)) {
       res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
@@ -374,7 +383,7 @@ roomsRouter.get('/availability', async (req: Request, res: Response) => {
           bookingRooms: {
             where: {
               booking: {
-                status: { in: ['confirmed', 'checked_in'] },
+                status: { in: ['pending_confirmation', 'confirmed', 'checked_in'] },
                 checkInDate: { lt: new Date(checkOut as string) },
                 checkOutDate: { gt: new Date(checkIn as string) },
               },

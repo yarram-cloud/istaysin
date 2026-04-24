@@ -500,6 +500,7 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
   const [showAssign, setShowAssign] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [assigning, setAssigning] = useState(false);
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Check if this booking has unassigned rooms
   const unassignedRooms = booking.bookingRooms?.filter((br: any) => !br.roomId && !br.room) || [];
@@ -512,10 +513,22 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
       return;
     }
     setShowAssign(true);
+    setLoadingRooms(true);
     try {
-      const res = await roomsApi.getRooms({ status: 'available' });
+      // Use date-aware availability so already-booked rooms don't appear
+      const checkIn = booking.checkInDate.split('T')[0];
+      const checkOut = booking.checkOutDate.split('T')[0];
+      const res = await roomsApi.checkAvailability(checkIn, checkOut);
       setAvailableRooms(res.data || []);
-    } catch { toast.error('Failed to load rooms'); }
+    } catch {
+      // Fallback to status-only check
+      try {
+        const res = await roomsApi.getRooms({ status: 'available' });
+        setAvailableRooms(res.data || []);
+      } catch { toast.error('Failed to load rooms'); }
+    } finally {
+      setLoadingRooms(false);
+    }
   }
 
   async function doAssign(bookingRoomId: string, roomId: string) {
@@ -554,9 +567,14 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
         <td className="px-4 sm:px-5 py-3.5 text-sm font-semibold text-surface-900">₹{booking.totalAmount?.toLocaleString('en-IN')}</td>
         <td className="px-4 sm:px-5 py-3.5">
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold uppercase tracking-wider ${statusLabels[booking.status]?.class || 'bg-surface-100 text-surface-500'}`}>
+            {/* Status badge — clickable to open detail panel */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onSelect(); }}
+              className={`text-[10px] px-2 py-1 rounded-full font-semibold uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity ${statusLabels[booking.status]?.class || 'bg-surface-100 text-surface-500'}`}
+              title="View booking details"
+            >
               {statusLabels[booking.status]?.label || booking.status}
-            </span>
+            </button>
             {canAssign && (
               <button
                 onClick={handleAssignClick}
@@ -568,8 +586,12 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
             )}
           </div>
         </td>
-        <td className="px-4 sm:px-5 py-3.5">
-          <button onClick={(e) => { e.stopPropagation(); onSelect(); }} className="w-8 h-8 rounded-lg bg-surface-100 hover:bg-primary-100 flex items-center justify-center transition-colors group">
+        <td className="px-4 sm:px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            className="w-8 h-8 rounded-lg bg-surface-100 hover:bg-primary-100 flex items-center justify-center transition-colors group"
+            title="View details"
+          >
             <Eye className="w-4 h-4 text-surface-400 group-hover:text-primary-600" />
           </button>
         </td>
@@ -580,36 +602,53 @@ function BookingRow({ booking, statusLabels, onSelect, onAssignRoom }: {
           <td colSpan={8} className="px-4 sm:px-5 py-3 bg-violet-50/50 border-b border-violet-100">
             <div className="space-y-2">
               <p className="text-xs font-semibold text-violet-700 mb-2">Assign rooms for this booking:</p>
-              {unassignedRooms.map((br: any) => {
-                const matchingRooms = availableRooms.filter(r => r.roomTypeId === br.roomTypeId);
-                return (
-                  <div key={br.id} className="flex items-center gap-3 flex-wrap">
-                    <span className="text-sm text-surface-700 font-medium min-w-[120px]">
-                      {br.roomType?.name || 'Room'}
-                    </span>
-                    <select
-                      className="h-9 px-3 rounded-lg border border-violet-200 bg-white text-sm text-surface-700 min-w-[180px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-300"
-                      defaultValue=""
-                      onChange={(e) => {
-                        if (e.target.value) doAssign(br.id, e.target.value);
-                      }}
-                      disabled={assigning}
-                    >
-                      <option value="" disabled>Select room...</option>
-                      {matchingRooms.length > 0 ? (
-                        matchingRooms.map(r => (
-                          <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.baseRate})</option>
-                        ))
-                      ) : (
-                        availableRooms.map(r => (
-                          <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.baseRate})</option>
-                        ))
-                      )}
-                    </select>
-                    {assigning && <Loader2 className="w-4 h-4 animate-spin text-violet-500" />}
-                  </div>
-                );
-              })}
+              {loadingRooms ? (
+                <div className="flex items-center gap-2 text-xs text-surface-500 py-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading available rooms for these dates...
+                </div>
+              ) : availableRooms.length === 0 ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  ⚠ No rooms are available for these dates. Check room statuses or adjust the dates.
+                </p>
+              ) : (
+                unassignedRooms.map((br: any) => {
+                  const matchingRooms = availableRooms.filter(r => r.roomTypeId === br.roomTypeId);
+                  const hasExactMatch = matchingRooms.length > 0;
+                  const roomOptions = hasExactMatch ? matchingRooms : availableRooms;
+                  return (
+                    <div key={br.id} className="flex items-start gap-3 flex-wrap">
+                      <div className="min-w-[120px]">
+                        <span className="text-sm text-surface-700 font-medium block">{br.roomType?.name || 'Room'}</span>
+                        {!hasExactMatch && (
+                          <span className="text-[10px] text-amber-600 font-medium">No exact match — showing all available</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-1">
+                        <select
+                          className="h-9 px-3 rounded-lg border border-violet-200 bg-white text-sm text-surface-700 flex-1 min-w-[200px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-300"
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (e.target.value) doAssign(br.id, e.target.value);
+                          }}
+                          disabled={assigning}
+                        >
+                          <option value="" disabled>Select room...</option>
+                          {!hasExactMatch && (
+                            <option disabled>── Matching type ──</option>
+                          )}
+                          {hasExactMatch && matchingRooms.map(r => (
+                            <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.rateOverride || r.roomType?.baseRate || r.baseRate})</option>
+                          ))}
+                          {!hasExactMatch && roomOptions.map(r => (
+                            <option key={r.id} value={r.id}>{r.roomNumber} — {r.roomType?.name} (₹{r.rateOverride || r.roomType?.baseRate || r.baseRate})</option>
+                          ))}
+                        </select>
+                        {assigning && <Loader2 className="w-4 h-4 animate-spin text-violet-500 shrink-0" />}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </td>
         </tr>
@@ -924,9 +963,18 @@ function BookingDetailPanel({ booking, onClose, onConfirm, onCancel, onUpdated }
 
   async function loadAvailableRooms() {
     try {
-      const res = await roomsApi.getRooms({ status: 'available' });
+      // Use date-aware availability so already-booked rooms (including this booking's current room) don't block display
+      const checkIn = booking.checkInDate.split('T')[0];
+      const checkOut = booking.checkOutDate.split('T')[0];
+      const res = await roomsApi.checkAvailability(checkIn, checkOut);
       setAvailableRooms(res.data || []);
-    } catch { }
+    } catch {
+      // Fallback to status-only
+      try {
+        const res = await roomsApi.getRooms({ status: 'available' });
+        setAvailableRooms(res.data || []);
+      } catch { }
+    }
   }
 
   const [submittingCForm, setSubmittingCForm] = useState<string | null>(null);

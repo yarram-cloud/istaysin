@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Tag, Plus, X, Trash2, Edit2, Loader2, Calendar, Users, Ticket, CheckCircle2, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { couponsApi, roomsApi } from '@/lib/api';
@@ -83,12 +84,33 @@ export default function CouponsPage() {
           <p className="text-surface-500">Create promotional discounts to boost your bookings</p>
         </div>
         <button 
-          onClick={() => { setEditingCoupon(null); setShowAddModal(true); }}
-          className="bg-primary-700 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium inline-flex items-center gap-2 transition-colors shadow-sm"
+          onClick={() => { if (!showAddModal) setEditingCoupon(null); setShowAddModal(!showAddModal); }}
+          className={`px-5 py-2.5 rounded-xl font-medium inline-flex items-center gap-2 transition-colors shadow-sm text-sm ${
+            showAddModal ? 'bg-surface-100 text-surface-700 border border-surface-200' : 'bg-primary-700 hover:bg-primary-600 text-white'
+          }`}
         >
-          <Plus className="w-4 h-4" /> Create Coupon
+          <Plus className="w-4 h-4" /> {showAddModal ? 'Cancel' : 'Create Coupon'}
         </button>
       </div>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <CouponFormInline
+              coupon={editingCoupon}
+              roomTypes={roomTypes}
+              onClose={() => { setShowAddModal(false); setEditingCoupon(null); }}
+              onSaved={() => { setShowAddModal(false); setEditingCoupon(null); fetchData(); }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -121,7 +143,7 @@ export default function CouponsPage() {
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      onClick={() => { setEditingCoupon(coupon); setShowAddModal(true); }}
+                      onClick={() => { setEditingCoupon(coupon); setShowAddModal(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       className="p-1.5 rounded-lg hover:bg-surface-100 text-surface-600 transition-colors"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -178,19 +200,11 @@ export default function CouponsPage() {
         </div>
       )}
 
-      {showAddModal && (
-        <CouponFormModal 
-          coupon={editingCoupon}
-          roomTypes={roomTypes}
-          onClose={() => setShowAddModal(false)}
-          onSaved={() => { setShowAddModal(false); fetchData(); }}
-        />
-      )}
     </div>
   );
 }
 
-function CouponFormModal({ coupon, roomTypes, onClose, onSaved }: { 
+function CouponFormInline({ coupon, roomTypes, onClose, onSaved }: { 
   coupon: Coupon | null; roomTypes: RoomType[]; onClose: () => void; onSaved: () => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -250,16 +264,20 @@ function CouponFormModal({ coupon, roomTypes, onClose, onSaved }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-end bg-surface-900/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div className="bg-white border-l border-surface-200 w-full max-w-lg h-full flex flex-col animate-slide-left shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-surface-100">
-          <h2 className="text-xl font-display font-bold text-surface-900">{coupon ? 'Edit Coupon' : 'Create Coupon'}</h2>
-          <button onClick={onClose} className="p-2 -mr-2 text-surface-500 hover:text-surface-900 transition-colors rounded-lg hover:bg-surface-50">
-            <X className="w-5 h-5" />
-          </button>
+    <div className="bg-white rounded-2xl border border-primary-200 shadow-sm overflow-hidden" style={{ borderTop: '3px solid #166534' }}>
+      <div className="flex items-center justify-between p-4 sm:p-5 border-b border-surface-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+            <Ticket className="w-4 h-4 text-primary-600" />
+          </div>
+          <h3 className="font-display text-base font-bold text-surface-900">{coupon ? 'Edit Coupon' : 'Create Coupon'}</h3>
         </div>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 transition-all">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-surface-700 mb-1.5 uppercase tracking-wide text-[11px]">Promo Code</label>
@@ -384,21 +402,21 @@ function CouponFormModal({ coupon, roomTypes, onClose, onSaved }: {
                </label>
             </div>
           </div>
-        </form>
 
-        <div className="p-6 border-t border-surface-100 flex gap-3">
-          <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3">Cancel</button>
-          <button 
-            type="submit" 
-            onClick={handleSubmit}
-            disabled={loading}
-            className="bg-primary-700 hover:bg-primary-600 text-white flex-1 py-3 flex items-center justify-center gap-2 rounded-xl font-medium shadow-sm transition-colors disabled:opacity-50"
-          >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {coupon ? 'Update Coupon' : 'Create Coupon'}
-          </button>
-        </div>
-      </div>
+          <div className="flex gap-3 pt-3 border-t border-surface-100">
+            <button type="button" onClick={onClose}
+              className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">Cancel
+            </button>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="bg-primary-700 hover:bg-primary-600 text-white flex-1 h-10 flex items-center justify-center gap-2 rounded-xl font-medium shadow-sm transition-colors disabled:opacity-50"
+            >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {coupon ? 'Update Coupon' : 'Create Coupon'}
+            </button>
+          </div>
+        </form>
     </div>
   );
 }
