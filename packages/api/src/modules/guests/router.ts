@@ -40,13 +40,35 @@ guestsRouter.get('/', async (req: Request, res: Response) => {
           orderBy: { fullName: 'asc' },
           skip: (page - 1) * limit,
           take: limit,
+          include: {
+            _count: {
+              select: {
+                bookings: { where: { status: 'checked_out' } },
+              },
+            },
+            bookings: {
+              where: { status: 'checked_out' },
+              orderBy: { checkOutDate: 'desc' },
+              take: 1,
+              select: { checkOutDate: true },
+            },
+          },
         }),
         prisma.guestProfile.count({ where }),
       ]);
 
+      // Map to include totalStays and lastVisit
+      const enriched = guests.map((g: any) => ({
+        ...g,
+        totalStays: g._count?.bookings || 0,
+        lastVisit: g.bookings?.[0]?.checkOutDate || null,
+        _count: undefined,
+        bookings: undefined,
+      }));
+
       res.json({
         success: true,
-        data: guests,
+        data: enriched,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       });
     });
@@ -120,5 +142,47 @@ guestsRouter.get('/:id', async (req: Request, res: Response) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch guest' });
+  }
+});
+
+// PUT /guests/:id — update guest profile
+guestsRouter.put('/:id', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
+  try {
+    await withTenant(req.tenantId!, async () => {
+      const guest = await prisma.guestProfile.findFirst({
+        where: { id: req.params.id, tenantId: req.tenantId! },
+      });
+
+      if (!guest) {
+        res.status(404).json({ success: false, error: 'Guest not found' });
+        return;
+      }
+
+      // Whitelist updatable fields
+      const { fullName, phone, email, nationality, dateOfBirth, gender, idProofType, idProofNumber, address, city, state, pincode } = req.body;
+      const data: Record<string, any> = {};
+      if (fullName !== undefined) data.fullName = fullName.trim();
+      if (phone !== undefined) data.phone = phone.trim() || null;
+      if (email !== undefined) data.email = email.trim().toLowerCase() || null;
+      if (nationality !== undefined) data.nationality = nationality;
+      if (dateOfBirth !== undefined) data.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+      if (gender !== undefined) data.gender = gender || null;
+      if (idProofType !== undefined) data.idProofType = idProofType || null;
+      if (idProofNumber !== undefined) data.idProofNumber = idProofNumber.trim() || null;
+      if (address !== undefined) data.address = address.trim() || null;
+      if (city !== undefined) data.city = city.trim() || null;
+      if (state !== undefined) data.state = state.trim() || null;
+      if (pincode !== undefined) data.pincode = pincode.trim() || null;
+
+      const updated = await prisma.guestProfile.update({
+        where: { id: guest.id },
+        data,
+      });
+
+      res.json({ success: true, data: updated, message: 'Guest profile updated' });
+    });
+  } catch (err) {
+    console.error('[GUESTS UPDATE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to update guest' });
   }
 });

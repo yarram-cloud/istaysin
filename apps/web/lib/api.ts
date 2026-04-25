@@ -316,6 +316,7 @@ export const guestsApi = {
   },
   get: (id: string) => apiFetch(`/guests/${id}`),
   create: (body: any) => apiFetch('/guests', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: string, body: any) => apiFetch(`/guests/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   search: (q: string) => apiFetch(`/guests?search=${encodeURIComponent(q)}`),
 };
 

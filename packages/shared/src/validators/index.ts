@@ -173,6 +173,7 @@ export const checkInSchema = z.object({
 export const checkOutSchema = z.object({
   paymentMethod: z.enum(['cash', 'upi', 'card', 'bank_transfer']).optional(),
   settledAmount: z.number().min(0).optional(),
+  discountAmount: z.number().min(0).optional(),
   notes: z.string().max(500).optional(),
 });
 

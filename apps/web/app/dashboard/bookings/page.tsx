@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2, Edit2, Save, ChevronDown, ChevronRight, Mail, User, BedDouble, ArrowRight } from 'lucide-react';
+import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2, Edit2, Save, ChevronDown, ChevronRight, Mail, User, BedDouble, ArrowRight, Printer, MessageCircle, Percent, Tag, SprayCan } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -998,6 +998,14 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   const [ciPurpose, setCiPurpose] = useState('leisure');
   const [coBalance, setCoBalance] = useState('');
   const [coPayMode, setCoPayMode] = useState('cash');
+  // Discount
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [discountType, setDiscountType] = useState<'percent' | 'flat'>('percent');
+  const [discountInput, setDiscountInput] = useState('');
+  const discountAmount = discountType === 'percent'
+    ? Math.round(booking.totalAmount * (parseFloat(discountInput) || 0) / 100)
+    : (parseFloat(discountInput) || 0);
+  const finalAmount = Math.max(0, booking.totalAmount - discountAmount);
   const [changingRoomId, setChangingRoomId] = useState<string | null>(null);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [submittingCForm, setSubmittingCForm] = useState<string | null>(null);
@@ -1067,7 +1075,11 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   async function handleCheckOut() {
     setSaving(true);
     try {
-      await checkinApi.checkOut(booking.id, { balanceDue: parseFloat(coBalance) || 0, paymentMode: coPayMode });
+      await checkinApi.checkOut(booking.id, {
+        settledAmount: parseFloat(coBalance) || 0,
+        paymentMethod: coPayMode,
+        discountAmount: discountAmount > 0 ? discountAmount : undefined,
+      });
       toast.success('Successfully Checked Out');
       onRefresh();
     } catch (err: any) { toast.error(err.message || 'Check-out failed'); }
@@ -1202,10 +1214,43 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
                 <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
                   <Building2 className="w-4 h-4 text-amber-600" /> {isLongStay ? 'Complete Move-Out' : 'Complete Check-Out'}
                 </h4>
+
+                {/* Discount CTA */}
+                {!showDiscount ? (
+                  <button onClick={() => setShowDiscount(true)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors mb-3">
+                    <Tag className="w-3.5 h-3.5" /> Apply Discount
+                  </button>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-lg bg-white border border-emerald-200">
+                    <div className="flex items-center rounded-lg border border-surface-200 overflow-hidden">
+                      <button onClick={() => setDiscountType('percent')}
+                        className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'percent' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
+                        <Percent className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => setDiscountType('flat')}
+                        className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'flat' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
+                        ₹ Flat
+                      </button>
+                    </div>
+                    <input type="number" min="0" placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
+                      value={discountInput} onChange={e => setDiscountInput(e.target.value)}
+                      className="w-24 h-8 px-3 rounded-lg border border-surface-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/30" />
+                    {discountAmount > 0 && (
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">−₹{discountAmount.toLocaleString('en-IN')} → ₹{finalAmount.toLocaleString('en-IN')}</span>
+                    )}
+                    <button onClick={() => { setShowDiscount(false); setDiscountInput(''); }}
+                      className="text-xs text-surface-400 hover:text-surface-600 ml-auto">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium pointer-events-none">₹</span>
-                    <input type="number" placeholder="Balance Due" value={coBalance} onChange={e => setCoBalance(e.target.value)}
+                    <input type="number" placeholder={discountAmount > 0 ? finalAmount.toLocaleString('en-IN') : 'Balance Due'}
+                      value={coBalance} onChange={e => setCoBalance(e.target.value)}
                       className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30" />
                   </div>
                   <div className="flex items-center gap-4">
@@ -1220,6 +1265,97 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Move Out' : 'Check Out'}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* ── POST-CHECKOUT ACTIONS ── */}
+            {booking.status === 'checked_out' && (
+              <div className="space-y-3">
+                {/* Print & WhatsApp Receipt */}
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => {
+                    const propertyName = (() => { try { const m = JSON.parse(localStorage.getItem('memberships') || '[]'); return m[0]?.tenant?.name || 'Property'; } catch { return 'Property'; } })();
+                    const rooms = (booking.bookingRooms || []).filter((br: any) => br.room).map((br: any) => `${br.room.roomNumber} (${br.roomType?.name || 'Room'})`).join(', ') || 'N/A';
+                    const checkIn = new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                    const checkOut = new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                    const discount = booking.discountAmount ? `<tr><td style="padding:6px 0;color:#666">Discount</td><td style="padding:6px 0;text-align:right;color:#059669;font-weight:600">−₹${booking.discountAmount.toLocaleString('en-IN')}</td></tr>` : '';
+                    const w = window.open('', '_blank', 'width=420,height=600');
+                    if (!w) return;
+                    w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${booking.bookingNumber}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;padding:24px;color:#1a1a1a;max-width:380px;margin:0 auto}
+.header{text-align:center;border-bottom:2px solid #166534;padding-bottom:12px;margin-bottom:16px}
+.header h1{font-size:16px;font-weight:700;color:#166534}.header p{font-size:11px;color:#666;margin-top:2px}
+.ref{text-align:center;font-size:12px;color:#666;margin-bottom:16px}
+.ref strong{font-family:monospace;font-size:14px;color:#1a1a1a}
+table{width:100%;border-collapse:collapse;margin-bottom:12px}
+td{padding:5px 0;font-size:13px;vertical-align:top}
+.label{color:#666;width:40%}.val{text-align:right;font-weight:500}
+.total-row{border-top:2px solid #1a1a1a;font-size:18px;font-weight:700}
+.footer{text-align:center;font-size:10px;color:#999;margin-top:24px;border-top:1px dashed #ddd;padding-top:12px}
+@media print{body{padding:0}button{display:none!important}}
+</style></head><body>
+<div class="header"><h1>${propertyName}</h1><p>Guest Receipt</p></div>
+<p class="ref">Booking <strong>${booking.bookingNumber}</strong></p>
+<table>
+<tr><td class="label">Guest</td><td class="val">${booking.guestName}</td></tr>
+<tr><td class="label">Phone</td><td class="val">${booking.guestPhone || '—'}</td></tr>
+<tr><td class="label">Room(s)</td><td class="val">${rooms}</td></tr>
+<tr><td class="label">${isLongStay ? 'Move-in' : 'Check-in'}</td><td class="val">${checkIn}</td></tr>
+<tr><td class="label">${isLongStay ? 'Lease End' : 'Check-out'}</td><td class="val">${checkOut}</td></tr>
+</table>
+<table style="border-top:1px solid #eee;margin-top:8px">
+<tr><td style="padding:6px 0;color:#666">Subtotal</td><td style="padding:6px 0;text-align:right">₹${((booking.totalAmount || 0) + (booking.discountAmount || 0)).toLocaleString('en-IN')}</td></tr>
+${discount}
+<tr class="total-row"><td style="padding:10px 0">Total</td><td style="padding:10px 0;text-align:right">₹${booking.totalAmount?.toLocaleString('en-IN')}</td></tr>
+</table>
+<p class="footer">Thank you for staying with us!<br>This is a computer-generated receipt.</p>
+<button onclick="window.print()" style="display:block;width:100%;margin-top:16px;padding:10px;background:#166534;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">🖨 Print</button>
+</body></html>`);
+                    w.document.close();
+                  }}
+                    className="flex items-center gap-2 h-9 px-4 rounded-lg border border-surface-200 bg-white text-sm font-medium text-surface-700 hover:bg-surface-50 transition-colors shadow-sm">
+                    <Printer className="w-4 h-4" /> Print Receipt
+                  </button>
+                  <button onClick={() => {
+                    const checkIn = new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                    const checkOut = new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                    const rooms = (booking.bookingRooms || []).filter((br: any) => br.room).map((br: any) => br.room.roomNumber).join(', ') || 'N/A';
+                    const discount = booking.discountAmount ? `\nDiscount: ₹${booking.discountAmount.toLocaleString('en-IN')}` : '';
+                    const text = `*Receipt — ${booking.bookingNumber}*\nGuest: ${booking.guestName}\nRoom: ${rooms}\n${isLongStay ? 'Move-in' : 'Check-in'}: ${checkIn}\n${isLongStay ? 'Lease End' : 'Check-out'}: ${checkOut}${discount}\n*Total: ₹${booking.totalAmount?.toLocaleString('en-IN')}*\nStatus: ✅ Checked Out\n\nThank you for your stay!`;
+                    const phone = booking.guestPhone?.replace(/[^\d]/g, '') || '';
+                    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                    className="flex items-center gap-2 h-9 px-4 rounded-lg border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors shadow-sm">
+                    <MessageCircle className="w-4 h-4" /> WhatsApp Receipt
+                  </button>
+                </div>
+
+                {/* Room Status Actions */}
+                {booking.bookingRooms?.some((br: any) => br.roomId) && (
+                  <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-surface-50 border border-surface-200">
+                    <SprayCan className="w-4 h-4 text-surface-500" />
+                    <span className="text-xs font-medium text-surface-600">Room housekeeping:</span>
+                    {booking.bookingRooms.filter((br: any) => br.roomId).map((br: any) => (
+                      <div key={br.id} className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-surface-700">{br.room?.roomNumber || 'Room'}</span>
+                        <select
+                          defaultValue="cleaning"
+                          onChange={async (e) => {
+                            try {
+                              await roomsApi.updateStatus(br.roomId, e.target.value);
+                              toast.success(`Room ${br.room?.roomNumber} → ${e.target.value}`);
+                            } catch { toast.error('Failed to update room status'); }
+                          }}
+                          className="text-xs h-7 px-2 rounded-lg border border-surface-200 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30 font-medium"
+                        >
+                          <option value="cleaning">🧹 Cleaning</option>
+                          <option value="available">✅ Available</option>
+                          <option value="maintenance">🔧 Maintenance</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

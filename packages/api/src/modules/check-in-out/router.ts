@@ -167,7 +167,7 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
         if (br.roomId) {
           await prisma.room.update({
             where: { id: br.roomId },
-            data: { status: 'available', housekeepingStatus: 'dirty' },
+            data: { status: 'cleaning', housekeepingStatus: 'dirty' },
           });
 
           const defaultChecklist = [
@@ -194,6 +194,10 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
         }
       }
 
+      // Apply discount if provided
+      const discountAmt = parsed.data.discountAmount || 0;
+      const adjustedTotal = Math.max(0, booking.totalAmount - discountAmt);
+
       // Update booking
       const totalPaid = booking.guestPayments.reduce((sum, p) => sum + p.amount, 0) + (parsed.data.settledAmount || 0);
       const updatedBooking = await prisma.booking.update({
@@ -201,8 +205,10 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
         data: {
           status: 'checked_out',
           checkedOutAt: new Date(),
+          totalAmount: adjustedTotal,
+          discountAmount: discountAmt,
           advancePaid: totalPaid,
-          balanceDue: Math.max(0, booking.totalAmount - totalPaid),
+          balanceDue: Math.max(0, adjustedTotal - totalPaid),
           notes: parsed.data.notes ? `${booking.notes || ''}\n${parsed.data.notes}`.trim() : booking.notes,
         },
       });
