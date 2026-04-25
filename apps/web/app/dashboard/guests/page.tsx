@@ -62,7 +62,7 @@ export default function GuestsPage() {
                 : 'bg-primary-700 text-white hover:bg-primary-600 border border-primary-700'
             }`}
           >
-            <Plus className="w-4 h-4" /> Add Guest
+            <Plus className="w-4 h-4" /> {t('guestsPage.addGuest')}
           </button>
         </div>
       </div>
@@ -88,7 +88,7 @@ export default function GuestsPage() {
       {/* Search */}
       <div className="relative max-w-md print:hidden">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-        <input type="text" placeholder="Search by name, phone, or email..." value={searchQuery}
+        <input type="text" placeholder={t('guestsPage.searchPlaceholder')} value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full h-10 pl-10 pr-4 rounded-xl border border-surface-200 bg-white text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
       </div>
@@ -101,8 +101,8 @@ export default function GuestsPage() {
       ) : guests.length === 0 ? (
         <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-12 text-center">
           <Users className="w-12 h-12 text-surface-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2 text-surface-900">{searchQuery ? 'No guests found' : 'No guests yet'}</h3>
-          <p className="text-sm text-surface-500 mb-4">{searchQuery ? 'Try a different search term.' : 'Guest profiles will appear here as bookings are created.'}</p>
+          <h3 className="text-lg font-semibold mb-2 text-surface-900">{searchQuery ? t('guestsPage.noGuestsFound') : t('guestsPage.noGuestsYet')}</h3>
+          <p className="text-sm text-surface-500 mb-4">{searchQuery ? t('guestsPage.tryDifferentSearch') : t('guestsPage.guestsAppearHere')}</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
@@ -111,11 +111,11 @@ export default function GuestsPage() {
               <thead>
                 <tr className="border-b border-surface-100 bg-surface-50">
                   <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden print:table-cell">{t('srNo')}</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Name</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden sm:table-cell">Phone</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">Email</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden lg:table-cell">Stays</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">Registered</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">{t('guestsPage.name')}</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden sm:table-cell">{t('guestsPage.phone')}</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">{t('guestsPage.email')}</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden lg:table-cell">{t('guestsPage.stays')}</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden md:table-cell">{t('guestsPage.registered')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
@@ -175,6 +175,7 @@ export default function GuestsPage() {
 
 // ── Inline Add Guest Form ─────────────────────────────────────
 function AddGuestInline({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const t = useTranslations('Dashboard');
   const [fullName, setFullName] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -220,8 +221,8 @@ function AddGuestInline({ onClose, onCreated }: { onClose: () => void; onCreated
             <User className="w-5 h-5 text-primary-600" />
           </div>
           <div>
-            <h3 className="font-display text-base font-bold text-surface-900">Add Guest</h3>
-            <p className="text-xs text-surface-500 mt-0.5">Create a guest profile for Sarai Act compliance</p>
+            <h3 className="font-display text-base font-bold text-surface-900">{t('guestsPage.addGuest')}</h3>
+            <p className="text-xs text-surface-500 mt-0.5">{t('guestsPage.createGuestProfile')}</p>
           </div>
         </div>
         <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all">
@@ -235,7 +236,7 @@ function AddGuestInline({ onClose, onCreated }: { onClose: () => void; onCreated
         {/* Row 1 */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Full Name <span className="text-red-400">*</span></label>
+            <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.fullName')} <span className="text-red-400">*</span></label>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder="Guest full name"
               className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
           </div>
@@ -315,11 +316,11 @@ function AddGuestInline({ onClose, onCreated }: { onClose: () => void; onCreated
         <div className="flex gap-3 pt-2 border-t border-surface-100">
           <button type="button" onClick={onClose}
             className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 transition-colors">
-            Cancel
+            {t('guestsPage.cancel')}
           </button>
           <button type="submit" disabled={saving}
             className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />} Add Guest
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />} {t('guestsPage.addGuestBtn')}
           </button>
         </div>
       </form>
@@ -329,6 +330,7 @@ function AddGuestInline({ onClose, onCreated }: { onClose: () => void; onCreated
 
 // ── Inline Guest Detail Panel ─────────────────────────────────
 function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose: () => void; onUpdated?: () => void }) {
+  const t = useTranslations('Dashboard');
   const isForeigner = guest.nationality && !['Indian', 'India', 'IND'].includes(guest.nationality);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -384,7 +386,7 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
               <h2 className="text-lg font-display font-bold text-surface-900">{guest.fullName}</h2>
               {isForeigner && !isEditing && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold uppercase tracking-wider border border-orange-200">
-                  Foreign National
+                  {t('guestsPage.foreignNational')}
                 </span>
               )}
             </div>
@@ -399,7 +401,7 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
         <div className="flex items-center gap-2">
           {!isEditing && (
             <button onClick={() => setIsEditing(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-surface-200 bg-white text-xs font-medium text-surface-600 hover:bg-surface-50 transition-all">
-              <Edit3 className="w-3.5 h-3.5" /> Edit
+              <Edit3 className="w-3.5 h-3.5" /> {t('guestsPage.edit')}
             </button>
           )}
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-200 hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-all">
@@ -412,11 +414,11 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
         <form onSubmit={handleUpdate} className="p-4 sm:p-5 space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Full Name *</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.fullName')} *</label>
               <input value={fullName} onChange={e => setFullName(e.target.value)} required className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Phone</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.phone')}</label>
               <div className="flex rounded-xl border border-surface-200 bg-white focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-400 transition-all overflow-hidden">
                 <select value={countryCode} onChange={e => setCountryCode(e.target.value)}
                   tabIndex={-1}
@@ -431,67 +433,67 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Email</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.email')}</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Nationality</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.nationality')}</label>
               <select value={nationality} onChange={e => setNationality(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
                 {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Date of Birth</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.dateOfBirth')}</label>
               <input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Gender</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.gender')}</label>
               <select value={gender} onChange={e => setGender(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm">
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="">{t('guestsPage.selectGender')}</option>
+                <option value="Male">{t('guestsPage.male')}</option>
+                <option value="Female">{t('guestsPage.female')}</option>
+                <option value="Other">{t('guestsPage.other')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">ID Proof Type</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.idProofType')}</label>
               <select value={idProofType} onChange={e => setIdProofType(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm">
-                <option value="">Select ID Type</option>
-                <option value="aadhaar">Aadhaar</option>
-                <option value="pan">PAN</option>
-                <option value="passport">Passport</option>
-                <option value="driving_license">Driving License</option>
-                <option value="voter_id">Voter ID</option>
+                <option value="">{t('guestsPage.selectIdType')}</option>
+                <option value="aadhaar">{t('guestsPage.aadhaar')}</option>
+                <option value="pan">{t('guestsPage.pan')}</option>
+                <option value="passport">{t('guestsPage.passport')}</option>
+                <option value="driving_license">{t('guestsPage.drivingLicense')}</option>
+                <option value="voter_id">{t('guestsPage.voterId')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">ID Proof Number</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.idProofNumber')}</label>
               <input value={idProofNumber} onChange={e => setIdProofNumber(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Address</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.address')}</label>
               <input value={address} onChange={e => setAddress(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">City</label>
+              <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.city')}</label>
               <input value={city} onChange={e => setCity(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">State</label>
+                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.state')}</label>
                 <input value={state} onChange={e => setState(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Pincode</label>
+                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">{t('guestsPage.pincode')}</label>
                 <input value={pincode} onChange={e => setPincode(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
               </div>
             </div>
           </div>
           <div className="flex gap-3 pt-2 mt-4 border-t border-surface-100">
-            <button type="button" onClick={() => setIsEditing(false)} className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50">Cancel</button>
+            <button type="button" onClick={() => setIsEditing(false)} className="flex-1 h-10 rounded-xl border border-surface-200 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50">{t('guestsPage.cancel')}</button>
             <button type="submit" disabled={saving} className="flex-1 h-10 rounded-xl bg-primary-700 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 disabled:opacity-50">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Save Changes
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />} {t('guestsPage.saveChanges')}
             </button>
           </div>
         </form>
@@ -499,22 +501,22 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
         <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Contact */}
           <div className="space-y-3">
-            <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">Contact</h3>
+            <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">{t('guestsPage.contact')}</h3>
             {guest.phone ? (
               <a href={`tel:${guest.phone}`} className="flex items-center gap-2.5 text-sm text-primary-600 hover:text-primary-500 transition-colors">
                 <Phone className="w-4 h-4" /> {guest.phone}
               </a>
-            ) : <p className="text-sm text-surface-400">No phone recorded</p>}
+            ) : <p className="text-sm text-surface-400">{t('guestsPage.noPhoneRecorded')}</p>}
             {guest.email ? (
               <a href={`mailto:${guest.email}`} className="flex items-center gap-2.5 text-sm text-primary-600 hover:text-primary-500 transition-colors">
                 <Mail className="w-4 h-4" /> {guest.email}
               </a>
-            ) : <p className="text-sm text-surface-400">No email recorded</p>}
+            ) : <p className="text-sm text-surface-400">{t('guestsPage.noEmailRecorded')}</p>}
           </div>
 
           {/* ID & Nationality */}
           <div className="space-y-3">
-            <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">Identity</h3>
+            <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">{t('guestsPage.identity')}</h3>
             <div className="flex items-center gap-2.5 text-sm text-surface-700">
               <Globe className="w-4 h-4 text-surface-400" />
               <span>{guest.nationality || 'Indian'} {guest.gender ? `• ${guest.gender}` : ''} {guest.dateOfBirth ? `• DOB: ${new Date(guest.dateOfBirth).toLocaleDateString('en-IN')}` : ''}</span>
@@ -532,7 +534,7 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
           {/* Address */}
           {(guest.address || guest.city || guest.state || guest.pincode) && (
             <div className="sm:col-span-2">
-              <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider mb-2">Address</h3>
+              <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-wider mb-2">{t('guestsPage.address')}</h3>
               <p className="text-sm text-surface-700 bg-surface-50 rounded-xl px-3 py-2 border border-surface-100">
                 {[guest.address, guest.city, guest.state, guest.pincode].filter(Boolean).join(', ')}
               </p>
@@ -544,8 +546,8 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
             <div className="sm:col-span-2 flex items-start gap-3 p-3 rounded-xl bg-orange-50 border border-orange-200">
               <Shield className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-orange-800">C-Form Required</p>
-                <p className="text-xs text-orange-600 mt-0.5">Foreign national guest — C-Form submission to FRRO is mandatory within 24 hours of check-in. Submit from the booking detail view.</p>
+                <p className="text-sm font-semibold text-orange-800">{t('guestsPage.cFormRequired')}</p>
+                <p className="text-xs text-orange-600 mt-0.5">{t('guestsPage.cFormDescription')}</p>
               </div>
             </div>
           )}

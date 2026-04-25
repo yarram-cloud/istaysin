@@ -36,6 +36,18 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
         return;
       }
 
+      // Verify the authenticated user is actually a member of this tenant
+      if (req.userId) {
+        const membership = await prisma.tenantMembership.findFirst({
+          where: { userId: req.userId, tenantId: tenant.id, isActive: true },
+          select: { id: true },
+        });
+        if (!membership) {
+          res.status(403).json({ success: false, error: 'Access denied: you are not a member of this property' });
+          return;
+        }
+      }
+
       req.tenantId = tenant.id;
       req.tenantSchemaName = tenant.schemaName;
       req.tenantPlan = tenant.plan || 'free';
@@ -44,15 +56,28 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // 2. From JWT payload
+    // 2. From JWT payload — also verify membership is still active (handles revoked staff)
     if (req.user?.tenantId) {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: req.user.tenantId },
-        select: { id: true, schemaName: true, status: true, plan: true },
-      });
+      const [tenant, membership] = await Promise.all([
+        prisma.tenant.findUnique({
+          where: { id: req.user.tenantId },
+          select: { id: true, schemaName: true, status: true, plan: true },
+        }),
+        req.userId
+          ? prisma.tenantMembership.findFirst({
+              where: { userId: req.userId, tenantId: req.user.tenantId, isActive: true },
+              select: { id: true },
+            })
+          : Promise.resolve(null),
+      ]);
 
       if (!tenant || (tenant.status !== 'active' && tenant.status !== 'pending_approval')) {
         res.status(403).json({ success: false, error: 'Property not found or inactive' });
+        return;
+      }
+
+      if (req.userId && !membership) {
+        res.status(403).json({ success: false, error: 'Access denied: membership revoked' });
         return;
       }
 

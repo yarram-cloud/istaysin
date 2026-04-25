@@ -62,7 +62,7 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
   });
 
   // If 401 and not the refresh endpoint itself, try silent refresh
-  if (response.status === 401 && typeof window !== 'undefined' && !endpoint.includes('/auth/refresh-token')) {
+  if (response.status === 401 && typeof window !== 'undefined' && !endpoint.includes('/auth/')) {
     // Use mutex to prevent concurrent refresh storms
     if (!isRefreshing) {
       isRefreshing = true;
@@ -143,9 +143,15 @@ export function saveAuthData(data: { accessToken: string; refreshToken: string; 
   localStorage.setItem('accessToken', data.accessToken);
   localStorage.setItem('refreshToken', data.refreshToken);
   localStorage.setItem('user', JSON.stringify(data.user));
+
+  // Always reset stale tenant/membership data from previous sessions
+  localStorage.removeItem('tenantId');
+  localStorage.removeItem('tenant_id');
+  localStorage.removeItem('memberships');
+
   if (data.tenantId) {
     localStorage.setItem('tenantId', data.tenantId);
-    localStorage.setItem('tenant_id', data.tenantId); // backwards compatibility
+    localStorage.setItem('tenant_id', data.tenantId);
   }
   if (data.memberships) {
     localStorage.setItem('memberships', JSON.stringify(data.memberships));
@@ -156,11 +162,14 @@ export function saveAuthData(data: { accessToken: string; refreshToken: string; 
 
 // Auth helpers
 export const authApi = {
-  register: (body: { email: string; password: string; fullName: string; phone: string; otpCode: string }) =>
+  register: (body: { phone: string; password: string; fullName: string; email?: string; otpCode: string }) =>
     apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
   sendWhatsappOtp: (body: { phone: string }) =>
     apiFetch('/auth/send-whatsapp-otp', { method: 'POST', body: JSON.stringify(body) }),
+
+  resetPassword: (body: { phone: string; otpCode: string; newPassword: string }) =>
+    apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify(body) }),
 
   login: (body: { identifier: string; password: string }) =>
     apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
@@ -221,6 +230,8 @@ export const tenantsApi = {
 
   removeStaff: (userId: string) =>
     apiFetch(`/tenants/staff/${userId}`, { method: 'DELETE' }),
+
+  getSetupProgress: () => apiFetch('/tenants/setup-progress'),
 };
 
 // Dashboard helpers

@@ -5,6 +5,8 @@ import { BedDouble, CalendarDays, Users, ArrowRight, TrendingUp, ClipboardList, 
 import { useRouter } from 'next/navigation';
 import { dashboardApi, analyticsApi } from '@/lib/api';
 import { usePropertyType } from '@/lib/property-context';
+import { useTranslations } from 'next-intl';
+import SetupProgressWidget from './_components/setup-progress';
 
 interface DashboardData {
   today: string;
@@ -19,6 +21,7 @@ interface DashboardData {
 export default function DashboardOverview() {
   const router = useRouter();
   const { isLongStay } = usePropertyType();
+  const t = useTranslations('Dashboard');
   const [data, setData] = useState<DashboardData | null>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -61,9 +64,9 @@ export default function DashboardOverview() {
 
   const stats = [
     {
-      label: isLongStay ? 'Monthly Rent Collection' : 'Monthly Revenue',
+      label: isLongStay ? t('overview.monthlyRentCollection') : t('overview.monthlyRevenue'),
       value: `₹${totalRevenueThisMonth.toLocaleString('en-IN')}`,
-      detail: isLongStay ? `${totalBookingsThisMonth} active tenants` : `${totalBookingsThisMonth} total bookings`,
+      detail: isLongStay ? `${totalBookingsThisMonth} ${t('overview.activeTenants')}` : `${totalBookingsThisMonth} ${t('overview.totalBookings')}`,
       icon: TrendingUp,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
@@ -71,9 +74,9 @@ export default function DashboardOverview() {
       href: '/dashboard/analytics',
     },
     {
-      label: 'Occupancy',
+      label: t('overview.occupancy'),
       value: `${data?.rooms.occupancyPercent || 0}%`,
-      detail: `${data?.rooms.occupied || 0} / ${data?.rooms.total || 0} ${isLongStay ? 'beds' : 'rooms'}`,
+      detail: `${data?.rooms.occupied || 0} / ${data?.rooms.total || 0} ${isLongStay ? t('overview.beds') : t('overview.rooms')}`,
       icon: BedDouble,
       color: 'text-primary-600',
       bgColor: 'bg-primary-50',
@@ -81,9 +84,9 @@ export default function DashboardOverview() {
       href: '/dashboard/rooms',
     },
     {
-      label: isLongStay ? 'Avg Monthly Rent' : 'Average Daily Rate (ADR)',
+      label: isLongStay ? t('overview.avgMonthlyRent') : t('overview.avgDailyRate'),
       value: `₹${Math.round(adr).toLocaleString('en-IN')}`,
-      detail: isLongStay ? 'Average rent per tenant' : 'Average rate per booking',
+      detail: isLongStay ? t('overview.avgRentPerTenant') : t('overview.avgRatePerBooking'),
       icon: IndianRupee,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
@@ -91,9 +94,9 @@ export default function DashboardOverview() {
       href: '/dashboard/analytics',
     },
     {
-      label: isLongStay ? 'Revenue per Bed' : 'RevPAR',
+      label: isLongStay ? t('overview.revenuePerBed') : t('overview.revpar'),
       value: `₹${Math.round(revPar).toLocaleString('en-IN')}`,
-      detail: isLongStay ? 'Revenue per available bed' : 'Revenue per available room',
+      detail: isLongStay ? t('overview.revenuePerAvailableBed') : t('overview.revenuePerAvailableRoom'),
       icon: PieChart,
       color: 'text-violet-600',
       bgColor: 'bg-violet-50',
@@ -103,18 +106,21 @@ export default function DashboardOverview() {
   ];
 
   const operations = [
-    { label: isLongStay ? 'Expected Move-ins' : 'Expected Check-ins', value: data?.todayCheckIns || 0, color: 'text-emerald-600 bg-emerald-50', href: '/dashboard/bookings?status=confirmed' },
-    { label: isLongStay ? 'Expected Move-outs' : 'Expected Check-outs', value: data?.todayCheckOuts || 0, color: 'text-amber-600 bg-amber-50', href: '/dashboard/bookings?status=checked_in' },
-    { label: isLongStay ? 'Pending Renewals' : 'Pending Bookings', value: data?.pendingBookings || 0, color: 'text-primary-600 bg-primary-50', href: '/dashboard/bookings?status=pending_confirmation' },
-    { label: 'Housekeeping Tasks', value: data?.pendingHousekeeping || 0, color: 'text-surface-600 bg-surface-100', href: '/dashboard/housekeeping' },
+    { label: isLongStay ? t('overview.expectedMoveIns') : t('overview.expectedCheckIns'), value: data?.todayCheckIns || 0, color: 'text-emerald-600 bg-emerald-50', href: '/dashboard/bookings?status=confirmed' },
+    { label: isLongStay ? t('overview.expectedMoveOuts') : t('overview.expectedCheckOuts'), value: data?.todayCheckOuts || 0, color: 'text-amber-600 bg-amber-50', href: '/dashboard/bookings?status=checked_in' },
+    { label: isLongStay ? t('overview.pendingRenewals') : t('overview.pendingBookings'), value: data?.pendingBookings || 0, color: 'text-primary-600 bg-primary-50', href: '/dashboard/bookings?status=pending_confirmation' },
+    { label: t('overview.housekeepingTasks'), value: data?.pendingHousekeeping || 0, color: 'text-surface-600 bg-surface-100', href: '/dashboard/housekeeping' },
   ];
 
   return (
     <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-display font-bold mb-1 text-surface-900">Analytics Dashboard</h1>
-        <p className="text-surface-500 text-sm">Key Performance Indicators & Overview for {data?.today || 'today'}</p>
+        <h1 className="text-xl sm:text-2xl font-display font-bold mb-1 text-surface-900">{t('overview.title')}</h1>
+        <p className="text-surface-500 text-sm">{t('overview.subtitle', { date: data?.today || t('today') })}</p>
       </div>
+
+      {/* Setup Progress Widget — shown only while setup is incomplete */}
+      <SetupProgressWidget />
 
       {/* Stats Grid — Clickable Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
@@ -141,7 +147,7 @@ export default function DashboardOverview() {
         {/* Operations Overview — Clickable Rows */}
         <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 sm:p-6 border-t-[3px] border-t-primary-500">
           <h2 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2 text-surface-900">
-            <ClipboardList className="w-5 h-5 text-primary-500" /> Daily Operations
+            <ClipboardList className="w-5 h-5 text-primary-500" /> {t('overview.dailyOperations')}
           </h2>
           <div className="space-y-2 sm:space-y-3">
             {operations.map((op) => (
@@ -163,7 +169,7 @@ export default function DashboardOverview() {
         {/* Booking Sources Distribution */}
         <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 sm:p-6 border-t-[3px] border-t-amber-500">
           <h2 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2 text-surface-900">
-            <Users className="w-5 h-5 text-amber-500" /> Booking Sources
+            <Users className="w-5 h-5 text-amber-500" /> {t('overview.bookingSources')}
           </h2>
           <div className="space-y-4 mt-2">
             {Object.keys(analytics?.bookingSources || {}).length > 0 ? (
@@ -182,7 +188,7 @@ export default function DashboardOverview() {
                 );
               })
             ) : (
-              <p className="text-sm text-surface-400 text-center py-8">No source data available</p>
+              <p className="text-sm text-surface-400 text-center py-8">{t('overview.noSourceData')}</p>
             )}
           </div>
         </div>
@@ -190,9 +196,9 @@ export default function DashboardOverview() {
         {/* Recent Activity — Clickable */}
         <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 sm:p-6 min-h-[300px]">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base sm:text-lg font-semibold text-surface-900">Recent Operations</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-surface-900">{t('overview.recentOperations')}</h2>
             <button onClick={() => router.push('/dashboard/bookings')} className="text-sm text-primary-600 hover:text-primary-500 flex items-center gap-1 font-medium">
-              All <ArrowRight className="w-3.5 h-3.5" />
+              {t('overview.all')} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="space-y-2 sm:space-y-3">
@@ -219,7 +225,7 @@ export default function DashboardOverview() {
                 </div>
               </button>
             )) : (
-              <p className="text-sm text-surface-400 text-center py-8">No bookings yet.</p>
+              <p className="text-sm text-surface-400 text-center py-8">{t('overview.noBookingsYet')}</p>
             )}
           </div>
         </div>

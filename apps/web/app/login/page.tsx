@@ -8,7 +8,7 @@ import { authApi, saveAuthData } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await authApi.login({ identifier: email, password });
+      const res = await authApi.login({ identifier, password });
       if (res.success) {
         saveAuthData({
           accessToken: res.data.accessToken,
@@ -65,10 +65,10 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-surface-700 mb-1.5">Email</label>
+            <label htmlFor="identifier" className="block text-sm font-medium text-surface-700 mb-1.5">Mobile or Email</label>
             <input
-              id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com" className="input-field"
+              id="identifier" type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="98765 43210 or you@example.com" className="input-field"
             />
           </div>
 

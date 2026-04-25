@@ -98,7 +98,7 @@ export default function HousekeepingPage() {
   };
 
   const getStaffName = (id?: string) => {
-    if (!id) return 'Unassigned';
+    if (!id) return t('housekeepingPage.unassigned');
     return staff.find(s => s.id === id)?.fullName || 'Unknown';
   };
 
@@ -106,8 +106,8 @@ export default function HousekeepingPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1">Housekeeping</h1>
-          <p className="text-surface-400">Room cleaning and maintenance tasks</p>
+          <h1 className="text-2xl font-display font-bold mb-1">{t('housekeepingPage.title')}</h1>
+          <p className="text-surface-400">{t('housekeepingPage.subtitle')}</p>
         </div>
         <button
           onClick={() => setShowAddTask(!showAddTask)}
@@ -115,7 +115,7 @@ export default function HousekeepingPage() {
             showAddTask ? 'bg-primary-100 text-primary-700 border border-primary-200' : 'btn-primary'
           }`}
         >
-          <Plus className="w-4 h-4" /> Add Task
+          <Plus className="w-4 h-4" /> {t('housekeepingPage.addTask')}
         </button>
       </div>
 

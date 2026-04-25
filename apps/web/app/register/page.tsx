@@ -3,15 +3,15 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useState } from 'react';
 
-// Dynamically import map to avoid SSR issues with Leaflet
 const LocationMap = dynamic(() => import('./LocationMap'), { ssr: false, loading: () => <div className="h-[280px] rounded-xl bg-surface-100 flex items-center justify-center text-surface-400 text-sm">Loading map...</div> });
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Building2, Eye, EyeOff, Loader2, ChevronRight, CheckCircle2,
-  Phone, Mail, Sparkles,
+  Sparkles, MessageCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { COUNTRY_CODES } from '@/lib/constants';
 import { authApi, tenantsApi, saveAuthData } from '@/lib/api';
 
@@ -26,10 +26,10 @@ const PROPERTY_TYPES = [
 ];
 
 const PLANS = [
-  { id: 'free', name: 'Starter', price: 'Free', features: '5 rooms \u2022 Basic Dashboard \u2022 Branded Page', highlight: true },
-  { id: 'starter', name: 'Basic', price: '\u20B9999/mo', features: '20 rooms \u2022 Staff Management \u2022 GST Billing', highlight: false },
-  { id: 'professional', name: 'Professional', price: '\u20B92,999/mo', features: '100 rooms \u2022 Custom Domain \u2022 Analytics', highlight: false },
-  { id: 'enterprise', name: 'Enterprise', price: 'Custom', features: 'Unlimited \u2022 OTA Integration \u2022 Dedicated Support', highlight: false },
+  { id: 'free', name: 'Starter', price: 'Free', features: '5 rooms • Basic Dashboard • Branded Page', highlight: true },
+  { id: 'starter', name: 'Basic', price: '₹999/mo', features: '20 rooms • Staff Management • GST Billing', highlight: false },
+  { id: 'professional', name: 'Professional', price: '₹2,999/mo', features: '100 rooms • Custom Domain • Analytics', highlight: false },
+  { id: 'enterprise', name: 'Enterprise', price: 'Custom', features: 'Unlimited • OTA Integration • Dedicated Support', highlight: false },
 ];
 
 export default function RegisterPage() {
@@ -38,13 +38,18 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [propertyCountryCode, setPropertyCountryCode] = useState('+91');
-  const [ownerCountryCode, setOwnerCountryCode] = useState('+91');
   const [selectedPlan, setSelectedPlan] = useState('free');
+
+  // OTP state
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [devCode, setDevCode] = useState<string | null>(null);
 
   // Property fields
   const [propertyName, setPropertyName] = useState('');
   const [propertyType, setPropertyType] = useState('hotel');
+  const [propertyCountryCode, setPropertyCountryCode] = useState('+91');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [address, setAddress] = useState('');
@@ -58,9 +63,12 @@ export default function RegisterPage() {
   // Owner account fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [ownerCountryCode, setOwnerCountryCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const fullPhone = ownerCountryCode + phone.replace(/\D/g, '');
 
   const handleLocationSelect = useCallback((result: { address: string; city: string; state: string; pincode: string; lat: number; lng: number }) => {
     setAddress(result.address);
@@ -71,15 +79,37 @@ export default function RegisterPage() {
     setLongitude(result.lng);
   }, []);
 
+  async function handleSendOtp() {
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      toast.error('Enter a valid 10-digit mobile number first');
+      return;
+    }
+    setOtpSending(true);
+    try {
+      const res = await authApi.sendWhatsappOtp({ phone: fullPhone });
+      if (res.success) {
+        setOtpSent(true);
+        setOtpCode('');
+        setDevCode((res as any).devCode ?? null);
+        toast.success('OTP sent to your WhatsApp!', { duration: 4000 });
+      } else {
+        toast.error(res.error || 'Failed to send OTP');
+      }
+    } catch {
+      toast.error('Could not send OTP. Please try again.');
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    // Validations
+    if (!phone || phone.replace(/\D/g, '').length < 10) { setError('Enter a valid mobile number'); return; }
+    if (!otpSent || otpCode.length !== 6) { setError('Please enter the 6-digit OTP sent to your WhatsApp'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
-    if (!/[A-Z]/.test(password)) { setError('Password must contain at least one uppercase letter'); return; }
-    if (!/[0-9]/.test(password)) { setError('Password must contain at least one number'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (!/^\d{6}$/.test(pincode)) { setError('Pincode must be exactly 6 digits'); return; }
     if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstNumber)) {
       setError('Invalid GST number format'); return;
@@ -87,24 +117,22 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // 1. Create account
       const authRes = await authApi.register({
-        email,
+        phone: fullPhone,
         password,
         fullName,
-        phone: phone || '',
-        otpCode: '000000',
+        email: email || undefined,
+        otpCode,
       });
 
-      if (authRes.success) {
-        saveAuthData({
-          accessToken: authRes.data.accessToken,
-          refreshToken: authRes.data.refreshToken,
-          user: authRes.data.user,
-        });
-      }
+      if (!authRes.success) throw new Error(authRes.error || 'Account creation failed');
 
-      // 2. Register property
+      saveAuthData({
+        accessToken: authRes.data.accessToken,
+        refreshToken: authRes.data.refreshToken,
+        user: authRes.data.user,
+      });
+
       const propRes = await tenantsApi.registerProperty({
         name: propertyName,
         propertyType,
@@ -112,20 +140,47 @@ export default function RegisterPage() {
         city,
         state,
         pincode,
-        contactPhone: propertyCountryCode + contactPhone,
-        contactEmail: contactEmail || email,
+        contactPhone: propertyCountryCode + contactPhone.replace(/\D/g, ''),
+        contactEmail: contactEmail || email || `${phone}@hotel.local`,
         gstNumber: gstNumber || undefined,
         latitude,
         longitude,
       });
 
-      if (propRes.success && propRes.data?.id) {
-        localStorage.setItem('tenantId', propRes.data.id);
+      if (!propRes.success) throw new Error(propRes.error || 'Property registration failed');
+
+      // Re-login to get a fresh JWT that embeds the new tenantId in the payload.
+      // Wrapped in its own try-catch — a network failure here must not mask the
+      // successful registration. The fallback writes tenantId directly to localStorage
+      // so the dashboard still resolves correctly via the x-tenant-id header.
+      try {
+        const loginRes = await authApi.login({ identifier: fullPhone, password });
+        if (loginRes.success) {
+          saveAuthData({
+            accessToken: loginRes.data.accessToken,
+            refreshToken: loginRes.data.refreshToken,
+            user: loginRes.data.user,
+            tenantId: loginRes.data.memberships?.[0]?.tenantId ?? propRes.data?.id,
+            memberships: loginRes.data.memberships,
+          });
+        } else if (propRes.data?.id) {
+          localStorage.setItem('tenantId', propRes.data.id);
+          localStorage.setItem('tenant_id', propRes.data.id);
+        }
+      } catch {
+        if (propRes.data?.id) {
+          localStorage.setItem('tenantId', propRes.data.id);
+          localStorage.setItem('tenant_id', propRes.data.id);
+        }
       }
 
+      toast.success('Property registered! Setting up your dashboard…');
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setError(msg);
+      toast.error(msg, { duration: 6000 });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -160,19 +215,14 @@ export default function RegisterPage() {
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h2 className="font-semibold text-surface-800">Choose Your Plan</h2>
           </div>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {PLANS.map((plan) => (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => setSelectedPlan(plan.id)}
+              <button key={plan.id} type="button" onClick={() => setSelectedPlan(plan.id)}
                 className={`relative p-3 rounded-xl border-2 text-left transition-all ${
                   selectedPlan === plan.id
                     ? 'border-primary-500 bg-primary-50/50'
                     : 'border-surface-200 hover:border-surface-300 bg-white'
-                }`}
-              >
+                }`}>
                 {selectedPlan === plan.id && (
                   <CheckCircle2 className="w-5 h-5 text-primary-600 absolute top-2 right-2" />
                 )}
@@ -182,7 +232,6 @@ export default function RegisterPage() {
               </button>
             ))}
           </div>
-
           <p className="text-xs text-surface-400 mt-3 text-center">
             Great for getting started! You can upgrade anytime from your dashboard.
           </p>
@@ -194,24 +243,20 @@ export default function RegisterPage() {
             <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-sm font-bold">1</span>
             <h2 className="font-semibold text-surface-800">Property Details</h2>
           </div>
-
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 sm:col-span-1">
-                <label htmlFor="propertyName" className="block text-sm font-medium text-surface-700 mb-1">
+                <label className="block text-sm font-medium text-surface-700 mb-1">
                   Property Name <span className="text-red-400">*</span>
                 </label>
-                <input id="propertyName" type="text" required value={propertyName}
-                  onChange={(e) => setPropertyName(e.target.value)}
+                <input id="propertyName" type="text" required value={propertyName} onChange={(e) => setPropertyName(e.target.value)}
                   placeholder="e.g. Sunrise Hill Resort" className="input-field" />
               </div>
               <div className="col-span-2 sm:col-span-1">
-                <label htmlFor="propertyType" className="block text-sm font-medium text-surface-700 mb-1">
+                <label className="block text-sm font-medium text-surface-700 mb-1">
                   Property Type <span className="text-red-400">*</span>
                 </label>
-                <select id="propertyType" value={propertyType}
-                  onChange={(e) => setPropertyType(e.target.value)}
-                  className="input-field">
+                <select id="propertyType" value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className="input-field">
                   {PROPERTY_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
@@ -220,16 +265,16 @@ export default function RegisterPage() {
             </div>
 
             {(propertyType === 'pg' || propertyType === 'hostel') && (
-              <div className="col-span-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm flex items-start gap-2">
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm flex items-start gap-2">
                 <span className="text-base mt-0.5">💡</span>
-                <span>Monthly billing will be enabled by default for {propertyType === 'pg' ? 'PG' : 'Hostel'} properties. You can configure billing cycle day and deposit settings later in Dashboard → Settings.</span>
+                <span>Monthly billing will be enabled by default for {propertyType === 'pg' ? 'PG' : 'Hostel'} properties.</span>
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="contactPhone" className="block text-sm font-medium text-surface-700 mb-1">
-                  Contact Phone <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-surface-700 mb-1">
+                  Property Phone <span className="text-red-400">*</span>
                 </label>
                 <div className="flex">
                   <select value={propertyCountryCode} onChange={(e) => setPropertyCountryCode(e.target.value)}
@@ -238,76 +283,63 @@ export default function RegisterPage() {
                       <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
                     ))}
                   </select>
-                  <input id="contactPhone" type="tel" required value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
+                  <input id="contactPhone" type="tel" required value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
                     placeholder="98765 43210" className="input-field rounded-l-none" />
                 </div>
               </div>
               <div>
-                <label htmlFor="contactEmail" className="block text-sm font-medium text-surface-700 mb-1">
-                  Property Email
-                </label>
-                <input id="contactEmail" type="email" value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
+                <label className="block text-sm font-medium text-surface-700 mb-1">Property Email</label>
+                <input id="contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
                   placeholder="info@yourhotel.com" className="input-field" />
               </div>
             </div>
 
-            {/* Location Search + Map */}
             <div>
               <label className="block text-sm font-medium text-surface-700 mb-1">
                 Property Location <span className="text-red-400">*</span>
               </label>
-              <LocationMap
-                lat={latitude ?? 20.5937}
-                lng={longitude ?? 78.9629}
-                onLocationSelect={handleLocationSelect}
+              <LocationMap lat={latitude ?? 20.5937} lng={longitude ?? 78.9629} onLocationSelect={handleLocationSelect} />
+            </div>
+
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-surface-700 mb-1">
+                Street Address <span className="text-red-400">*</span>
+              </label>
+              <input
+                id="address"
+                type="text"
+                required
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Click the map or search above to auto-fill"
+                className="input-field"
               />
             </div>
 
-            {/* Auto-filled location details */}
             {(city || state || pincode) && (
               <div className="p-3 rounded-xl bg-primary-50/50 border border-primary-200/50">
                 <p className="text-xs text-surface-500 mb-2 font-medium">📍 Detected Location</p>
                 <div className="flex flex-wrap gap-2">
-                  {city && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">
-                      🏙️ {city}
-                    </span>
-                  )}
-                  {state && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">
-                      📍 {state}
-                    </span>
-                  )}
-                  {pincode && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">
-                      📮 {pincode}
-                    </span>
-                  )}
+                  {city && <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">🏙️ {city}</span>}
+                  {state && <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">📍 {state}</span>}
+                  {pincode && <span className="text-xs px-2.5 py-1 rounded-full bg-white border border-surface-200 text-surface-700">📮 {pincode}</span>}
                 </div>
-                <p className="text-xs text-surface-400 mt-2">
-                  City, state, and pincode are auto-filled. You can edit them below if needed.
-                </p>
               </div>
             )}
 
-            {/* Editable overrides (collapsed by default, shown inline) */}
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label htmlFor="city" className="block text-xs font-medium text-surface-500 mb-1">City</label>
-                <input id="city" type="text" required value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                <label className="block text-xs font-medium text-surface-500 mb-1">City</label>
+                <input id="city" type="text" required value={city} onChange={(e) => setCity(e.target.value)}
                   placeholder="City" className="input-field text-sm py-2" />
               </div>
               <div>
-                <label htmlFor="state" className="block text-xs font-medium text-surface-500 mb-1">State</label>
-                <input id="state" type="text" required value={state}
-                  onChange={(e) => setState(e.target.value)}
+                <label className="block text-xs font-medium text-surface-500 mb-1">State</label>
+                <input id="state" type="text" required value={state} onChange={(e) => setState(e.target.value)}
                   placeholder="State" className="input-field text-sm py-2" />
               </div>
               <div>
-                <label htmlFor="pincode" className="block text-xs font-medium text-surface-500 mb-1">Pincode</label>
+                <label className="block text-xs font-medium text-surface-500 mb-1">Pincode</label>
                 <input id="pincode" type="text" required value={pincode}
                   onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="522549" maxLength={6} className="input-field text-sm py-2" />
@@ -318,8 +350,7 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-surface-700 mb-1">
                 GST Number <span className="text-surface-400 font-normal">(optional)</span>
               </label>
-              <input type="text" value={gstNumber}
-                onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+              <input id="gstNumber" type="text" value={gstNumber} onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
                 placeholder="22AAAAA0000A1Z5" className="input-field" />
             </div>
           </div>
@@ -331,53 +362,91 @@ export default function RegisterPage() {
             <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-sm font-bold">2</span>
             <h2 className="font-semibold text-surface-800">Owner Account</h2>
           </div>
-
           <div className="space-y-4">
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-surface-700 mb-1">
+              <label className="block text-sm font-medium text-surface-700 mb-1">
                 Full Name <span className="text-red-400">*</span>
               </label>
-              <input id="fullName" type="text" required value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+              <input id="ownerName" type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
                 placeholder="Rajesh Kumar" className="input-field" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-surface-700 mb-1">
-                  Email <span className="text-red-400">*</span>
-                </label>
-                <input id="email" type="email" required value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com" className="input-field" />
-              </div>
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-surface-700 mb-1">
-                  Phone
-                </label>
-                <div className="flex">
-                  <select value={ownerCountryCode} onChange={(e) => setOwnerCountryCode(e.target.value)}
+            {/* Mobile — primary identifier */}
+            <div>
+              <label className="block text-sm font-medium text-surface-700 mb-1">
+                WhatsApp Mobile <span className="text-red-400">*</span>
+                <span className="ml-1.5 text-xs font-normal text-surface-400">(used to log in)</span>
+              </label>
+              <div className="flex gap-2">
+                <div className="flex flex-1">
+                  <select value={ownerCountryCode} onChange={(e) => { setOwnerCountryCode(e.target.value); setOtpSent(false); setOtpCode(''); setDevCode(null); }}
                     className="shrink-0 w-[90px] rounded-l-xl border border-r-0 border-surface-200 bg-surface-50 text-surface-600 text-sm px-2 py-2 outline-none focus:ring-2 focus:ring-primary-500 appearance-none cursor-pointer">
                     {COUNTRY_CODES.map((c) => (
                       <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
                     ))}
                   </select>
-                  <input id="phone" type="tel" value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                  <input id="ownerPhone" type="tel" required value={phone}
+                    onChange={(e) => { setPhone(e.target.value); setOtpSent(false); setOtpCode(''); setDevCode(null); }}
                     placeholder="98765 43210" className="input-field rounded-l-none" />
                 </div>
+                <button type="button" onClick={handleSendOtp} disabled={otpSending}
+                  className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all min-w-[110px] justify-center bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-60">
+                  {otpSending
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <><MessageCircle className="w-4 h-4" /> {otpSent ? 'Resend' : 'Send OTP'}</>
+                  }
+                </button>
               </div>
+            </div>
+
+            {/* OTP input — shown after send */}
+            {otpSent && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <p className="text-sm font-medium text-emerald-800 mb-3 flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" /> Enter the 6-digit code sent to your WhatsApp
+                </p>
+                {devCode && (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-300 mb-3">
+                    <span className="text-lg">🛠️</span>
+                    <div>
+                      <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Dev mode — OTP</p>
+                      <p className="text-2xl font-black text-amber-800 tracking-[0.3em] mt-0.5">{devCode}</p>
+                    </div>
+                  </div>
+                )}
+                <input
+                  id="otpCode"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="• • • • • •"
+                  className="input-field w-full tracking-[0.4em] text-center font-bold text-lg"
+                  autoFocus
+                />
+                <p className="text-xs text-emerald-600 mt-2">Didn&apos;t receive it? Click Resend above.</p>
+              </div>
+            )}
+
+            {/* Email — optional */}
+            <div>
+              <label className="block text-sm font-medium text-surface-700 mb-1">
+                Email <span className="text-surface-400 font-normal">(optional — for booking confirmations)</span>
+              </label>
+              <input id="ownerEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com" className="input-field" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-surface-700 mb-1">
+                <label className="block text-sm font-medium text-surface-700 mb-1">
                   Password <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
-                  <input id="password" type={showPassword ? 'text' : 'password'} required
+                  <input id="ownerPassword" type={showPassword ? 'text' : 'password'} required
                     value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 8 characters" className="input-field pr-10" />
+                    placeholder="Min 6 characters" className="input-field pr-10" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -385,11 +454,11 @@ export default function RegisterPage() {
                 </div>
               </div>
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-surface-700 mb-1">
+                <label className="block text-sm font-medium text-surface-700 mb-1">
                   Confirm Password <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
-                  <input id="confirmPassword" type={showConfirm ? 'text' : 'password'} required
+                  <input id="ownerConfirmPassword" type={showConfirm ? 'text' : 'password'} required
                     value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat password" className="input-field pr-10" />
                   <button type="button" onClick={() => setShowConfirm(!showConfirm)}
@@ -403,8 +472,14 @@ export default function RegisterPage() {
         </div>
 
         {/* Submit */}
-        <button type="submit" disabled={loading}
-          className="btn-primary w-full py-4 text-lg font-semibold flex items-center justify-center gap-2">
+        {!otpSent && (
+          <p className="text-center text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            Send OTP to your WhatsApp number before submitting
+          </p>
+        )}
+
+        <button type="submit" disabled={loading || !otpSent || otpCode.length !== 6}
+          className="btn-primary w-full py-4 text-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
           {loading ? 'Registering your property...' : 'Register Property'}
           {!loading && <ChevronRight className="w-5 h-5" />}

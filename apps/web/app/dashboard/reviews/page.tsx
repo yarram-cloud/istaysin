@@ -102,14 +102,14 @@ export default function ReviewsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1">Guest Reviews</h1>
-          <p className="text-surface-400">Monitor and respond to guest feedback</p>
+          <h1 className="text-2xl font-display font-bold mb-1">{t('reviewsPage.title')}</h1>
+          <p className="text-surface-400">{t('reviewsPage.subtitle')}</p>
         </div>
 
         {/* Aggregate Stats Card */}
         <div className="bg-surface-800/80 border border-white/[0.06] rounded-xl px-5 py-3 flex items-center gap-6">
           <div className="text-center">
-            <p className="text-xs uppercase text-surface-400 font-medium tracking-wider mb-1">Avg Rating</p>
+            <p className="text-xs uppercase text-surface-400 font-medium tracking-wider mb-1">{t('reviewsPage.averageRating')}</p>
             <div className="flex items-center justify-center gap-1.5">
               <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
               <span className="text-xl font-bold">{meta.averageRating.toFixed(1)}</span>
@@ -117,7 +117,7 @@ export default function ReviewsPage() {
           </div>
           <div className="w-px h-10 bg-white/[0.08]" />
           <div className="text-center">
-            <p className="text-xs uppercase text-surface-400 font-medium tracking-wider mb-1">Total</p>
+            <p className="text-xs uppercase text-surface-400 font-medium tracking-wider mb-1">{t('reviewsPage.totalReviews')}</p>
             <div className="flex items-center justify-center gap-1.5">
               <MessageSquareQuote className="w-4 h-4 text-primary-400" />
               <span className="text-xl font-bold">{meta.totalReviews}</span>
@@ -151,8 +151,8 @@ export default function ReviewsPage() {
       ) : reviews.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <MessageSquareQuote className="w-12 h-12 text-surface-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No reviews found</h3>
-          <p className="text-surface-400">Guests haven't submitted any feedback matching your filters.</p>
+          <h3 className="text-lg font-semibold mb-2">{t('reviewsPage.noReviews')}</h3>
+          <p className="text-surface-400">{t('reviewsPage.noFeedbackMatching')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -175,7 +175,7 @@ export default function ReviewsPage() {
                   <button onClick={() => togglePublish(review.id, review.isPublished)} 
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border ${review.isPublished ? 'bg-success-500/10 text-success-400 border-success-500/20 hover:bg-success-500/20' : 'bg-surface-500/10 text-surface-300 border-surface-500/20 hover:bg-surface-500/20'}`}>
                     {review.isPublished ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                    {review.isPublished ? 'Published' : 'Hidden'}
+                    {review.isPublished ? t('reviewsPage.published') : t('reviewsPage.hidden')}
                   </button>
                   <button onClick={() => deleteReview(review.id)} className="p-1.5 text-danger-400 hover:bg-danger-500/20 rounded-lg transition-colors" title="Delete Review">
                     <Trash2 className="w-4 h-4" />
@@ -191,7 +191,7 @@ export default function ReviewsPage() {
                 <div className="bg-primary-500/5 rounded-xl border border-primary-500/10 p-4 mt-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 text-primary-400 text-xs font-medium uppercase tracking-wider">
-                      <Reply className="w-3 h-3" /> Property Response
+                      <Reply className="w-3 h-3" /> {t('reviewsPage.propertyResponse')}
                     </div>
                     <button onClick={() => { setReplyingTo(review.id); setReplyText(review.ownerReply); }} className="text-xs text-primary-400 hover:text-primary-300 underline">Edit Reply</button>
                   </div>
@@ -216,7 +216,7 @@ export default function ReviewsPage() {
                 </div>
               ) : (
                 <button onClick={() => { setReplyingTo(review.id); setReplyText(''); }} className="text-sm text-primary-400 hover:text-primary-300 font-medium flex items-center gap-1.5 mt-2 transition-colors">
-                  <Reply className="w-4 h-4" /> Reply to Guest
+                  <Reply className="w-4 h-4" /> {t('reviewsPage.replyToGuest')}
                 </button>
               )}
             </div>

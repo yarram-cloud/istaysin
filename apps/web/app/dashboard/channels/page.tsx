@@ -1,14 +1,16 @@
 'use client';
 
 import { Network, Plus, ArrowRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function ChannelManagerPage() {
+  const t = useTranslations('Dashboard');
   return (
     <div className="space-y-6 max-w-6xl">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-surface-900 mb-1">Channel Manager</h1>
-          <p className="text-surface-500">Sync your inventory across OTAs effortlessly.</p>
+          <h1 className="text-2xl font-display font-bold text-surface-900 mb-1">{t('channelsPage.title')}</h1>
+          <p className="text-surface-500">{t('channelsPage.subtitle')}</p>
         </div>
         <button className="bg-primary-700 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium inline-flex items-center gap-2 transition-colors shadow-sm">
           <Plus className="w-4 h-4" />

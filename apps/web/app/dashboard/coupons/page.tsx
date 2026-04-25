@@ -28,6 +28,7 @@ interface RoomType {
 }
 
 export default function CouponsPage() {
+  const t = useTranslations('Dashboard');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,8 +81,8 @@ export default function CouponsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1 text-surface-900">Coupons & Promo Codes</h1>
-          <p className="text-surface-500">Create promotional discounts to boost your bookings</p>
+          <h1 className="text-2xl font-display font-bold mb-1 text-surface-900">{t('couponsPage.title')}</h1>
+          <p className="text-surface-500">{t('couponsPage.subtitle')}</p>
         </div>
         <button 
           onClick={() => { if (!showAddModal) setEditingCoupon(null); setShowAddModal(!showAddModal); }}
@@ -89,7 +90,7 @@ export default function CouponsPage() {
             showAddModal ? 'bg-surface-100 text-surface-700 border border-surface-200' : 'bg-primary-700 hover:bg-primary-600 text-white'
           }`}
         >
-          <Plus className="w-4 h-4" /> {showAddModal ? 'Cancel' : 'Create Coupon'}
+          <Plus className="w-4 h-4" /> {showAddModal ? t('common.cancel') : t('couponsPage.createCoupon')}
         </button>
       </div>
 
@@ -123,8 +124,8 @@ export default function CouponsPage() {
           <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <Ticket className="w-8 h-8 text-primary-600" />
           </div>
-          <h3 className="text-xl font-bold text-surface-900 mb-2">No coupons created yet</h3>
-          <p className="text-surface-500 mb-6">Start your first promotional campaign by creating a discount code.</p>
+          <h3 className="text-xl font-bold text-surface-900 mb-2">{t('couponsPage.noCoupons')}</h3>
+          <p className="text-surface-500 mb-6">{t('couponsPage.noCouponsDesc')}</p>
           <button 
             onClick={() => setShowAddModal(true)}
             className="bg-primary-700 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium inline-flex items-center gap-2 transition-colors shadow-sm"

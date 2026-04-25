@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 // Supported locales
-const LOCALES = ['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml', 'ar', 'fr', 'de'];
+const LOCALES = ['en', 'hi', 'bn', 'ta', 'te', 'mr', 'kn', 'ml', 'gu', 'pa'];
 
 // Root domain — requests to this domain are NOT subdomains
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'istaysin.com';

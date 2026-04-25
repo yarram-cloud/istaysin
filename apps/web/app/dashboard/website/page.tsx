@@ -14,6 +14,7 @@ import {
   Map as MapIcon, Award, Ticket, Contact
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 // Curated hospitality icons for the visual picker
 const HOSPITALITY_ICONS: { id: string; label: string; icon: any }[] = [
@@ -67,6 +68,7 @@ const THEMES = [
 ];
 
 export default function WebsiteBuilderPage() {
+  const t = useTranslations('Dashboard');
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -292,8 +294,8 @@ export default function WebsiteBuilderPage() {
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-surface-200 shadow-sm">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1 text-surface-900">Website Builder</h1>
-          <p className="text-surface-500">Fully authorable components managing the direct booking engine.</p>
+          <h1 className="text-2xl font-display font-bold mb-1 text-surface-900">{t('websitePage.title')}</h1>
+          <p className="text-surface-500">{t('websitePage.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <div className="flex items-center bg-surface-50 rounded-xl p-1 border border-surface-200 shadow-sm">

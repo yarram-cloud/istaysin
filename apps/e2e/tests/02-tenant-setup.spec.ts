@@ -2,89 +2,80 @@ import { test, expect } from '@playwright/test';
 import { RegisterPage } from '../pom/register.page';
 import { LoginPage } from '../pom/login.page';
 
-// Use a dynamically generated email for each test run to avoid unique constraint errors
-const uniqueRunId = Date.now().toString().slice(-6);
-const registerPayload = {
-  property: {
-    name: `Premium Lodge ${uniqueRunId}`,
-    type: 'lodge',
-    phone: '9876543210',
-    email: `contact-${uniqueRunId}@premiumlodge.com`,
-  },
-  owner: {
-    name: `Owner ${uniqueRunId}`,
-    email: `newowner-${uniqueRunId}@e2e.com`,
-    phone: '9Welcome@19',
-    pass: 'SecurePass123!',
-  }
+// Unique suffix per run to avoid DB unique-constraint collisions
+const runId = Date.now().toString().slice(-6);
+
+// Valid 10-digit Indian mobile unique per run (prefix 9090 + 6-digit runId)
+const ownerPhone = `9090${runId}`;
+
+const propertyPayload = {
+  name: `Premium Lodge ${runId}`,
+  type: 'lodge',
+  contactPhone: '9876543210',
+  city: 'Mumbai',
+  state: 'Maharashtra',
+  pincode: '400001',
+};
+
+const ownerPayload = {
+  fullName: `Owner ${runId}`,
+  phone: ownerPhone,
+  password: 'SecurePass123!',
 };
 
 test.describe('Property Registration & Admin Approval Flow', () => {
 
-  test('Owner successfully registers a new property', async ({ page }) => {
-    // Mock the Nominatim API network requests
-    await page.route('https://nominatim.openstreetmap.org/reverse*', async route => {
-      const json = {
-        address: { city: 'Mumbai', state: 'Maharashtra', postcode: '400001' },
-        display_name: 'Gateway of India, Mumbai, Maharashtra 400001'
-      };
-      await route.fulfill({ json });
+  test('Owner successfully registers a new property and is isolated to their tenant', async ({ page }) => {
+    // Mock Nominatim so the map doesn't block in CI
+    await page.route('https://nominatim.openstreetmap.org/**', async (route) => {
+      await route.fulfill({
+        json: {
+          address: { city: 'Mumbai', state: 'Maharashtra', postcode: '400001' },
+          display_name: 'Mumbai, Maharashtra 400001',
+        },
+      });
     });
 
     const registerPage = new RegisterPage(page);
-    await registerPage.goto();
+    await registerPage.register(propertyPayload, ownerPayload);
 
-    // Step 1: Select Plan
-    await registerPage.selectPlan('starter');
+    // Dashboard should show this user's (empty) tenant — not another user's data
+    const tenantId = await page.evaluate(() => localStorage.getItem('tenantId'));
+    expect(tenantId).toBeTruthy();
+    expect(tenantId).toMatch(/^[0-9a-f-]{36}$/i);
 
-    // Step 2: Property Details
-    await registerPage.fillPropertyDetails(registerPayload.property);
-    
-    // Explicitly click on the map to trigger location selection
-    await page.locator('.leaflet-container').click();
-    
-    // Ensure the LocationMap sets the data by waiting for 'City Edit' to be populated or visible
-    await expect(page.locator('input#city')).toHaveValue('Mumbai', { timeout: 10000 });
-    
-    await registerPage.nextButton.click();
-
-    // Step 3: Owner Details
-    await registerPage.fillOwnerDetails(registerPayload.owner);
-
-    // Wait for redirect to dashboard after successful registration
-    await expect(page).toHaveURL(/.*\/dashboard/);
-    
-    // Expect some dashboard element to confirm it's loaded as a pending tenant
-    // We expect the banner saying "Pending Approval" or just that we are on the dashboard
-    await expect(page.getByText('Pending Approval')).toBeVisible({ timeout: 15000 }).catch(() => {});
+    // recentBookings for a brand-new property must be empty
+    const token = await page.evaluate(() => localStorage.getItem('accessToken'));
+    const dashRes = await page.request.get('/api/v1/dashboard', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'x-tenant-id': tenantId!,
+        'Content-Type': 'application/json',
+      },
+    });
+    expect(dashRes.ok()).toBeTruthy();
+    const dashData = await dashRes.json();
+    expect(dashData.data.recentBookings).toHaveLength(0);
   });
 
   test('Global Admin approves the newly registered property', async ({ page }) => {
-    // 1. Log in as global admin
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login('global-admin@e2e.com', 'Welcome@1');
     await expect(page).toHaveURL(/.*\/admin/);
 
-    // 2. Go to Registrations
     await page.goto('/admin/registrations');
-    
-    // 3. Find the newly created property
-    const propertyCard = page.locator('.glass-card', { hasText: registerPayload.property.name });
-    await expect(propertyCard).toBeVisible();
 
-    // 4. Click Approve
-    const approveButton = propertyCard.getByRole('button', { name: 'Approve' });
-    await approveButton.click();
+    const propertyCard = page.locator('.glass-card', { hasText: propertyPayload.name });
+    await expect(propertyCard).toBeVisible({ timeout: 10000 });
 
-    // 5. Confirm Approval Modal/Action
-    // Usually there's a confirmation modal or immediate action
-    const confirmButton = page.getByRole('button', { name: 'Confirm Approval', exact: false });
+    await propertyCard.getByRole('button', { name: 'Approve' }).click();
+
+    const confirmButton = page.getByRole('button', { name: /Confirm Approval/i });
     if (await confirmButton.isVisible()) {
       await confirmButton.click();
     }
 
-    // 6. Expect the property to disappear from pending list or show 'Active'
     await expect(propertyCard).not.toBeVisible({ timeout: 10000 });
   });
 

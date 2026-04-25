@@ -8,9 +8,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { nightAuditApi } from '@/lib/api';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner' ;
 
 export default function NightAuditDashboard() {
+  const t = useTranslations('Dashboard');
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -88,7 +90,7 @@ export default function NightAuditDashboard() {
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-surface-900 tracking-tight">Night Audit</h1>
+          <h1 className="text-3xl font-display font-bold text-surface-900 tracking-tight">{t('nightAudit.title')}</h1>
           <div className="mt-2 flex items-center gap-3">
             <label className="text-surface-500 text-sm font-medium flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" /> Business Date:

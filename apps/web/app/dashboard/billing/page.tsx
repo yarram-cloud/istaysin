@@ -87,7 +87,7 @@ export default function BillingPage() {
             <div className="w-10 h-10 rounded-xl bg-emerald-600/20 flex items-center justify-center">
               <IndianRupee className="w-5 h-5 text-emerald-400" />
             </div>
-            <span className="text-sm text-surface-400">Invoiced Revenue</span>
+            <span className="text-sm text-surface-400">{t('billingPage.invoicedRevenue')}</span>
           </div>
           <p className="text-2xl font-display font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p>
         </div>
@@ -96,7 +96,7 @@ export default function BillingPage() {
             <div className="w-10 h-10 rounded-xl bg-amber-600/20 flex items-center justify-center">
               <Clock className="w-5 h-5 text-amber-400" />
             </div>
-            <span className="text-sm text-surface-400">Pending</span>
+            <span className="text-sm text-surface-400">{t('billingPage.pendingPayment')}</span>
           </div>
           <p className="text-2xl font-display font-bold">₹0</p>
         </div>
@@ -105,7 +105,7 @@ export default function BillingPage() {
             <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center">
               <FileText className="w-5 h-5 text-primary-400" />
             </div>
-            <span className="text-sm text-surface-400">Total Invoices</span>
+            <span className="text-sm text-surface-400">{t('billingPage.totalInvoices')}</span>
           </div>
           <p className="text-2xl font-display font-bold">{invoices.length}</p>
         </div>
@@ -114,7 +114,7 @@ export default function BillingPage() {
       {/* Search */}
       <div className="relative max-w-md print:hidden">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-        <input type="text" placeholder="Search invoices..." value={searchQuery}
+        <input type="text" placeholder={t('billingPage.searchPlaceholder')} value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-10 py-2.5" />
       </div>
 
@@ -126,22 +126,22 @@ export default function BillingPage() {
       ) : filtered.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <CreditCard className="w-12 h-12 text-surface-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">{searchQuery ? 'No invoices found' : 'No invoices yet'}</h3>
-          <p className="text-surface-400">Invoices will be generated automatically when bookings are checked out.</p>
+          <h3 className="text-lg font-semibold mb-2">{searchQuery ? t('billingPage.noInvoicesFound') : t('billingPage.noInvoicesYet')}</h3>
+          <p className="text-surface-400">{t('billingPage.invoicesGeneratedAuto')}</p>
         </div>
       ) : (
         <div className="glass-card overflow-hidden overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead>
               <tr className="border-b border-white/[0.06] bg-surface-900/50">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">Invoice / Date</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">Guest & Booking</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">Taxable Amt</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-primary-900/10">CGST</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-emerald-900/10">SGST</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-amber-900/10">IGST</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-white uppercase tracking-wider">Total</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider print:hidden">Actions</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">{t('billingPage.invoiceDate')}</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">{t('billingPage.guestBooking')}</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider">{t('billingPage.taxableAmt')}</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-primary-900/10">{t('billingPage.cgst')}</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-emerald-900/10">{t('billingPage.sgst')}</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider bg-amber-900/10">{t('billingPage.igst')}</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-white uppercase tracking-wider">{t('billingPage.total')}</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-surface-400 uppercase tracking-wider print:hidden">{t('billingPage.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">

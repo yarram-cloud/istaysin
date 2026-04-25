@@ -173,8 +173,8 @@ export default function BookingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-display font-bold mb-0.5 text-surface-900">Bookings</h1>
-          <p className="text-sm text-surface-500">{isLongStay ? 'Manage tenant move-ins and bookings' : 'Manage all reservations and walk-ins'}</p>
+          <h1 className="text-xl sm:text-2xl font-display font-bold mb-0.5 text-surface-900">{t('bookingsPage.title')}</h1>
+          <p className="text-sm text-surface-500">{isLongStay ? t('bookingsPage.subtitleLongStay') : t('bookingsPage.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <button 

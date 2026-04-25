@@ -8,10 +8,10 @@ export const passcodeValidator = z.string().regex(/^[0-9]+$/, 'Passcode must con
 export const passwordValidator = z.string().min(6, 'Password must be at least 6 characters').max(100);
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address').optional(),
+  phone: z.string().min(10, 'Phone number is required').max(20),
   password: passwordValidator,
   fullName: z.string().min(2, 'Full name is required').max(100),
-  phone: z.string().min(10, 'Phone is required').max(15),
+  email: z.string().email('Invalid email address').optional(),
 });
 
 export const loginSchema = z.object({
@@ -19,13 +19,10 @@ export const loginSchema = z.object({
   password: passwordValidator,
 });
 
-export const forgotPasswordSchema = z.object({
-  identifier: z.string().min(5, 'Email or Phone is required').max(200),
-});
-
 export const resetPasswordSchema = z.object({
-  token: z.string().min(1),
-  password: passwordValidator,
+  phone: z.string().min(10, 'Phone number is required').max(20),
+  otpCode: z.string().length(6, 'OTP must be 6 digits'),
+  newPassword: passwordValidator,
 });
 
 export const verifyEmailSchema = z.object({
@@ -38,7 +35,7 @@ export const verifyEmailSchema = z.object({
 
 export const propertyRegistrationSchema = z.object({
   name: z.string().min(2, 'Property name is required').max(200),
-  propertyType: z.enum(['hotel', 'lodge', 'resort', 'homestay', 'guest_house']),
+  propertyType: z.enum(['hotel', 'lodge', 'resort', 'homestay', 'guest_house', 'pg', 'hostel']),
   address: z.string().min(5, 'Address is required').max(500),
   city: z.string().min(2, 'City is required').max(100),
   state: z.string().min(2, 'State is required').max(100),

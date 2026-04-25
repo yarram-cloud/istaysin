@@ -89,8 +89,8 @@ export default function PricingPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1">Revenue Management</h1>
-          <p className="text-surface-400">Configure seasonal pricing, weekend surges, and dynamic rules</p>
+          <h1 className="text-2xl font-display font-bold mb-1">{t('pricingPage.title')}</h1>
+          <p className="text-surface-400">{t('pricingPage.subtitle')}</p>
         </div>
         <button
           onClick={() => { setShowAddModal(!showAddModal); if (showAddModal) setEditingRule(null); }}
@@ -98,7 +98,7 @@ export default function PricingPage() {
             showAddModal ? 'bg-primary-100 text-primary-700 border border-primary-200' : 'btn-primary'
           }`}
         >
-          <Plus className="w-4 h-4" /> {showAddModal ? 'Cancel' : 'Add Rule'}
+          <Plus className="w-4 h-4" /> {showAddModal ? t('common.cancel') : t('pricingPage.addRule')}
         </button>
       </div>
 
@@ -129,11 +129,11 @@ export default function PricingPage() {
       ) : rules.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <TrendingUp className="w-12 h-12 text-surface-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No pricing rules</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('pricingPage.noRules')}</h3>
           <p className="text-surface-400 mb-6 max-w-sm mx-auto">
-            Bookings will be charged standard room rates. Add a rule to increase rates on weekends or specific dates.
+            {t('pricingPage.noRulesDesc')}
           </p>
-          <button onClick={() => setShowAddModal(true)} className="btn-primary">Create Your First Rule</button>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">{t('pricingPage.createFirstRule')}</button>
         </div>
       ) : (
         <div className="grid gap-4">

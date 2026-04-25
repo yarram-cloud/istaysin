@@ -1,54 +1,77 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2, LayoutDashboard, BedDouble, CalendarDays, Users, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
-  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield
+  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield, Languages
 } from 'lucide-react';
 import { Toaster } from 'sonner';
-import { NextIntlClientProvider } from 'next-intl';
-import messages from '@/messages/en.json';
+import { NextIntlClientProvider, useTranslations } from 'next-intl';
 import { PropertyTypeProvider, type PropertyType } from '@/lib/property-context';
+import { apiFetch } from '@/lib/api';
+
+const DASHBOARD_LOCALES = [
+  { code: 'en', label: 'English', native: 'English' },
+  { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
+  { code: 'bn', label: 'Bengali', native: 'বাংলা' },
+  { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+  { code: 'te', label: 'Telugu', native: 'తెలుగు' },
+  { code: 'mr', label: 'Marathi', native: 'मराठी' },
+  { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
+  { code: 'ml', label: 'Malayalam', native: 'മലയാളം' },
+  { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
+  { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+] as const;
+
+async function loadMessages(locale: string) {
+  try {
+    const mod = await import(`@/messages/${locale}.json`);
+    return mod.default;
+  } catch {
+    const mod = await import('@/messages/en.json');
+    return mod.default;
+  }
+}
 
 const sidebarGroups = [
   {
-    category: 'Management',
+    category: 'Management', i18nKey: 'management',
     links: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-      { href: '/dashboard/rooms', icon: BedDouble, label: 'Rooms' },
-      { href: '/dashboard/bookings', icon: CalendarDays, label: 'Bookings' },
-      { href: '/dashboard/guests', icon: Users, label: 'Guests' },
-      { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '/dashboard', icon: LayoutDashboard, label: 'Overview', i18nKey: 'overview' },
+      { href: '/dashboard/rooms', icon: BedDouble, label: 'Rooms', i18nKey: 'rooms' },
+      { href: '/dashboard/bookings', icon: CalendarDays, label: 'Bookings', i18nKey: 'bookings' },
+      { href: '/dashboard/guests', icon: Users, label: 'Guests', i18nKey: 'guests' },
+      { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics', i18nKey: 'analytics' },
     ]
   },
   {
-    category: 'Front Desk',
+    category: 'Front Desk', i18nKey: 'frontDesk',
     links: [
-      { href: '/dashboard/front-desk/shifts', icon: Clock, label: 'Staff Shifts' },
-      { href: '/dashboard/night-audit', icon: ClipboardList, label: 'Night Audit' },
-      { href: '/dashboard/rooms/calendar', icon: CalendarDays, label: 'Room Calendar' },
-      { href: '/dashboard/housekeeping', icon: Sparkles, label: 'Housekeeping' },
-      { href: '/dashboard/reviews', icon: Star, label: 'Reviews' },
-      { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
-      { href: '/dashboard/compliance/register', icon: Shield, label: 'Compliance' },
+      { href: '/dashboard/front-desk/shifts', icon: Clock, label: 'Staff Shifts', i18nKey: 'staffShifts' },
+      { href: '/dashboard/night-audit', icon: ClipboardList, label: 'Night Audit', i18nKey: 'nightAudit' },
+      { href: '/dashboard/rooms/calendar', icon: CalendarDays, label: 'Room Calendar', i18nKey: 'roomCalendar' },
+      { href: '/dashboard/housekeeping', icon: Sparkles, label: 'Housekeeping', i18nKey: 'housekeeping' },
+      { href: '/dashboard/reviews', icon: Star, label: 'Reviews', i18nKey: 'reviews' },
+      { href: '/dashboard/billing', icon: CreditCard, label: 'Billing', i18nKey: 'billing' },
+      { href: '/dashboard/compliance/register', icon: Shield, label: 'Compliance', i18nKey: 'compliance' },
     ]
   },
   {
-    category: 'Sales & Marketing',
+    category: 'Sales & Marketing', i18nKey: 'salesMarketing',
     links: [
-      { href: '/dashboard/channels', icon: Network, label: 'Channel Manager' },
-      { href: '/dashboard/pricing', icon: TrendingUp, label: 'Pricing Engine' },
-      { href: '/dashboard/coupons', icon: Tag, label: 'Coupons' },
-      { href: '/dashboard/website', icon: Globe, label: 'Website Builder' },
+      { href: '/dashboard/channels', icon: Network, label: 'Channel Manager', i18nKey: 'channelManager' },
+      { href: '/dashboard/pricing', icon: TrendingUp, label: 'Pricing Engine', i18nKey: 'pricingEngine' },
+      { href: '/dashboard/coupons', icon: Tag, label: 'Coupons', i18nKey: 'coupons' },
+      { href: '/dashboard/website', icon: Globe, label: 'Website Builder', i18nKey: 'websiteBuilder' },
     ]
   },
   {
-    category: 'System',
+    category: 'System', i18nKey: 'system',
     links: [
-      { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+      { href: '/dashboard/settings', icon: Settings, label: 'Settings', i18nKey: 'settings' },
     ]
   }
 ];
@@ -68,13 +91,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [propertyName, setPropertyName] = useState('My Property');
   const [plan, setPlan] = useState('free');
   const [propertyType, setPropertyType] = useState<PropertyType>('hotel');
+  const [locale, setLocale] = useState('en');
+  const [messages, setMessages] = useState<any>(null);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+
+  // Load messages when locale changes
+  useEffect(() => {
+    loadMessages(locale).then(setMessages);
+  }, [locale]);
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
     if (stored) {
-      setUser(JSON.parse(stored));
+      const u = JSON.parse(stored);
+      setUser(u);
+      // Restore language preference from user profile
+      if (u.preferredLanguage && u.preferredLanguage !== locale) {
+        setLocale(u.preferredLanguage);
+      }
     }
-    // Read membership info from the login response stored in localStorage
     const memberships = localStorage.getItem('memberships');
     if (memberships) {
       try {
@@ -88,6 +123,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, []);
 
+  async function handleLanguageChange(newLocale: string) {
+    setLocale(newLocale);
+    setLangMenuOpen(false);
+    // Persist to cookie for middleware/SSR
+    document.cookie = `istays_locale=${newLocale}; path=/; max-age=${60*60*24*365}`;
+    // Persist to user profile in DB
+    try {
+      await apiFetch('/auth/me/language', { method: 'PUT', body: JSON.stringify({ language: newLocale }) });
+      // Update localStorage
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        u.preferredLanguage = newLocale;
+        localStorage.setItem('user', JSON.stringify(u));
+      }
+    } catch { /* non-critical */ }
+  }
+
   function handleLogout() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
@@ -98,8 +151,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   }
 
+  // Don't render until messages are loaded to prevent flash
+  if (!messages) {
+    return <div className="min-h-screen bg-surface-50 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" /></div>;
+  }
+
+  const currentLang = DASHBOARD_LOCALES.find(l => l.code === locale) || DASHBOARD_LOCALES[0];
+
   return (
-    <NextIntlClientProvider locale="en" messages={messages} getMessageFallback={({key}) => ''}>
+    <NextIntlClientProvider locale={locale} messages={messages} getMessageFallback={({key}) => ''}>
     <div className="min-h-screen bg-surface-50 flex">
       {/* Sidebar */}
       <aside className={`
@@ -138,7 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {sidebarGroups.map((group) => (
               <div key={group.category} className="space-y-1 w-full">
                 <h3 className="px-3 text-[10px] font-bold text-surface-500 uppercase tracking-wider mb-2">
-                  {group.category}
+                  {messages?.Dashboard?.sidebar?.[group.i18nKey] || group.category}
                 </h3>
                 <div className="space-y-1">
                   {group.links.map((link) => {
@@ -150,7 +210,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         }`}
                         onClick={() => setSidebarOpen(false)}>
                         <link.icon className="w-5 h-5" />
-                        <span>{link.label}</span>
+                        <span>{messages?.Dashboard?.sidebar?.[link.i18nKey] || link.label}</span>
                       </Link>
                     );
                   })}
@@ -163,7 +223,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="px-4 py-4 border-t border-surface-800">
             <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-950/30 w-full transition-colors">
               <LogOut className="w-5 h-5" />
-              <span>Log out</span>
+              <span>{messages?.Dashboard?.sidebar?.logOut || 'Log out'}</span>
             </button>
           </div>
         </div>
@@ -184,12 +244,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex-1" />
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            {/* Language Switcher */}
+            <div className="relative">
+              <button onClick={() => setLangMenuOpen(!langMenuOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-surface-200 bg-white text-xs font-medium text-surface-600 hover:bg-surface-50 transition-all">
+                <Languages className="w-4 h-4" />
+                <span className="hidden sm:inline">{currentLang.native}</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {langMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setLangMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-48 bg-white rounded-xl border border-surface-200 shadow-xl py-1 max-h-80 overflow-y-auto">
+                    {DASHBOARD_LOCALES.map((lang) => (
+                      <button key={lang.code} onClick={() => handleLanguageChange(lang.code)}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-primary-50 transition-colors ${
+                          locale === lang.code ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-surface-700'
+                        }`}>
+                        <span>{lang.native}</span>
+                        <span className="text-xs text-surface-400">{lang.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button className="relative text-surface-400 hover:text-surface-700 transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 border-2 border-white bg-red-500 rounded-full" />
             </button>
-            <div className="flex items-center gap-3 pl-6 border-l border-surface-200">
+            <div className="flex items-center gap-3 pl-4 border-l border-surface-200">
               <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-sm font-bold text-primary-700">
                 {user?.fullName?.[0] || 'U'}
               </div>

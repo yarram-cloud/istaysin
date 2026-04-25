@@ -102,8 +102,8 @@ export default function RoomsPage() {
     try {
       await roomsApi.updateStatus(roomId, newStatus);
       setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus } : r));
-      toast.success('Room status updated');
-    } catch (err: any) { toast.error(err.message || 'Failed'); }
+      toast.success(t('roomsPage.statusUpdated'));
+    } catch (err: any) { toast.error(err.message || t('common.error')); }
   }
 
   if (loading) {
@@ -123,16 +123,16 @@ export default function RoomsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-display font-bold mb-0.5 text-surface-900">Room Status & Operations</h1>
+          <h1 className="text-xl sm:text-2xl font-display font-bold mb-0.5 text-surface-900">{t('roomsPage.title')}</h1>
           <p className="text-sm text-surface-500">
-            {isLongStay ? 'Occupancy overview' : `Live overview of ${stats.total} rooms across ${floors.length} floors`}
+            {isLongStay ? t('roomsPage.occupancyOverview') : t('roomsPage.liveOverview', { total: stats.total, floors: floors.length })}
             <span className="mx-1">·</span>
             <span className="font-medium text-surface-600">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/dashboard/settings/inventory" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white border border-surface-200 text-surface-700 hover:bg-surface-50 transition-all shadow-sm">
-            <Settings className="w-4 h-4" /> Manage Inventory
+            <Settings className="w-4 h-4" /> {t('roomsPage.manageInventory')}
           </Link>
         </div>
       </div>
@@ -140,10 +140,10 @@ export default function RoomsPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: stats.total, color: 'text-surface-900', bg: 'bg-surface-50 border-surface-200' },
-          { label: isLongStay ? 'Vacant' : 'Available', value: stats.available, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-          { label: 'Occupied', value: stats.occupied, color: 'text-primary-700', bg: 'bg-primary-50 border-primary-200' },
-          { label: 'Maintenance', value: stats.maintenance, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+          { label: t('roomsPage.total'), value: stats.total, color: 'text-surface-900', bg: 'bg-surface-50 border-surface-200' },
+          { label: isLongStay ? t('roomsPage.vacant') : t('roomsPage.available'), value: stats.available, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+          { label: t('roomsPage.occupied'), value: stats.occupied, color: 'text-primary-700', bg: 'bg-primary-50 border-primary-200' },
+          { label: t('roomsPage.maintenance'), value: stats.maintenance, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl p-3 border ${s.bg}`}>
             <p className="text-xs text-surface-500 font-medium">{s.label}</p>

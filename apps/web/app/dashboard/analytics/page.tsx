@@ -41,27 +41,27 @@ export default function AnalyticsPage() {
 
   const cards = [
     {
-      label: 'Occupancy Rate',
+      label: t('analyticsPage.occupancyRate'),
       value: `${data?.occupancy?.percent || 0}%`,
-      detail: `${data?.occupancy?.current || 0} of ${data?.occupancy?.total || 0} rooms`,
+      detail: `${data?.occupancy?.current || 0} ${t('analyticsPage.ofRooms', { total: data?.occupancy?.total || 0 })}`,
       icon: BedDouble, color: 'text-primary-400', bg: 'bg-primary-600/20',
     },
     {
-      label: 'Revenue (This Month)',
+      label: t('analyticsPage.revenueThisMonth'),
       value: `₹${(data?.revenue?.thisMonth || 0).toLocaleString('en-IN')}`,
-      detail: `Last month: ₹${(data?.revenue?.lastMonth || 0).toLocaleString('en-IN')}`,
+      detail: `${t('analyticsPage.lastMonth')}: ₹${(data?.revenue?.lastMonth || 0).toLocaleString('en-IN')}`,
       icon: IndianRupee, color: 'text-emerald-400', bg: 'bg-emerald-600/20',
     },
     {
-      label: 'Bookings (This Month)',
+      label: t('analyticsPage.bookingsThisMonth'),
       value: data?.bookings?.thisMonth || 0,
-      detail: `${data?.bookings?.pending || 0} pending confirmation`,
+      detail: `${data?.bookings?.pending || 0} ${t('analyticsPage.pendingConfirmation')}`,
       icon: CalendarDays, color: 'text-amber-400', bg: 'bg-amber-600/20',
     },
     {
-      label: 'Total Guests',
+      label: t('analyticsPage.totalGuests'),
       value: data?.guestCount || 0,
-      detail: 'Registered guest profiles',
+      detail: t('analyticsPage.registeredProfiles'),
       icon: Users, color: 'text-accent-400', bg: 'bg-accent-600/20',
     },
   ];
@@ -112,13 +112,13 @@ export default function AnalyticsPage() {
         {/* Revenue Comparison */}
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-emerald-400" /> Revenue Summary
+            <TrendingUp className="w-5 h-5 text-emerald-400" /> {t('analyticsPage.revenueSummary')}
           </h2>
           <div className="space-y-5">
             {[
-              { label: 'Today', value: data?.revenue?.today || 0, max: data?.revenue?.thisMonth || 1 },
-              { label: 'This Month', value: data?.revenue?.thisMonth || 0, max: Math.max(data?.revenue?.thisMonth || 0, data?.revenue?.lastMonth || 0, 1) },
-              { label: 'Last Month', value: data?.revenue?.lastMonth || 0, max: Math.max(data?.revenue?.thisMonth || 0, data?.revenue?.lastMonth || 0, 1) },
+              { label: t('today'), value: data?.revenue?.today || 0, max: data?.revenue?.thisMonth || 1 },
+              { label: t('analyticsPage.thisMonth'), value: data?.revenue?.thisMonth || 0, max: Math.max(data?.revenue?.thisMonth || 0, data?.revenue?.lastMonth || 0, 1) },
+              { label: t('analyticsPage.lastMonth'), value: data?.revenue?.lastMonth || 0, max: Math.max(data?.revenue?.thisMonth || 0, data?.revenue?.lastMonth || 0, 1) },
             ].map((item) => (
               <div key={item.label}>
                 <div className="flex justify-between text-sm mb-2">
@@ -137,10 +137,10 @@ export default function AnalyticsPage() {
         {/* Booking Sources */}
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary-400" /> Booking Sources
+            <BarChart3 className="w-5 h-5 text-primary-400" /> {t('analyticsPage.bookingSources')}
           </h2>
           {sourceEntries.length === 0 ? (
-            <p className="text-surface-500 text-sm text-center py-8">No booking source data yet</p>
+            <p className="text-surface-500 text-sm text-center py-8">{t('analyticsPage.noSourceData')}</p>
           ) : (
             <div className="space-y-4">
               {sourceEntries.map(([source, count]) => (

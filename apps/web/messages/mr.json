@@ -120,38 +120,35 @@
     "clickToBook": "Click to create booking",
     "bookingDetails": "Booking Details",
     "viewFullBooking": "View Full Booking",
-
     "sidebar": {
-      "management": "Management",
-      "overview": "Overview",
-      "rooms": "Rooms",
-      "bookings": "Bookings",
-      "guests": "Guests",
-      "analytics": "Analytics",
-      "frontDesk": "Front Desk",
-      "staffShifts": "Staff Shifts",
-      "nightAudit": "Night Audit",
-      "roomCalendar": "Room Calendar",
-      "housekeeping": "Housekeeping",
-      "reviews": "Reviews",
-      "billing": "Billing",
-      "compliance": "Compliance",
-      "salesMarketing": "Sales & Marketing",
-      "channelManager": "Channel Manager",
-      "pricingEngine": "Pricing Engine",
-      "coupons": "Coupons",
-      "websiteBuilder": "Website Builder",
-      "system": "System",
-      "settings": "Settings",
-      "logOut": "Log out"
+      "management": "व्यवस्थापन",
+      "overview": "आढावा",
+      "rooms": "खोल्या",
+      "bookings": "बुकिंग",
+      "guests": "पाहुणे",
+      "analytics": "विश्लेषण",
+      "frontDesk": "फ्रंट डेस्क",
+      "staffShifts": "कर्मचारी शिफ्ट",
+      "nightAudit": "नाईट ऑडिट",
+      "roomCalendar": "खोली कॅलेंडर",
+      "housekeeping": "हाउसकीपिंग",
+      "reviews": "पुनरावलोकने",
+      "billing": "बिलिंग",
+      "compliance": "अनुपालन",
+      "salesMarketing": "विक्री आणि विपणन",
+      "channelManager": "चॅनेल व्यवस्थापक",
+      "pricingEngine": "किंमत निर्धारण इंजिन",
+      "coupons": "कूपन",
+      "websiteBuilder": "वेबसाइट बिल्डर",
+      "system": "प्रणाली",
+      "settings": "सेटिंग्ज",
+      "logOut": "लॉग आउट"
     },
-
     "header": {
       "notifications": "Notifications",
       "language": "Language",
       "profile": "Profile"
     },
-
     "overview": {
       "title": "Analytics Dashboard",
       "subtitle": "Key Performance Indicators & Overview for {date}",
@@ -184,7 +181,6 @@
       "beds": "beds",
       "rooms": "rooms"
     },
-
     "bookingsPage": {
       "title": "Bookings",
       "subtitle": "Manage all reservations and walk-ins",
@@ -248,7 +244,6 @@
       "nights": "nights",
       "month": "month"
     },
-
     "guestsPage": {
       "title": "Guest Directory",
       "subtitle": "Guest profiles & compliance",
@@ -300,7 +295,6 @@
       "addGuestBtn": "Add Guest",
       "createGuestProfile": "Create a guest profile for Sarai Act compliance"
     },
-
     "roomsPage": {
       "title": "Room Status & Operations",
       "subtitle": "Manage your property's rooms, availability, and status",
@@ -329,7 +323,6 @@
       "maxOccupancy": "Max Occupancy",
       "amenities": "Amenities"
     },
-
     "housekeepingPage": {
       "title": "Housekeeping",
       "subtitle": "Manage housekeeping tasks and room cleaning",
@@ -363,7 +356,6 @@
       "restockMinibar": "Restock minibar",
       "checkAppliances": "Check appliances"
     },
-
     "billingPage": {
       "title": "Billing & Invoices",
       "subtitle": "Manage guest folios, payments, and GST invoicing",
@@ -396,7 +388,6 @@
       "noInvoicesFound": "No invoices found",
       "gstInvoice": "GST Invoice"
     },
-
     "analyticsPage": {
       "title": "Analytics",
       "subtitle": "Property performance overview",
@@ -421,7 +412,6 @@
       "otaOther": "Other OTA",
       "travelAgent": "Travel Agent"
     },
-
     "nightAudit": {
       "title": "Night Audit",
       "subtitle": "Daily close-of-business reconciliation",
@@ -445,7 +435,6 @@
       "auditDate": "Audit Date",
       "noHistory": "No audit history"
     },
-
     "staffShifts": {
       "title": "Staff Shifts & Roster",
       "subtitle": "Manage staff scheduling and shift handovers",
@@ -471,7 +460,6 @@
       "noShiftsFound": "No shifts found",
       "endShift": "End Shift"
     },
-
     "channelsPage": {
       "title": "Channel Manager",
       "subtitle": "Manage OTA connections and rate distribution",
@@ -482,7 +470,6 @@
       "noChannels": "No channels configured",
       "comingSoon": "Coming Soon"
     },
-
     "couponsPage": {
       "title": "Coupons & Promo Codes",
       "subtitle": "Create promotional discounts to boost your bookings",
@@ -502,7 +489,6 @@
       "noCoupons": "No coupons created yet",
       "noCouponsDesc": "Start your first promotional campaign by creating a discount code."
     },
-
     "pricingPage": {
       "title": "Revenue Management",
       "subtitle": "Configure seasonal pricing, weekend surges, and dynamic rules",
@@ -520,7 +506,6 @@
       "save": "Save",
       "saving": "Saving..."
     },
-
     "reviewsPage": {
       "title": "Guest Reviews",
       "subtitle": "Monitor and respond to guest feedback",
@@ -538,7 +523,6 @@
       "propertyResponse": "Property Response",
       "replyToGuest": "Reply to Guest"
     },
-
     "compliancePage": {
       "title": "Police Master Register",
       "subtitle": "Generate Sarai Act compliant guest registers for local authorities",
@@ -555,7 +539,6 @@
       "foreignNational": "Foreign National",
       "indian": "Indian"
     },
-
     "websitePage": {
       "title": "Website Builder",
       "subtitle": "Fully authorable components managing the direct booking engine.",
@@ -575,7 +558,6 @@
       "sectionEnabled": "Section Enabled",
       "sectionDisabled": "Section Disabled"
     },
-
     "settingsPage": {
       "title": "Settings",
       "subtitle": "Configure your property and account",
@@ -603,39 +585,32 @@
       "domain": "Custom Domain",
       "rates": "Competitor Rates"
     },
-
     "common": {
-      "save": "Save",
-      "cancel": "Cancel",
-      "delete": "Delete",
-      "edit": "Edit",
-      "add": "Add",
-      "create": "Create",
-      "update": "Update",
-      "close": "Close",
-      "confirm": "Confirm",
-      "loading": "Loading...",
-      "saving": "Saving...",
-      "search": "Search",
-      "filter": "Filter",
-      "noResults": "No results found",
-      "actions": "Actions",
-      "back": "Back",
-      "next": "Next",
-      "submit": "Submit",
-      "required": "Required",
-      "optional": "Optional",
-      "yes": "Yes",
-      "no": "No",
-      "all": "All",
-      "none": "None",
-      "select": "Select",
-      "viewAll": "View All",
-      "showMore": "Show More",
-      "showLess": "Show Less",
-      "error": "Error",
-      "success": "Success",
-      "warning": "Warning"
+      "save": "जतन करा",
+      "cancel": "रद्द करा",
+      "delete": "हटवा",
+      "edit": "संपादित करा",
+      "add": "जोडा",
+      "create": "तयार करा",
+      "update": "अद्ययावत करा",
+      "close": "बंद करा",
+      "confirm": "पुष्टी करा",
+      "loading": "लोड होत आहे...",
+      "saving": "जतन होत आहे...",
+      "search": "शोधा",
+      "filter": "फिल्टर",
+      "noResults": "कोणतेही परिणाम सापडले नाहीत",
+      "actions": "कृती",
+      "back": "मागे",
+      "next": "पुढे",
+      "submit": "सबमिट करा",
+      "yes": "होय",
+      "no": "नाही",
+      "all": "सर्व",
+      "select": "निवडा",
+      "error": "त्रुटी",
+      "success": "यशस्वी",
+      "warning": "चेतावणी"
     }
   },
   "Auth": {

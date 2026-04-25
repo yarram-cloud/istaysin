@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt, TrendingUp, FileText, Layers, BedDouble, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { tenantsApi } from '@/lib/api';
 import { DomainSettings } from './domain-settings';
 import { CompetitorRatesSettings } from './competitor-rates';
@@ -14,8 +15,22 @@ import { useRouter } from 'next/navigation';
 const LocationPicker = dynamic(() => import('./location-picker'), { ssr: false });
 
 export default function SettingsPage() {
+  const t = useTranslations('Dashboard');
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const router = useRouter();
+
+  // Auto-open a section when arriving from the setup guide (?section=xxx&from_setup=1)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get('section');
+    const fromSetup = params.get('from_setup');
+    if (section && fromSetup === '1') {
+      setActiveSection(section);
+      // Clean the URL so refreshing doesn't re-trigger
+      router.replace('/dashboard/settings', { scroll: false });
+    }
+  }, [router]);
 
   const sections = [
     { id: 'property', icon: Building2, title: 'Property Details', desc: 'Name, address, type, contact info, check-in/out times' },
@@ -31,8 +46,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-bold mb-1">Settings</h1>
-        <p className="text-surface-400">Configure your property and account</p>
+        <h1 className="text-2xl font-display font-bold mb-1">{t('settingsPage.title')}</h1>
+        <p className="text-surface-400">{t('settingsPage.subtitle')}</p>
       </div>
 
       {!activeSection ? (

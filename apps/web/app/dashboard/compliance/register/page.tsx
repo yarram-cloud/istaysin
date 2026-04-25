@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { complianceApi } from '@/lib/api';
 import { Printer, Send, Loader2, FileText } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 export default function ComplianceRegisterPage() {
+  const t = useTranslations('Dashboard');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -63,8 +65,8 @@ export default function ComplianceRegisterPage() {
       {/* Header - Screen Only */}
       <div className="print:hidden space-y-4">
         <div>
-          <h1 className="text-2xl font-display font-bold mb-1">Police Master Register</h1>
-          <p className="text-surface-500">Generate Sarai Act compliant guest registers for local authorities</p>
+          <h1 className="text-2xl font-display font-bold mb-1">{t('compliancePage.title')}</h1>
+          <p className="text-surface-500">{t('compliancePage.subtitle')}</p>
         </div>
 
         {/* Controls — stack on mobile, inline on md+ */}

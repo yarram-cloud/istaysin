@@ -113,6 +113,85 @@ tenantsRouter.get('/my-properties', authenticate, async (req: Request, res: Resp
   }
 });
 
+// GET /tenants/setup-progress
+tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant, authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const tid = req.tenantId!;
+
+    const [tenant, floorCount, roomTypeCount, roomCount, staffCount, pricingCount] = await Promise.all([
+      prisma.tenant.findUnique({
+        where: { id: tid },
+        select: {
+          name: true, address: true, city: true, state: true,
+          contactPhone: true, contactEmail: true,
+          gstNumber: true, brandLogo: true, tagline: true, description: true,
+          config: true,
+        },
+      }),
+      prisma.floor.count({ where: { tenantId: tid } }),
+      prisma.roomType.count({ where: { tenantId: tid } }),
+      prisma.room.count({ where: { tenantId: tid } }),
+      prisma.tenantMembership.count({ where: { tenantId: tid, isActive: true } }),
+      prisma.pricingRule.count({ where: { tenantId: tid } }),
+    ]);
+
+    if (!tenant) { res.status(404).json({ success: false, error: 'Not found' }); return; }
+
+    const cfg = (tenant.config as Record<string, any>) || {};
+
+    const steps = [
+      {
+        id: 'property_info',
+        completed: !!(tenant.address && tenant.city && tenant.state && tenant.contactPhone),
+        detail: [
+          !tenant.address && 'address',
+          !tenant.city && 'city',
+          !tenant.state && 'state',
+          !tenant.contactPhone && 'contact phone',
+        ].filter(Boolean).join(', ') || null,
+      },
+      {
+        id: 'room_inventory',
+        completed: floorCount > 0 && roomTypeCount > 0 && roomCount > 0,
+        detail: `${floorCount} floor(s), ${roomTypeCount} room type(s), ${roomCount} room(s)`,
+      },
+      {
+        id: 'branding',
+        completed: !!(tenant.brandLogo && (tenant.tagline || tenant.description)),
+        detail: !tenant.brandLogo ? 'logo missing' : !(tenant.tagline || tenant.description) ? 'tagline/description missing' : null,
+      },
+      {
+        id: 'billing',
+        completed: !!(tenant.gstNumber || cfg.gstExempt),
+        detail: !tenant.gstNumber && !cfg.gstExempt ? 'GST number not added' : null,
+      },
+      {
+        id: 'compliance',
+        completed: !!cfg.policeStationEmail,
+        detail: !cfg.policeStationEmail ? 'police station email not configured' : null,
+      },
+      {
+        id: 'staff',
+        completed: staffCount > 1,
+        detail: `${staffCount} member(s) — ${staffCount > 1 ? 'team configured' : 'invite your first staff member'}`,
+      },
+      {
+        id: 'pricing',
+        completed: pricingCount > 0,
+        detail: pricingCount > 0 ? `${pricingCount} pricing rule(s)` : 'no pricing rules yet',
+      },
+    ];
+
+    const completedCount = steps.filter(s => s.completed).length;
+    const percent = Math.round((completedCount / steps.length) * 100);
+
+    res.json({ success: true, data: { percent, completedCount, totalCount: steps.length, steps } });
+  } catch (err) {
+    console.error('[SETUP PROGRESS ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch setup progress' });
+  }
+});
+
 // GET /tenants/:id/settings
 tenantsRouter.get('/:id/settings', authenticate, resolveTenant, requireTenant, async (req: Request, res: Response) => {
   try {
@@ -516,7 +595,6 @@ tenantsRouter.patch(
       });
 
       const rootDomain = getRootDomain();
-      console.log(`[Tenant] Slug changed: ${current?.slug} → ${normalizedSlug} (tenant: ${req.tenantId})`);
 
       await logAudit(req.tenantId!, req.userId, 'CHANGE_SLUG', 'tenant', req.tenantId!, { oldSlug: current?.slug, newSlug: normalizedSlug }, req.ip || undefined);
 

@@ -72,12 +72,14 @@ complianceRouter.get('/c-form/export', authorize('property_owner', 'general_mana
 // GET /compliance/guest-register
 complianceRouter.get('/guest-register', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const startDate = new Date(req.query.startDate as string || todayStr);
-    const endDate = new Date(req.query.endDate as string || todayStr);
-    
-    // Set to end of day for endDate
-    endDate.setHours(23, 59, 59, 999);
+    // Use IST midnight-to-midnight so dates match what hotel staff see on screen
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const todayIST = new Date(Date.now() + IST_OFFSET).toISOString().split('T')[0];
+    const startDateStr = (req.query.startDate as string) || todayIST;
+    const endDateStr = (req.query.endDate as string) || todayIST;
+    // Parse as IST midnight by appending the offset
+    const startDate = new Date(`${startDateStr}T00:00:00+05:30`);
+    const endDate = new Date(`${endDateStr}T23:59:59.999+05:30`);
 
     let registerData: any[] = [];
 

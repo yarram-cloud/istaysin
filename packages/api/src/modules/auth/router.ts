@@ -7,7 +7,7 @@ import { prisma } from '../../config/database';
 import { getJwtSecret, getJwtRefreshSecret, JWT_ACCESS_EXPIRY, JWT_REFRESH_EXPIRY } from '../../config/jwt';
 import { authenticate } from '../../middleware/auth';
 import { authLimiter } from '../../middleware/rate-limit';
-import { registerSchema, loginSchema, whatsappOtpSchema, verifyOtpSchema, refreshTokenSchema, updateLanguageSchema } from '@istays/shared';
+import { registerSchema, loginSchema, whatsappOtpSchema, verifyOtpSchema, refreshTokenSchema, updateLanguageSchema, resetPasswordSchema } from '@istays/shared';
 import { sendWelcomeEmail } from '../../services/email';
 import { dispatchOtpMessage } from '../../services/whatsapp';
 
@@ -23,18 +23,18 @@ authRouter.post('/register', authLimiter, async (req: Request, res: Response) =>
     }
 
     const { password, fullName, phone } = parsed.data;
+    const hasEmail = !!parsed.data.email;
+    const email = hasEmail ? parsed.data.email!.toLowerCase().trim() : `${phone}@istays.local`;
     const otpCode = req.body.otpCode;
-    const email = parsed.data.email ? parsed.data.email.toLowerCase().trim() : `${phone}@istays.local`;
 
-    if (!otpCode || !phone) {
-      res.status(400).json({ success: false, error: 'Phone number and OTP code are required for registration.' });
+    // Phone is the primary identifier — always verify ownership via OTP
+    if (!otpCode) {
+      res.status(400).json({ success: false, error: 'OTP code is required. Please verify your WhatsApp number first.' });
       return;
     }
-
-    // Verify OTP explicitly before allowing global user creation
     const otpRecord = await prisma.otpVerification.findUnique({ where: { phone } });
     if (!otpRecord) {
-      res.status(400).json({ success: false, error: 'No OTP requested for this phone number.' });
+      res.status(400).json({ success: false, error: 'No OTP requested for this number. Click "Send OTP" first.' });
       return;
     }
     if (otpRecord.expiresAt < new Date()) {
@@ -44,20 +44,27 @@ authRouter.post('/register', authLimiter, async (req: Request, res: Response) =>
     const codeMatches = await bcrypt.compare(otpCode, otpRecord.code);
     if (!codeMatches) {
       await prisma.otpVerification.update({ where: { phone }, data: { attempts: { increment: 1 } } });
-      res.status(400).json({ success: false, error: 'Invalid OTP code.' });
+      res.status(400).json({ success: false, error: 'Invalid OTP. Check the code and try again.' });
+      return;
+    }
+    await prisma.otpVerification.delete({ where: { phone } });
+
+    // Check phone first (primary identifier)
+    const existingPhone = await prisma.globalUser.findFirst({ where: { phone } });
+    if (existingPhone) {
+      res.status(409).json({ success: false, error: 'An account with this phone number already exists. Please log in instead.' });
       return;
     }
 
-    // OTP matched! Destroy it to prevent replay
-    await prisma.otpVerification.delete({ where: { phone } });
-
-    // Check if user exists (case-insensitive)
-    const existing = await prisma.globalUser.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' } },
-    });
-    if (existing) {
-      res.status(409).json({ success: false, error: 'An account with this email already exists' });
-      return;
+    // Check email only when a real email was provided
+    if (hasEmail) {
+      const existingEmail = await prisma.globalUser.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+      });
+      if (existingEmail) {
+        res.status(409).json({ success: false, error: 'An account with this email already exists. Please log in instead.' });
+        return;
+      }
     }
 
     // Hash password
@@ -128,10 +135,21 @@ authRouter.post('/login', authLimiter, async (req: Request, res: Response) => {
     const identifier = parsed.data.identifier.trim();
     const { password } = parsed.data;
 
+    // Build phone variants to handle with/without country code (e.g. 9876543210 ↔ +919876543210)
+    const cleanId = identifier.replace(/[\s\-()]/g, '');
+    const phoneVariants: string[] = [cleanId];
+    if (/^\d{10}$/.test(cleanId)) {
+      phoneVariants.push(`+91${cleanId}`, `91${cleanId}`);
+    } else if (/^\+91\d{10}$/.test(cleanId)) {
+      phoneVariants.push(cleanId.slice(3), cleanId.slice(1));
+    } else if (/^91\d{10}$/.test(cleanId)) {
+      phoneVariants.push(cleanId.slice(2), `+${cleanId}`);
+    }
+
     const user = await prisma.globalUser.findFirst({
-      where: { 
+      where: {
         OR: [
-          { phone: { equals: identifier } },
+          { phone: { in: phoneVariants } },
           { email: { equals: identifier.toLowerCase() } }
         ]
       },
@@ -248,10 +266,10 @@ authRouter.post('/send-whatsapp-otp', validateRequest(whatsappOtpSchema), authLi
       create: { phone, code: hashedCode, expiresAt }
     });
 
-    // Fire off WhatsApp Meta API wrapper (abstracted internally)
     await dispatchOtpMessage(phone, code);
 
-    res.json({ success: true, message: 'OTP sent successfully!' });
+    const isDev = process.env.NODE_ENV !== 'production';
+    res.json({ success: true, message: 'OTP sent successfully!', ...(isDev ? { devCode: code } : {}) });
   } catch (err: any) {
     console.error('[SEND OTP ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to send WhatsApp OTP' });
@@ -371,6 +389,48 @@ authRouter.post('/verify-whatsapp-otp', validateRequest(verifyOtpSchema), authLi
   } catch (err: any) {
     console.error('[VERIFY OTP ERROR]', err);
     res.status(500).json({ success: false, error: 'Internal server error during verification' });
+  }
+});
+
+// POST /auth/reset-password  (phone + OTP + new password)
+authRouter.post('/reset-password', validateRequest(resetPasswordSchema), authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { phone, otpCode, newPassword } = req.body;
+
+    const otpRecord = await prisma.otpVerification.findUnique({ where: { phone } });
+    if (!otpRecord) {
+      res.status(400).json({ success: false, error: 'No OTP requested for this number. Click "Send OTP" first.' });
+      return;
+    }
+    if (otpRecord.expiresAt < new Date()) {
+      res.status(400).json({ success: false, error: 'OTP has expired. Please request a new one.' });
+      return;
+    }
+    if (otpRecord.attempts >= 5) {
+      res.status(403).json({ success: false, error: 'Too many failed attempts. Request a new code.' });
+      return;
+    }
+    const codeMatches = await bcrypt.compare(otpCode, otpRecord.code);
+    if (!codeMatches) {
+      await prisma.otpVerification.update({ where: { phone }, data: { attempts: { increment: 1 } } });
+      res.status(400).json({ success: false, error: 'Invalid OTP. Check the code and try again.' });
+      return;
+    }
+    await prisma.otpVerification.delete({ where: { phone } });
+
+    const user = await prisma.globalUser.findFirst({ where: { phone } });
+    if (!user) {
+      res.status(404).json({ success: false, error: 'No account found with this phone number.' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.globalUser.update({ where: { id: user.id }, data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null } });
+
+    res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (err) {
+    console.error('[RESET PASSWORD ERROR]', err);
+    res.status(500).json({ success: false, error: 'Password reset failed' });
   }
 });
 
