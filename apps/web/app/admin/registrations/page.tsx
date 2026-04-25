@@ -5,7 +5,6 @@ import {
   CheckCircle2, XCircle, Building2, MapPin, Phone, Mail, Clock, Loader2, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useTranslations } from 'next-intl';
 import { platformApi } from '@/lib/api';
 
 interface Tenant {
@@ -30,7 +29,6 @@ interface Tenant {
 }
 
 export default function AdminRegistrationsPage() {
-  const t = useTranslations('Admin');
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,7 +59,7 @@ export default function AdminRegistrationsPage() {
         setApprovedUrl({ name, url: subdomainUrl });
       }
     } catch (e: any) {
-      toast.error(t('actionFailed', { error: e.message }) || `Failed: ${e.message}`);
+      toast.error(`Failed: ${e.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -75,9 +73,9 @@ export default function AdminRegistrationsPage() {
       setTenants((prev) => prev.filter((t) => t.id !== rejectModal.id));
       setRejectModal(null);
       setRejectReason('');
-      toast.success(t('propertyRejected') || 'Property rejected');
+      toast.success('Property rejected');
     } catch (e: any) {
-      toast.error(t('actionFailed', { error: e.message }) || `Failed: ${e.message}`);
+      toast.error(`Failed: ${e.message}`);
     } finally {
       setActionLoading(null);
     }

@@ -6,130 +6,88 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, BedDouble, Palette, Receipt, FileText,
   Users, TrendingUp, CheckCircle2, ChevronDown, ArrowRight,
-  X, Sparkles, Rocket,
+  X, Sparkles, Rocket, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { tenantsApi } from '@/lib/api';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface StepProgress {
-  id: string;
-  completed: boolean;
-  detail: string | null;
-}
-
-interface ProgressData {
-  percent: number;
-  completedCount: number;
-  totalCount: number;
-  steps: StepProgress[];
-}
-
-// ── Step definitions (UI metadata only — completion state comes from API) ─────
+interface StepProgress { id: string; completed: boolean; detail: string | null; }
+interface ProgressData { percent: number; completedCount: number; totalCount: number; steps: StepProgress[]; }
 
 const STEP_META: Record<string, {
-  title: string;
-  subtitle: string;
-  icon: React.ElementType;
-  href: string;
-  guideToast: string;
-  color: string;
-  bgColor: string;
+  title: string; subtitle: string; icon: React.ElementType;
+  href: string; guideToast: string; actionLabel: string;
+  gradient: string; iconBg: string; iconColor: string;
 }> = {
   property_info: {
-    title: 'Property Details',
-    subtitle: 'Address, contact number & check-in times',
-    icon: Building2,
-    href: '/dashboard/settings?section=property',
-    guideToast: '✏️  Click Edit on the Property Details card to fill in your address, phone and check-in times.',
-    color: 'text-violet-600',
-    bgColor: 'bg-violet-50',
+    title: 'Property Details', subtitle: 'Address, contact & check-in times',
+    icon: Building2, href: '/dashboard/settings?section=property',
+    guideToast: '✏️  Fill in your address, phone and check-in times.',
+    actionLabel: 'Edit Details',
+    gradient: 'from-violet-500 to-indigo-600', iconBg: 'bg-violet-100', iconColor: 'text-violet-600',
   },
   room_inventory: {
-    title: 'Room Inventory',
-    subtitle: 'Floors, room types & individual rooms',
-    icon: BedDouble,
-    href: '/dashboard/settings/inventory',
-    guideToast: '🏗️  Start with a Floor, then add Room Types with rates, then create individual Rooms.',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
+    title: 'Room Inventory', subtitle: 'Floors, room types & rooms',
+    icon: BedDouble, href: '/dashboard/settings/inventory',
+    guideToast: '🏗️  Add Floors → Room Types → Individual Rooms.',
+    actionLabel: 'Add Rooms',
+    gradient: 'from-blue-500 to-cyan-500', iconBg: 'bg-blue-100', iconColor: 'text-blue-600',
   },
   branding: {
-    title: 'Branding & Identity',
-    subtitle: 'Logo, tagline & property description',
-    icon: Palette,
-    href: '/dashboard/settings?section=property',
-    guideToast: '🎨  Scroll to the Branding section — upload your logo and add a tagline.',
-    color: 'text-pink-600',
-    bgColor: 'bg-pink-50',
+    title: 'Set Appearance', subtitle: 'Logo, tagline & description',
+    icon: Palette, href: '/dashboard/settings?section=property',
+    guideToast: '🎨  Upload your logo and add a tagline.',
+    actionLabel: 'Set Branding',
+    gradient: 'from-pink-500 to-rose-500', iconBg: 'bg-pink-100', iconColor: 'text-pink-600',
   },
   billing: {
-    title: 'Billing & GST',
-    subtitle: 'GST number & legal entity name',
-    icon: Receipt,
-    href: '/dashboard/settings?section=billing',
-    guideToast: '📋  Enter your GSTIN and legal business name for GST-compliant invoices.',
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50',
+    title: 'Billing & GST', subtitle: 'GST number & legal entity',
+    icon: Receipt, href: '/dashboard/settings?section=billing',
+    guideToast: '📋  Enter your GSTIN and legal business name.',
+    actionLabel: 'Add GST',
+    gradient: 'from-amber-500 to-orange-500', iconBg: 'bg-amber-100', iconColor: 'text-amber-600',
   },
   compliance: {
-    title: 'Police Compliance',
-    subtitle: 'Sarai Act register & FRRO settings',
-    icon: FileText,
-    href: '/dashboard/settings?section=compliance',
-    guideToast: '🚔  Add your police station email to enable the Sarai Act guest register submission.',
-    color: 'text-rose-600',
-    bgColor: 'bg-rose-50',
+    title: 'Police Compliance', subtitle: 'Sarai Act & FRRO settings',
+    icon: FileText, href: '/dashboard/settings?section=compliance',
+    guideToast: '🚔  Add police station email for Sarai Act compliance.',
+    actionLabel: 'Configure',
+    gradient: 'from-rose-500 to-red-500', iconBg: 'bg-rose-100', iconColor: 'text-rose-600',
   },
   staff: {
-    title: 'Staff Members',
-    subtitle: 'Invite your front desk & housekeeping team',
-    icon: Users,
-    href: '/dashboard/settings?section=staff',
-    guideToast: '👥  Enter a phone number, choose a role and hit Invite to add your first staff member.',
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-50',
+    title: 'Invite Staff', subtitle: 'Front desk & housekeeping',
+    icon: Users, href: '/dashboard/settings?section=staff',
+    guideToast: '👥  Invite your first staff member.',
+    actionLabel: 'Invite Staff',
+    gradient: 'from-emerald-500 to-teal-500', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600',
   },
   pricing: {
-    title: 'Pricing Rules',
-    subtitle: 'Season, weekend & event-based rates',
-    icon: TrendingUp,
-    href: '/dashboard/pricing',
-    guideToast: '💰  Create a pricing rule to auto-adjust rates for weekends, seasons or special events.',
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-50',
+    title: 'Pricing Rules', subtitle: 'Season & event rates',
+    icon: TrendingUp, href: '/dashboard/pricing',
+    guideToast: '💰  Create pricing rules for weekends/seasons.',
+    actionLabel: 'Set Rates',
+    gradient: 'from-indigo-500 to-purple-500', iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600',
   },
 };
 
 const STEP_ORDER = ['property_info', 'room_inventory', 'branding', 'billing', 'compliance', 'staff', 'pricing'];
-
-// ── Confetti ──────────────────────────────────────────────────────────────────
-
-const CONFETTI_COLORS = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#f43f5e','#facc15','#a78bfa','#34d399'];
+const CONFETTI_COLORS = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#f43f5e'];
+const DISMISSED_KEY = 'istays_setup_dismissed';
 
 function ConfettiBurst() {
-  const pieces = Array.from({ length: 80 }, (_, i) => ({
-    id: i,
-    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    left: `${Math.random() * 100}%`,
-    delay: Math.random() * 0.6,
-    duration: 1.8 + Math.random() * 1,
-    rotate: Math.random() * 720 - 360,
-    width: 6 + Math.random() * 8,
-    height: 4 + Math.random() * 6,
-    shape: i % 3 === 0 ? 'circle' : 'rect',
+  const pieces = Array.from({ length: 60 }, (_, i) => ({
+    id: i, color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    left: `${Math.random() * 100}%`, delay: Math.random() * 0.5,
+    duration: 1.5 + Math.random() * 1, rotate: Math.random() * 720 - 360,
+    w: 6 + Math.random() * 6, h: 4 + Math.random() * 5,
   }));
-
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden" aria-hidden="true">
       {pieces.map(p => (
-        <motion.div
-          key={p.id}
-          className={p.shape === 'circle' ? 'absolute rounded-full' : 'absolute rounded-sm'}
-          style={{ left: p.left, top: '-20px', width: p.width, height: p.height, backgroundColor: p.color }}
-          initial={{ y: 0, opacity: 1, rotate: 0, scale: 1 }}
-          animate={{ y: '110vh', opacity: [1, 1, 0.8, 0], rotate: p.rotate, scale: [1, 1.2, 0.8, 1] }}
+        <motion.div key={p.id} className="absolute rounded-sm"
+          style={{ left: p.left, top: '-20px', width: p.w, height: p.h, backgroundColor: p.color }}
+          initial={{ y: 0, opacity: 1, rotate: 0 }}
+          animate={{ y: '110vh', opacity: [1, 1, 0], rotate: p.rotate }}
           transition={{ duration: p.duration, delay: p.delay, ease: [0.2, 0, 1, 0.8] }}
         />
       ))}
@@ -137,137 +95,198 @@ function ConfettiBurst() {
   );
 }
 
-// ── Progress Ring ──────────────────────────────────────────────────────────────
+/* ── Desktop Horizontal Stepper ──────────────────────────────────────────── */
 
-function ProgressRing({ percent }: { percent: number }) {
-  const r = 52;
-  const circumference = 2 * Math.PI * r;
-  const offset = circumference - (percent / 100) * circumference;
-  // Unique gradient ID per instance to avoid SVG global ID collisions
-  const gradId = 'setupRingGrad';
+function DesktopStepper({ steps, currentId, onSelect }: {
+  steps: { id: string; progress: StepProgress }[];
+  currentId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="hidden md:flex items-start justify-between relative px-2 py-3">
+      {steps.map(({ id, progress }, idx) => {
+        const meta = STEP_META[id];
+        if (!meta) return null;
+        const Icon = meta.icon;
+        const isActive = id === currentId;
+        const isDone = progress.completed;
+        const isLast = idx === steps.length - 1;
+
+        return (
+          <div key={id} className="flex items-start flex-1 min-w-0" style={{ maxWidth: isLast ? 'fit-content' : undefined }}>
+            <button onClick={() => onSelect(id)}
+              className="flex flex-col items-center gap-2.5 group cursor-pointer relative z-10"
+              style={{ width: '96px' }}>
+              {/* Circle */}
+              <div className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                isDone
+                  ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]'
+                  : isActive
+                  ? `bg-gradient-to-br ${meta.gradient} shadow-[0_0_0_4px_rgba(99,102,241,0.12)] shadow-lg`
+                  : 'bg-white border-2 border-surface-200 group-hover:border-violet-300 group-hover:shadow-md'
+              }`}>
+                {isDone ? (
+                  <CheckCircle2 className="w-6 h-6 text-white" strokeWidth={2.5} />
+                ) : (
+                  <Icon className={`w-5 h-5 transition-colors ${
+                    isActive ? 'text-white' : `${meta.iconColor} group-hover:scale-110 transition-transform`
+                  }`} />
+                )}
+                {isActive && !isDone && (
+                  <motion.div className="absolute inset-0 rounded-full border-2 border-violet-400/50"
+                    animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
+                )}
+              </div>
+              {/* Label */}
+              <span className={`text-[11px] font-semibold text-center leading-tight line-clamp-2 transition-colors ${
+                isDone ? 'text-emerald-600' : isActive ? 'text-surface-900' : 'text-surface-400 group-hover:text-surface-600'
+              }`}>{meta.title}</span>
+            </button>
+
+            {/* Connector */}
+            {!isLast && (
+              <div className="flex-1 h-[3px] mt-[22px] mx-[-4px] relative min-w-[24px]">
+                <div className="absolute inset-0 bg-surface-100 rounded-full" />
+                <motion.div className="absolute inset-y-0 left-0 bg-emerald-400 rounded-full"
+                  initial={{ width: '0%' }}
+                  animate={{ width: isDone ? '100%' : '0%' }}
+                  transition={{ duration: 0.8, delay: idx * 0.08, ease: 'easeOut' }} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Mobile Stepper (compact scroll) ──────────────────────────────────────── */
+
+function MobileStepper({ steps, currentId, onSelect }: {
+  steps: { id: string; progress: StepProgress }[];
+  currentId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const currentIdx = steps.findIndex(s => s.id === currentId);
+
+  useEffect(() => {
+    if (scrollRef.current && currentIdx >= 0) {
+      const child = scrollRef.current.children[currentIdx] as HTMLElement;
+      if (child) child.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [currentIdx]);
 
   return (
-    <div className="relative w-32 h-32 shrink-0">
-      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-        <defs>
-          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#a78bfa" />
-          </linearGradient>
-        </defs>
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#e8e4f5" strokeWidth="10" />
-        <motion.circle
-          cx="60" cy="60" r={r}
-          fill="none"
-          stroke={`url(#${gradId})`}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <motion.span
-          className="text-2xl font-black text-violet-700 leading-none"
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4, type: 'spring', bounce: 0.4 }}
-        >
-          {percent}%
-        </motion.span>
-        <span className="text-[10px] font-semibold text-violet-400 mt-0.5 uppercase tracking-wide">done</span>
+    <div className="md:hidden">
+      {/* Mini progress dots */}
+      <div className="flex items-center justify-center gap-1.5 mb-3">
+        {steps.map(({ id, progress }) => (
+          <button key={id} onClick={() => onSelect(id)}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              progress.completed ? 'w-2 bg-emerald-400'
+              : id === currentId ? 'w-6 bg-violet-500'
+              : 'w-2 bg-surface-200'
+            }`} />
+        ))}
+      </div>
+
+      {/* Scrollable cards */}
+      <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth -mx-1 px-1"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        {steps.map(({ id, progress }, idx) => {
+          const meta = STEP_META[id];
+          if (!meta) return null;
+          const Icon = meta.icon;
+          const isActive = id === currentId;
+          const isDone = progress.completed;
+
+          return (
+            <button key={id} onClick={() => onSelect(id)}
+              className={`snap-center shrink-0 flex items-center gap-3 px-3.5 py-3 rounded-2xl border transition-all duration-200 ${
+                isDone
+                  ? 'bg-emerald-50/80 border-emerald-200 min-w-[180px]'
+                  : isActive
+                  ? 'bg-gradient-to-r from-violet-50 to-indigo-50 border-violet-200 shadow-sm min-w-[200px]'
+                  : 'bg-white border-surface-150 min-w-[160px] opacity-60'
+              }`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                isDone ? 'bg-emerald-100' : isActive ? meta.iconBg : 'bg-surface-100'
+              }`}>
+                {isDone ? <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />
+                  : <Icon className={`w-4 h-4 ${isActive ? meta.iconColor : 'text-surface-400'}`} />}
+              </div>
+              <div className="text-left min-w-0">
+                <p className={`text-xs font-semibold truncate ${
+                  isDone ? 'text-emerald-700' : isActive ? 'text-surface-900' : 'text-surface-400'
+                }`}>{meta.title}</p>
+                <p className={`text-[10px] truncate ${
+                  isDone ? 'text-emerald-500' : 'text-surface-400'
+                }`}>{isDone ? 'Complete ✓' : `Step ${idx + 1}`}</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-// ── Step Row ──────────────────────────────────────────────────────────────────
+/* ── Detail Card (current step CTA) ───────────────────────────────────────── */
 
-function StepRow({
-  stepId, progress, isCurrent, index, onNavigate,
-}: {
+function DetailCard({ stepId, onNavigate }: {
   stepId: string;
-  progress: StepProgress;
-  isCurrent: boolean;
-  index: number;
-  onNavigate: (href: string, toast: string) => void;
+  onNavigate: (href: string, t: string) => void;
 }) {
   const meta = STEP_META[stepId];
   if (!meta) return null;
   const Icon = meta.icon;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.06 }}
-      className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
-        progress.completed
-          ? 'bg-emerald-50/60 border border-emerald-100'
-          : isCurrent
-          ? 'bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 shadow-sm shadow-violet-100'
-          : 'bg-surface-50 border border-surface-100 opacity-70'
-      }`}
+    <motion.div key={stepId}
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="mt-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-surface-50 to-surface-100/50 border border-surface-150 flex flex-col sm:flex-row items-start sm:items-center gap-4"
     >
-      {/* Step icon / checkmark */}
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-        progress.completed
-          ? 'bg-emerald-100'
-          : isCurrent
-          ? meta.bgColor
-          : 'bg-surface-100'
-      }`}>
-        {progress.completed
-          ? <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-          : <Icon className={`w-4.5 h-4.5 ${progress.completed ? 'text-emerald-500' : isCurrent ? meta.color : 'text-surface-400'}`} />
-        }
+      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${meta.iconBg}`}>
+        <Icon className={`w-5 h-5 ${meta.iconColor}`} />
       </div>
-
-      {/* Text */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold leading-tight ${
-          progress.completed ? 'text-emerald-700' : isCurrent ? 'text-surface-900' : 'text-surface-500'
-        }`}>
-          {meta.title}
-        </p>
-        <p className={`text-xs mt-0.5 truncate ${
-          progress.completed
-            ? 'text-emerald-500'
-            : isCurrent
-            ? 'text-surface-500'
-            : 'text-surface-400'
-        }`}>
-          {progress.completed && progress.detail ? progress.detail : meta.subtitle}
-        </p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-violet-500 mb-0.5">Up Next</p>
+        <p className="text-base font-bold text-surface-900 leading-tight">{meta.title}</p>
+        <p className="text-sm text-surface-500 mt-0.5">{meta.subtitle}</p>
       </div>
-
-      {/* Action */}
-      {progress.completed ? (
-        <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200">
-          Done ✓
-        </span>
-      ) : (
-        <button
-          onClick={() => onNavigate(meta.href, meta.guideToast)}
-          className={`shrink-0 flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all min-h-[36px] ${
-            isCurrent
-              ? 'bg-violet-600 text-white hover:bg-violet-700 shadow-sm shadow-violet-200'
-              : 'bg-surface-200 text-surface-500 hover:bg-surface-300'
-          }`}
-        >
-          {isCurrent ? 'Set up' : 'Later'}
-          {isCurrent && <ArrowRight className="w-3 h-3" />}
-        </button>
-      )}
+      <button onClick={() => onNavigate(meta.href, meta.guideToast)}
+        className={`shrink-0 w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r ${meta.gradient} text-white text-sm font-bold hover:shadow-lg transition-all active:scale-[0.97] shadow-md`}>
+        {meta.actionLabel}
+        <ArrowRight className="w-4 h-4" />
+      </button>
     </motion.div>
   );
 }
 
-// ── Main Widget ───────────────────────────────────────────────────────────────
+function DoneCard({ stepId, detail }: { stepId: string; detail: string | null }) {
+  const meta = STEP_META[stepId];
+  if (!meta) return null;
+  return (
+    <motion.div key={`done-${stepId}`}
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}
+      className="mt-4 p-4 sm:p-5 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex items-center gap-4">
+      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-emerald-700">{meta.title}</p>
+        <p className="text-xs text-emerald-500 mt-0.5">{detail || 'Completed successfully'}</p>
+      </div>
+      <span className="hidden sm:inline-block text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200">Done ✓</span>
+    </motion.div>
+  );
+}
 
-const DISMISSED_KEY = 'istays_setup_dismissed';
+/* ── Main Widget ──────────────────────────────────────────────────────────── */
 
 export default function SetupProgressWidget() {
   const router = useRouter();
@@ -275,6 +294,7 @@ export default function SetupProgressWidget() {
   const [collapsed, setCollapsed] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [done, setDone] = useState(false);
+  const [selectedStep, setSelectedStep] = useState<string | null>(null);
   const prevPercentRef = useRef<number | null>(null);
 
   const fetchProgress = useCallback(async () => {
@@ -282,8 +302,6 @@ export default function SetupProgressWidget() {
       const res = await tenantsApi.getSetupProgress();
       if (res.success && res.data) {
         const incoming = res.data as ProgressData;
-
-        // Trigger confetti on transition to 100%
         if (prevPercentRef.current !== null && prevPercentRef.current < 100 && incoming.percent === 100) {
           setShowConfetti(true);
           setTimeout(() => setShowConfetti(false), 3500);
@@ -291,179 +309,103 @@ export default function SetupProgressWidget() {
           localStorage.setItem(DISMISSED_KEY, 'true');
         }
         prevPercentRef.current = incoming.percent;
-
-        // Mark done immediately if already 100% on first load
-        if (incoming.percent === 100) {
-          setDone(true);
-        }
-
+        if (incoming.percent === 100) setDone(true);
         setData(incoming);
       } else {
-        // API returned error (e.g. no property/tenant yet) — show 0% with all steps incomplete
-        setData({
-          percent: 0,
-          completedCount: 0,
-          totalCount: STEP_ORDER.length,
-          steps: STEP_ORDER.map(id => ({ id, completed: false, detail: null })),
-        });
+        setData({ percent: 0, completedCount: 0, totalCount: STEP_ORDER.length,
+          steps: STEP_ORDER.map(id => ({ id, completed: false, detail: null })) });
       }
     } catch {
-      // Network/auth error — still show widget at 0% so user sees what's needed
-      setData({
-        percent: 0,
-        completedCount: 0,
-        totalCount: STEP_ORDER.length,
-        steps: STEP_ORDER.map(id => ({ id, completed: false, detail: null })),
-      });
+      setData({ percent: 0, completedCount: 0, totalCount: STEP_ORDER.length,
+        steps: STEP_ORDER.map(id => ({ id, completed: false, detail: null })) });
     }
   }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem(DISMISSED_KEY) === 'true') {
-      setDone(true);
-      return;
+      setDone(true); return;
     }
     fetchProgress();
   }, [fetchProgress]);
 
   function handleNavigate(href: string, guideToast: string) {
-    toast.info(guideToast, {
-      duration: 6000,
-      style: {
-        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '16px',
-        fontWeight: '500',
-        fontSize: '13px',
-        padding: '14px 18px',
-        boxShadow: '0 8px 32px rgba(99,102,241,0.35)',
-      },
-    });
-
-    // For settings sections, pass the section param
-    const url = href.includes('?section=')
-      ? `${href}&from_setup=1`
-      : href;
-    router.push(url);
+    toast.info(guideToast, { duration: 5000, style: {
+      background: 'linear-gradient(135deg, #1e1b4b, #312e81)', color: 'white',
+      border: 'none', borderRadius: '16px', fontWeight: '500', fontSize: '13px',
+      padding: '14px 18px', boxShadow: '0 8px 32px rgba(30,27,75,0.35)',
+    }});
+    router.push(href.includes('?section=') ? `${href}&from_setup=1` : href);
   }
 
-  // Don't render if setup is complete or dismissed
   if (done || !data) return null;
 
   const orderedSteps = STEP_ORDER.map(id => ({
-    id,
-    progress: data.steps.find(s => s.id === id) ?? { id, completed: false, detail: null },
+    id, progress: data.steps.find(s => s.id === id) ?? { id, completed: false, detail: null },
   }));
-
   const firstIncompleteIdx = orderedSteps.findIndex(s => !s.progress.completed);
+  const currentStepId = selectedStep ?? (firstIncompleteIdx >= 0 ? orderedSteps[firstIncompleteIdx].id : null);
+  const currentStepData = currentStepId ? orderedSteps.find(s => s.id === currentStepId) : null;
 
   const motivationText = data.percent === 0
-    ? "Let's get your property ready to take bookings!"
-    : data.percent < 40
-    ? 'Great start — keep going, you\'re building something great.'
-    : data.percent < 70
-    ? 'More than halfway there — your guests are waiting!'
-    : data.percent < 100
-    ? 'Almost done — just a few more steps to go! 🚀'
-    : '🎉 Everything is set up — you\'re ready to go!';
+    ? "Follow the roadmap below to launch your property."
+    : data.percent < 40 ? 'Great start — keep going, you\'re building something great.'
+    : data.percent < 70 ? 'More than halfway there — your guests are waiting!'
+    : 'Almost done — just a few more steps! 🚀';
 
   return (
     <>
       {showConfetti && <ConfettiBurst />}
+      <motion.div layout initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
+        className="w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-surface-200 shadow-lg shadow-surface-200/20 bg-white">
 
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -16 }}
-        className="w-full rounded-3xl overflow-hidden border border-violet-200/60 shadow-lg shadow-violet-100/40 bg-white"
-      >
-        {/* Header */}
-        <div className="relative px-5 py-4 bg-gradient-to-r from-violet-600 via-indigo-600 to-violet-700 flex items-center gap-4">
-          {/* Decorative glow */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)] pointer-events-none" />
-
-          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <Rocket className="w-5 h-5 text-white" />
-          </div>
-
+        {/* ── Header ── */}
+        <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-3 border-b border-surface-100">
           <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-sm leading-tight">Property Setup Guide</p>
-            <p className="text-violet-200 text-xs mt-0.5">{motivationText}</p>
+            <h2 className="text-base sm:text-lg font-display font-bold text-surface-900 leading-tight">
+              Property Activation Tracker
+            </h2>
+            <p className="text-xs sm:text-sm text-surface-400 mt-0.5 line-clamp-1">{motivationText}</p>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-bold text-white/90 bg-white/20 px-2.5 py-1 rounded-full">
-              {data.completedCount}/{data.totalCount} steps
-            </span>
-            <button
-              onClick={() => setCollapsed(v => !v)}
-              className="w-11 h-11 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
-              aria-label={collapsed ? 'Expand setup guide' : 'Collapse setup guide'}
-            >
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-full whitespace-nowrap ${
+              data.percent >= 100
+                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                : 'bg-violet-50 text-violet-600 border border-violet-200'
+            }`}>{data.percent}% COMPLETE</span>
+            <button onClick={() => setCollapsed(v => !v)}
+              className="w-8 h-8 rounded-lg bg-surface-50 hover:bg-surface-100 flex items-center justify-center transition-colors">
               <motion.div animate={{ rotate: collapsed ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                <ChevronDown className="w-4 h-4 text-white" />
+                <ChevronDown className="w-4 h-4 text-surface-400" />
               </motion.div>
             </button>
-            <button
-              onClick={() => { localStorage.setItem(DISMISSED_KEY, 'true'); setDone(true); }}
-              className="w-11 h-11 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
-              aria-label="Dismiss setup guide"
-            >
-              <X className="w-4 h-4 text-white" />
+            <button onClick={() => { localStorage.setItem(DISMISSED_KEY, 'true'); setDone(true); }}
+              className="w-8 h-8 rounded-lg bg-surface-50 hover:bg-surface-100 flex items-center justify-center transition-colors">
+              <X className="w-4 h-4 text-surface-400" />
             </button>
           </div>
         </div>
 
-        {/* Progress bar under header */}
-        <div className="h-1.5 bg-violet-100">
-          <motion.div
-            className="h-full bg-gradient-to-r from-violet-500 to-indigo-500"
-            initial={{ width: 0 }}
-            animate={{ width: `${data.percent}%` }}
-            transition={{ duration: 1.2, ease: 'easeOut' }}
-          />
-        </div>
-
-        {/* Body */}
+        {/* ── Body ── */}
         <AnimatePresence initial={false}>
           {!collapsed && (
-            <motion.div
-              key="body"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
-              className="overflow-hidden"
-            >
-              <div className="p-5 flex flex-col sm:flex-row gap-5">
-                {/* Left: ring + summary */}
-                <div className="flex flex-col items-center justify-center gap-2 sm:w-44 shrink-0">
-                  <ProgressRing percent={data.percent} />
-                  <p className="text-xs text-surface-500 text-center">
-                    {data.completedCount} of {data.totalCount} steps complete
-                  </p>
-                  {data.percent === 100 && (
-                    <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                      <Sparkles className="w-3 h-3" /> All done!
-                    </div>
-                  )}
-                </div>
+            <motion.div key="body" initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }} className="overflow-hidden">
+              <div className="px-4 sm:px-6 py-4 sm:py-5">
+                {/* Desktop stepper */}
+                <DesktopStepper steps={orderedSteps} currentId={currentStepId} onSelect={setSelectedStep} />
+                {/* Mobile stepper */}
+                <MobileStepper steps={orderedSteps} currentId={currentStepId} onSelect={setSelectedStep} />
 
-                {/* Right: step list */}
-                <div className="flex-1 space-y-2">
-                  {orderedSteps.map(({ id, progress }, idx) => (
-                    <StepRow
-                      key={id}
-                      stepId={id}
-                      progress={progress}
-                      isCurrent={idx === firstIncompleteIdx}
-                      index={idx}
-                      onNavigate={handleNavigate}
-                    />
-                  ))}
-                </div>
+                {/* Detail card */}
+                <AnimatePresence mode="wait">
+                  {currentStepData && !currentStepData.progress.completed && (
+                    <DetailCard stepId={currentStepData.id} onNavigate={handleNavigate} />
+                  )}
+                  {currentStepData && currentStepData.progress.completed && (
+                    <DoneCard stepId={currentStepData.id} detail={currentStepData.progress.detail} />
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           )}

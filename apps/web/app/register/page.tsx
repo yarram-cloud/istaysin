@@ -153,6 +153,14 @@ export default function RegisterPage() {
       // Wrapped in its own try-catch — a network failure here must not mask the
       // successful registration. The fallback writes tenantId directly to localStorage
       // so the dashboard still resolves correctly via the x-tenant-id header.
+      
+      const newMembership = {
+        id: 'temp-' + Date.now(),
+        tenantId: propRes.data.id,
+        role: 'property_owner',
+        tenant: propRes.data
+      };
+
       try {
         const loginRes = await authApi.login({ identifier: fullPhone, password });
         if (loginRes.success) {
@@ -160,22 +168,46 @@ export default function RegisterPage() {
             accessToken: loginRes.data.accessToken,
             refreshToken: loginRes.data.refreshToken,
             user: loginRes.data.user,
-            tenantId: loginRes.data.memberships?.[0]?.tenantId ?? propRes.data?.id,
-            memberships: loginRes.data.memberships,
+            tenantId: loginRes.data.memberships?.[0]?.tenantId ?? propRes.data.id,
+            memberships: loginRes.data.memberships?.length ? loginRes.data.memberships : [newMembership],
           });
         } else if (propRes.data?.id) {
-          localStorage.setItem('tenantId', propRes.data.id);
-          localStorage.setItem('tenant_id', propRes.data.id);
+          const currentToken = localStorage.getItem('accessToken');
+          if (currentToken) {
+            saveAuthData({
+              accessToken: currentToken,
+              refreshToken: localStorage.getItem('refreshToken') || '',
+              user: JSON.parse(localStorage.getItem('user') || '{}'),
+              tenantId: propRes.data.id,
+              memberships: [newMembership]
+            });
+          } else {
+            localStorage.setItem('tenantId', propRes.data.id);
+            localStorage.setItem('tenant_id', propRes.data.id);
+            localStorage.setItem('memberships', JSON.stringify([newMembership]));
+          }
         }
       } catch {
         if (propRes.data?.id) {
-          localStorage.setItem('tenantId', propRes.data.id);
-          localStorage.setItem('tenant_id', propRes.data.id);
+          const currentToken = localStorage.getItem('accessToken');
+          if (currentToken) {
+            saveAuthData({
+              accessToken: currentToken,
+              refreshToken: localStorage.getItem('refreshToken') || '',
+              user: JSON.parse(localStorage.getItem('user') || '{}'),
+              tenantId: propRes.data.id,
+              memberships: [newMembership]
+            });
+          } else {
+            localStorage.setItem('tenantId', propRes.data.id);
+            localStorage.setItem('tenant_id', propRes.data.id);
+            localStorage.setItem('memberships', JSON.stringify([newMembership]));
+          }
         }
       }
 
-      toast.success('Property registered! Setting up your dashboard…');
-      router.push('/dashboard');
+      toast.success('Property registered! You will be notified once your property is approved.');
+      router.push('/pending-approval');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(msg);

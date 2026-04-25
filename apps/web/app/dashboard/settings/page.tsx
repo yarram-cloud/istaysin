@@ -131,14 +131,14 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
           const d = res.data;
           setName(d.name || ''); setAddress(d.address || ''); setCity(d.city || '');
           setState(d.state || ''); setPhone(d.contactPhone || ''); setEmail(d.contactEmail || '');
-          setCheckInTime(d.checkInTime || '14:00'); setCheckOutTime(d.checkOutTime || '11:00');
+          setCheckInTime(d.defaultCheckInTime || '14:00'); setCheckOutTime(d.defaultCheckOutTime || '11:00');
           setLat(d.latitude || 20.5937); setLng(d.longitude || 78.9629);
           setLanguages(d.config?.languages || ['en']);
           setBookingPrefix(d.config?.bookingPrefix || 'IS');
           setSettings(d);
         }
       })
-      .catch((err) => console.error(err))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -148,11 +148,12 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
       await tenantsApi.updateSettings({
         name, address, city, state,
         contactPhone: phone, contactEmail: email,
-        checkInTime, checkOutTime, latitude: lat, longitude: lng,
+        defaultCheckInTime: checkInTime, defaultCheckOutTime: checkOutTime,
+        latitude: lat, longitude: lng,
         config: { ...settings?.config, languages, bookingPrefix: bookingPrefix.trim().toUpperCase().slice(0, 6) || 'IS' }
       });
       toast.success('Property Settings saved successfully!');
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to save settings'); }
     finally { setSaving(false); }
   }
 
@@ -333,7 +334,7 @@ function StaffSettings({ onBack }: { onBack: () => void }) {
             await tenantsApi.removeStaff(userId);
             setStaff((prev) => prev.filter((s) => s.userId !== userId));
             toast.success('Staff member removed');
-          } catch (err: any) { toast.error(err.message); }
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to remove staff'); }
         }
       },
       cancel: { label: 'Cancel', onClick: () => {} }
@@ -430,7 +431,7 @@ function InviteStaffInline({ onClose, onInvited }: { onClose: () => void; onInvi
       await tenantsApi.inviteStaff({ phone: phone.trim(), fullName: fullName.trim(), role, passcode: '123456' });
       onInvited();
       toast.success('Staff member invited!');
-    } catch (err: any) { setError(err.message); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Failed to invite staff'); }
     finally { setSaving(false); }
   }
 
@@ -499,7 +500,7 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
           setAllowPayAtHotel(d.config?.allowPayAtHotel !== false);
         }
       })
-      .catch((err) => console.error(err))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -511,7 +512,7 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
         config: { gstEnabled, legalName, allowPayAtHotel }
       });
       toast.success('Billing & Tax settings saved!');
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to save settings'); }
     finally { setSaving(false); }
   }
 

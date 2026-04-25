@@ -25,7 +25,7 @@ const ownerPayload = {
 
 test.describe('Property Registration & Admin Approval Flow', () => {
 
-  test('Owner successfully registers a new property and is isolated to their tenant', async ({ page }) => {
+  test('Owner successfully registers a new property and lands on pending-approval page', async ({ page }) => {
     // Mock Nominatim so the map doesn't block in CI
     await page.route('https://nominatim.openstreetmap.org/**', async (route) => {
       await route.fulfill({
@@ -39,12 +39,15 @@ test.describe('Property Registration & Admin Approval Flow', () => {
     const registerPage = new RegisterPage(page);
     await registerPage.register(propertyPayload, ownerPayload);
 
-    // Dashboard should show this user's (empty) tenant — not another user's data
+    // After registration, tenant is pending_approval — must NOT land on dashboard
+    await expect(page).toHaveURL(/.*\/pending-approval/);
+
+    // tenantId must be set so the pending-approval page and API can resolve the tenant
     const tenantId = await page.evaluate(() => localStorage.getItem('tenantId'));
     expect(tenantId).toBeTruthy();
     expect(tenantId).toMatch(/^[0-9a-f-]{36}$/i);
 
-    // recentBookings for a brand-new property must be empty
+    // API-level isolation: brand-new tenant must have no bookings (not another tenant's data)
     const token = await page.evaluate(() => localStorage.getItem('accessToken'));
     const dashRes = await page.request.get('/api/v1/dashboard', {
       headers: {
@@ -77,6 +80,20 @@ test.describe('Property Registration & Admin Approval Flow', () => {
     }
 
     await expect(propertyCard).not.toBeVisible({ timeout: 10000 });
+  });
+
+  test('Approved owner can log in and access dashboard', async ({ page }) => {
+    // After admin approval (previous test), owner's tenant is now active.
+    // Login with the phone number used during registration.
+    const loginPage = new LoginPage(page);
+    await loginPage.goto();
+    await loginPage.login(`+91${ownerPhone}`, ownerPayload.password);
+
+    // Active tenant → must redirect to dashboard, not pending-approval
+    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 20000 });
+
+    // Property name should appear in the sidebar
+    await expect(page.getByText(propertyPayload.name, { exact: false })).toBeVisible({ timeout: 5000 });
   });
 
 });

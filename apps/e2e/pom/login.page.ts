@@ -29,8 +29,8 @@ export class LoginPage {
     await this.submitButton.click();
     
     if (expectSuccess) {
-      // It should redirect to either /admin or /dashboard
-      await expect(this.page).toHaveURL(/.*(\/dashboard|\/admin)/, { timeout: 30000 });
+      // Redirects to /dashboard, /admin, or /pending-approval depending on tenant status
+      await expect(this.page).toHaveURL(/.*(\/dashboard|\/admin|\/pending-approval)/, { timeout: 30000 });
     }
   }
 

@@ -29,15 +29,17 @@ export default function LoginPage() {
           tenantId: res.data.memberships?.[0]?.tenantId,
           memberships: res.data.memberships,
         });
-        // Redirect admin to admin panel, regular users to dashboard
         if (res.data.user?.isGlobalAdmin) {
           router.push('/admin');
         } else {
-          router.push('/dashboard');
+          const memberships = res.data.memberships ?? [];
+          const allPending = memberships.length > 0 &&
+            memberships.every((m: any) => m.tenant?.status === 'pending_approval');
+          router.push(allPending ? '/pending-approval' : '/dashboard');
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }

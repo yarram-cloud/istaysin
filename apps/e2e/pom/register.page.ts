@@ -91,6 +91,6 @@ export class RegisterPage {
     await this.fillPropertyDetails(property);
     await this.fillOwnerDetails(owner);
     await this.submitForm();
-    await expect(this.page).toHaveURL(/.*\/dashboard/, { timeout: 20000 });
+    await expect(this.page).toHaveURL(/.*\/pending-approval/, { timeout: 20000 });
   }
 }

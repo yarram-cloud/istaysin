@@ -20,7 +20,7 @@ const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'istaysin.com';
 const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4100/api/v1';
 
 // Routes that require authentication
-const protectedRoutes = ['/dashboard', '/admin'];
+const protectedRoutes = ['/dashboard', '/admin', '/pending-approval'];
 // Routes that should redirect if already authenticated
 const authRoutes = ['/login', '/register'];
 

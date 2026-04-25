@@ -115,13 +115,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       try {
         const parsed = JSON.parse(memberships);
         if (parsed?.[0]?.tenant) {
+          if (parsed[0].tenant.status === 'pending_approval') {
+            router.replace('/pending-approval');
+            return;
+          }
           setPropertyName(parsed[0].tenant.name || 'My Property');
           setPlan(parsed[0].tenant.plan || 'free');
           setPropertyType((parsed[0].tenant.propertyType as PropertyType) || 'hotel');
         }
       } catch { /* ignore */ }
     }
-  }, []);
+  }, [router]);
 
   async function handleLanguageChange(newLocale: string) {
     setLocale(newLocale);
@@ -181,15 +185,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Property selector */}
           <div className="px-4 py-4">
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-900 border border-surface-800 hover:bg-surface-800 transition-colors text-white">
-              <div className="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center border border-surface-700">
+            <button onClick={() => router.push('/dashboard/settings')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-900 border border-surface-800 hover:bg-surface-800 transition-colors text-white group" title="Manage Property Settings">
+              <div className="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center border border-surface-700 group-hover:bg-primary-900 group-hover:border-primary-800 transition-colors">
                 <Building2 className="w-4 h-4 text-primary-400" />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium truncate">{propertyName}</p>
                 <p className="text-xs text-primary-400 font-semibold uppercase tracking-wider">{planLabels[plan] || plan}</p>
               </div>
-              <ChevronDown className="w-4 h-4 text-surface-400" />
+              <div className="w-6 h-6 rounded-md flex items-center justify-center bg-surface-800 group-hover:bg-primary-900 transition-colors">
+                <Settings className="w-3.5 h-3.5 text-surface-400 group-hover:text-primary-300" />
+              </div>
             </button>
           </div>
 
