@@ -20,3 +20,26 @@ export const COUNTRY_CODES = [
   { code: '+39', flag: '🇮🇹', label: 'IT' },
   { code: '+34', flag: '🇪🇸', label: 'ES' },
 ];
+
+export const NATIONALITIES = [
+  'Indian',
+  'Afghan',
+  'American',
+  'Australian',
+  'Bangladeshi',
+  'British',
+  'Canadian',
+  'Chinese',
+  'French',
+  'German',
+  'Italian',
+  'Japanese',
+  'Malaysian',
+  'Nepali',
+  'Pakistani',
+  'Russian',
+  'Spanish',
+  'Sri Lankan',
+  'Thai',
+  'Other',
+] as const;

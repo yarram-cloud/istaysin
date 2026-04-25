@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2, Edit2, Save, ChevronDown, ChevronRight, Mail, User, BedDouble, ArrowRight, Printer, MessageCircle, Percent, Tag, SprayCan } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { bookingsApi, roomsApi, checkinApi, complianceApi } from '@/lib/api';
-import { COUNTRY_CODES } from '@/lib/constants';
+import { bookingsApi, roomsApi, checkinApi, complianceApi, guestsApi } from '@/lib/api';
+import { COUNTRY_CODES, NATIONALITIES } from '@/lib/constants';
 import { usePropertyType } from '@/lib/property-context';
 
 const statusLabels: Record<string, { label: string; class: string }> = {
@@ -693,6 +693,7 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
   const [guestPhone, setGuestPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [guestEmail, setGuestEmail] = useState('');
+  const [guestNationality, setGuestNationality] = useState('Indian');
   const [checkIn, setCheckIn] = useState(() => {
     const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   });
@@ -713,6 +714,66 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
   const [error, setError] = useState('');
   const [availCount, setAvailCount] = useState<number | null>(null);
   const [checkingAvail, setCheckingAvail] = useState(false);
+
+  // Guest search / profile linking
+  const [linkedGuest, setLinkedGuest] = useState<{ id: string; fullName: string; phone?: string; email?: string; nationality?: string } | null>(null);
+  const [guestQuery, setGuestQuery] = useState('');
+  const [guestResults, setGuestResults] = useState<any[]>([]);
+  const [guestSearching, setGuestSearching] = useState(false);
+  const [showGuestDropdown, setShowGuestDropdown] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    if (guestQuery.length < 2) {
+      setGuestResults([]);
+      setShowGuestDropdown(false);
+      return;
+    }
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      setGuestSearching(true);
+      try {
+        const res = await guestsApi.search(guestQuery);
+        if (res.success) {
+          const items = Array.isArray(res.data?.items) ? res.data.items : Array.isArray(res.data) ? res.data : [];
+          setGuestResults(items);
+          setShowGuestDropdown(items.length > 0);
+        }
+      } catch {
+        // silent
+      } finally {
+        setGuestSearching(false);
+      }
+    }, 300);
+  }, [guestQuery]);
+
+  function handleSelectGuest(g: any) {
+    setLinkedGuest(g);
+    setGuestName(g.fullName || '');
+    setGuestEmail(g.email || '');
+    setGuestNationality(g.nationality || 'Indian');
+    const phone: string = g.phone || '';
+    const matchedCode = COUNTRY_CODES.find(c => phone.startsWith(c.code));
+    if (matchedCode) {
+      setCountryCode(matchedCode.code);
+      setGuestPhone(phone.slice(matchedCode.code.length).replace(/\D/g, ''));
+    } else {
+      setCountryCode('+91');
+      setGuestPhone(phone.replace(/\D/g, ''));
+    }
+    setGuestQuery('');
+    setGuestResults([]);
+    setShowGuestDropdown(false);
+  }
+
+  function handleClearGuest() {
+    setLinkedGuest(null);
+    setGuestName('');
+    setGuestPhone('');
+    setGuestEmail('');
+    setGuestNationality('Indian');
+    setCountryCode('+91');
+  }
 
   useEffect(() => {
     roomsApi.getRoomTypes().then((res) => {
@@ -769,9 +830,11 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
 
     try {
       await bookingsApi.create({
+        guestProfileId: linkedGuest?.id,
         guestName: guestName.trim(),
         guestPhone: `${countryCode}${guestPhone.replace(/\D/g, '')}`,
         guestEmail: guestEmail.trim() || undefined,
+        guestNationality: guestNationality !== 'Indian' ? guestNationality : undefined,
         checkInDate: checkIn,
         checkOutDate: checkOut,
         numAdults: totalAdults,
@@ -814,7 +877,76 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
           <h4 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3 flex items-center gap-2">
             <User className="w-3.5 h-3.5" /> 1. Guest Details
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+          {/* Guest profile search / linked badge */}
+          <div className="mb-3 relative">
+            {linkedGuest ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary-50 border border-primary-200">
+                <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                  <User className="w-3.5 h-3.5 text-primary-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-primary-800 leading-none truncate">{linkedGuest.fullName}</p>
+                  <p className="text-xs text-primary-500 mt-0.5 truncate">{linkedGuest.phone}{linkedGuest.email ? ` · ${linkedGuest.email}` : ''}</p>
+                </div>
+                {linkedGuest.nationality && !['indian', 'india'].includes(linkedGuest.nationality.toLowerCase()) && (
+                  <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                    <Globe className="w-2.5 h-2.5" /> {linkedGuest.nationality}
+                  </span>
+                )}
+                <button type="button" onClick={handleClearGuest}
+                  className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-primary-100 text-primary-400 hover:text-primary-700 transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={guestQuery}
+                  onChange={e => setGuestQuery(e.target.value)}
+                  onFocus={() => guestResults.length > 0 && setShowGuestDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowGuestDropdown(false), 150)}
+                  placeholder="Search existing guest by name or phone (optional)..."
+                  className="w-full h-9 pl-8 pr-8 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all"
+                />
+                {guestSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-400 animate-spin" />}
+
+                {showGuestDropdown && guestResults.length > 0 && (
+                  <div className="absolute z-20 top-full mt-1 w-full bg-white rounded-xl border border-surface-200 shadow-lg overflow-hidden">
+                    {guestResults.slice(0, 6).map((g: any) => {
+                      const isForeign = g.nationality && !['indian', 'india'].includes(g.nationality.toLowerCase());
+                      return (
+                        <button key={g.id} type="button" onMouseDown={() => handleSelectGuest(g)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-50 transition-colors text-left border-b border-surface-100 last:border-0">
+                          <div className="w-7 h-7 rounded-full bg-surface-100 flex items-center justify-center shrink-0">
+                            <User className="w-3.5 h-3.5 text-surface-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-surface-900 truncate">{g.fullName}</p>
+                            <p className="text-xs text-surface-400 truncate">{g.phone}{g.email ? ` · ${g.email}` : ''}</p>
+                          </div>
+                          {isForeign && (
+                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                              {g.nationality}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+            {linkedGuest?.nationality && !['indian', 'india'].includes(linkedGuest.nationality.toLowerCase()) && (
+              <p className="mt-1.5 text-xs text-orange-600 flex items-center gap-1">
+                <Globe className="w-3 h-3" /> Foreign national — FRRO compliance record will be auto-created
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-surface-500 mb-1">Full Name <span className="text-red-400">*</span></label>
               <input value={guestName} onChange={(e) => setGuestName(e.target.value)} required placeholder="Guest full name"
@@ -823,14 +955,18 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
             <div>
               <label className="block text-xs text-surface-500 mb-1">Phone <span className="text-red-400">*</span></label>
               <div className="flex rounded-xl border border-surface-200 bg-surface-50 focus-within:ring-2 focus-within:ring-primary-500/30 focus-within:border-primary-400 transition-all overflow-hidden">
-                <select value={countryCode} onChange={e => setCountryCode(e.target.value)}
+                <select value={countryCode} onChange={e => {
+                  setCountryCode(e.target.value);
+                  if (e.target.value !== '+91' && guestNationality === 'Indian') setGuestNationality('');
+                  if (e.target.value === '+91') setGuestNationality('Indian');
+                }}
                   className="h-10 w-[78px] bg-transparent border-r border-surface-200 text-surface-700 text-sm px-2 outline-none cursor-pointer shrink-0">
                   {COUNTRY_CODES.map((c) => (
                     <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
                   ))}
                 </select>
-                <input required type="tel" inputMode="numeric" value={guestPhone} 
-                  onChange={(e) => setGuestPhone(e.target.value.replace(/\D/g, ''))} 
+                <input required type="tel" inputMode="numeric" value={guestPhone}
+                  onChange={(e) => setGuestPhone(e.target.value.replace(/\D/g, ''))}
                   placeholder="10 digit number" className="flex-1 h-10 px-3 text-sm text-surface-900 bg-transparent outline-none" />
               </div>
             </div>
@@ -838,6 +974,19 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
               <label className="block text-xs text-surface-500 mb-1">Email (optional)</label>
               <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email address"
                 className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+            </div>
+            <div>
+              <label className="block text-xs text-surface-500 mb-1 flex items-center gap-1">
+                Nationality
+                {guestNationality && guestNationality !== 'Indian' && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Foreign</span>
+                )}
+              </label>
+              <select value={guestNationality} onChange={e => setGuestNationality(e.target.value)}
+                disabled={!!linkedGuest}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
           </div>
         </div>
@@ -1459,12 +1608,15 @@ ${discount}
         </div>
 
         {/* ── FRRO COMPLIANCE ── */}
-        {booking.bookingGuests && booking.bookingGuests.length > 0 && (
+        {loadedGuests.length > 0 && (
           <div className="px-4 sm:px-5 py-3.5 border-b border-surface-100">
-            <p className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2.5 flex items-center gap-1.5"><Globe className="w-3 h-3" /> FRRO & Police Compliance</p>
+            <h3 className="text-[10px] uppercase font-bold text-surface-400 tracking-widest mb-2.5 flex items-center gap-1.5"><Globe className="w-3 h-3" /> FRRO & Police Compliance</h3>
             <div className="flex flex-wrap gap-2">
-              {booking.bookingGuests.map((guest: any) => {
+              {loadedGuests.map((guest: any) => {
                 const isForeigner = guest.nationality && !['indian', 'india'].includes(guest.nationality.toLowerCase());
+                const idDisplay = guest.idProofType && guest.idProofNumber
+                  ? `${guest.idProofType}: ${guest.idProofNumber}`
+                  : guest.idProofNumber || null;
                 return (
                   <div key={guest.id} className="flex items-center gap-3 pl-3 pr-2 py-2 rounded-xl border border-surface-200 bg-surface-50">
                     <div>
@@ -1472,17 +1624,17 @@ ${discount}
                         {guest.fullName}
                         {isForeigner && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-bold uppercase">Foreign</span>}
                       </p>
-                      {guest.idProof && <p className="text-xs text-surface-400 mt-0.5">ID: {guest.idProof}</p>}
+                      {idDisplay && <p className="text-xs text-surface-400 mt-0.5">ID: {idDisplay}</p>}
                     </div>
                     {isForeigner && (
                       guest.cFormSubmitted ? (
                         <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-                          <CheckCircle className="w-3 h-3" /> FRRO ✓
+                          <CheckCircle className="w-3 h-3" /> FRRO Submitted
                         </span>
                       ) : (
                         <button onClick={() => handleCFormSubmit(guest.id)} disabled={submittingCForm === guest.id}
                           className="flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors disabled:opacity-50">
-                          {submittingCForm === guest.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />} Submit FRRO
+                          {submittingCForm === guest.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />} Submit to FRRO
                         </button>
                       )
                     )}

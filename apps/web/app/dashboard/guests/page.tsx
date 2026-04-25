@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { guestsApi } from '@/lib/api';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { COUNTRY_CODES } from '@/lib/constants';
+import { COUNTRY_CODES, NATIONALITIES } from '@/lib/constants';
 
 interface Guest {
   id: string; fullName: string; phone?: string; email?: string;
@@ -266,22 +266,7 @@ function AddGuestInline({ onClose, onCreated }: { onClose: () => void; onCreated
             <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Nationality</label>
             <select value={nationality} onChange={(e) => setNationality(e.target.value)}
               className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
-              <option value="Indian">Indian</option>
-              <option value="Afghan">Afghan</option>
-              <option value="American">American</option>
-              <option value="Australian">Australian</option>
-              <option value="Bangladeshi">Bangladeshi</option>
-              <option value="British">British</option>
-              <option value="Canadian">Canadian</option>
-              <option value="Chinese">Chinese</option>
-              <option value="French">French</option>
-              <option value="German">German</option>
-              <option value="Japanese">Japanese</option>
-              <option value="Nepali">Nepali</option>
-              <option value="Pakistani">Pakistani</option>
-              <option value="Russian">Russian</option>
-              <option value="Sri Lankan">Sri Lankan</option>
-              <option value="Other">Other</option>
+              {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
           <div>
@@ -451,7 +436,10 @@ function GuestDetailPanel({ guest, onClose, onUpdated }: { guest: Guest; onClose
             </div>
             <div>
               <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Nationality</label>
-              <input value={nationality} onChange={e => setNationality(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm" />
+              <select value={nationality} onChange={e => setNationality(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-white text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+                {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">Date of Birth</label>

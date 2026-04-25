@@ -174,6 +174,30 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
         }
       }
 
+      // Pre-fetch linked guest profile to populate compliance data for foreign nationals
+      let linkedProfile: { fullName: string; nationality: string | null; idProofType: string | null; idProofNumber: string | null } | null = null;
+      if (data.guestProfileId) {
+        linkedProfile = await prisma.guestProfile.findUnique({
+          where: { id: data.guestProfileId },
+          select: { fullName: true, nationality: true, idProofType: true, idProofNumber: true },
+        });
+      }
+
+      const isForeignGuest = linkedProfile?.nationality &&
+        !['indian', 'india'].includes(linkedProfile.nationality.toLowerCase());
+
+      const bookingGuestData = isForeignGuest && linkedProfile ? {
+        tenantId: req.tenantId!,
+        fullName: linkedProfile.fullName,
+        nationality: linkedProfile.nationality!,
+        idProofType: linkedProfile.idProofType ?? undefined,
+        idProofNumber: linkedProfile.idProofNumber ?? undefined,
+      } : {
+        tenantId: req.tenantId!,
+        fullName: data.guestName || 'Guest',
+        ...(data.guestNationality ? { nationality: data.guestNationality } : {}),
+      };
+
       const advancePaid = data.advanceAmount || 0;
       const booking = await prisma.booking.create({
         data: {
@@ -198,7 +222,7 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
           discountAmount: discountAmountTotal,
           createdBy: req.userId,
           bookingRooms: { create: bookingRoomsData },
-          bookingGuests: { create: [{ tenantId: req.tenantId!, fullName: data.guestName || 'Guest' }] },
+          bookingGuests: { create: [bookingGuestData] },
           folioCharges: { create: folioChargesData },
         },
         include: { bookingRooms: true, folioCharges: true },
@@ -317,6 +341,7 @@ bookingsRouter.get('/:id', async (req: Request, res: Response) => {
             },
           },
           bookingGuests: true,
+          guestProfile: { select: { nationality: true, idProofType: true, idProofNumber: true } },
           folioCharges: { orderBy: { chargeDate: 'asc' } },
           guestPayments: { orderBy: { createdAt: 'desc' } },
           invoices: true,
@@ -328,7 +353,18 @@ bookingsRouter.get('/:id', async (req: Request, res: Response) => {
         return;
       }
 
-      res.json({ success: true, data: booking });
+      // Resolve nationality on each BookingGuest — GuestProfile is the source of truth
+      // for foreign nationals whose BookingGuest row was created before the profile was linked.
+      const profileNationality = booking.guestProfile?.nationality;
+      const resolvedBookingGuests = booking.bookingGuests.map(bg => {
+        const nationality =
+          (bg.nationality && bg.nationality !== 'Indian') ? bg.nationality :
+          (profileNationality && profileNationality !== 'Indian') ? profileNationality :
+          bg.nationality;
+        return { ...bg, nationality };
+      });
+
+      res.json({ success: true, data: { ...booking, bookingGuests: resolvedBookingGuests } });
     });
   } catch (err) {
     console.error('[BOOKING GET ERROR]', err);
@@ -345,17 +381,26 @@ bookingsRouter.post('/:id/guests', authorize('property_owner', 'general_manager'
         return { error: 'Invalid guest data', status: 400, details: parsed.error.format() };
       }
 
-      const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+      const booking = await prisma.booking.findUnique({
+        where: { id: req.params.id },
+        include: { guestProfile: { select: { nationality: true, idProofType: true, idProofNumber: true } } },
+      });
       if (!booking) return { error: 'Booking not found', status: 404 };
+
+      // Resolve nationality: explicit input wins, then linked profile, then leave blank (not "Indian")
+      const resolvedNationality =
+        parsed.data.nationality ||
+        booking.guestProfile?.nationality ||
+        undefined;
 
       const guest = await prisma.bookingGuest.create({
         data: {
           tenantId: req.tenantId!,
           bookingId: booking.id,
           fullName: parsed.data.fullName,
-          nationality: parsed.data.nationality || 'Indian',
-          idProofType: parsed.data.idProofType,
-          idProofNumber: parsed.data.idProofNumber,
+          ...(resolvedNationality ? { nationality: resolvedNationality } : {}),
+          idProofType: parsed.data.idProofType ?? booking.guestProfile?.idProofType ?? undefined,
+          idProofNumber: parsed.data.idProofNumber ?? booking.guestProfile?.idProofNumber ?? undefined,
           visaNumber: parsed.data.visaNumber,
           visaExpiryDate: parsed.data.visaExpiryDate ? new Date(parsed.data.visaExpiryDate) : null,
           purposeOfVisit: parsed.data.purposeOfVisit,

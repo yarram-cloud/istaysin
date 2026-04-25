@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma *)",
+      "Bash(2>&1)",
+      "Bash(curl -s -X POST http://localhost:4100/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"admin@istays.in\",\"password\":\"Welcome@1\"}')",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -X POST http://localhost:4100/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"owner-premium@e2e.com\",\"password\":\"Welcome@1\"}')",
+      "Bash(curl -s -X POST http://localhost:4100/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"manager-premium@e2e.com\",\"password\":\"Welcome@1\"}')",
+      "Bash(curl -s -X POST http://localhost:4100/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"desk-premium@e2e.com\",\"password\":\"Welcome@1\"}')",
+      "Bash(curl -s -X POST http://localhost:4100/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"global-admin@e2e.com\",\"password\":\"Welcome@1\"}')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const p=JSON.parse\\(d\\);console.log\\(JSON.stringify\\({success:p.success,keys:Object.keys\\(p.data||{}\\),error:p.error}\\)\\);if\\(p.data?.accessToken\\)console.log\\('TOKEN:',p.data.accessToken.substring\\(0,40\\)\\);}\\)\")",
+      "Bash(curl -s 'http://localhost:4100/api/v1/compliance/guest-register?startDate=2020-01-01&endDate=2030-12-31' -H 'Authorization: Bearer __CMDSUB_OUTPUT__')"
+    ]
+  }
+}

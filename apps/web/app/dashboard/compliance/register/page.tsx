@@ -59,6 +59,7 @@ export default function ComplianceRegisterPage() {
 
   return (
     <div className="space-y-6 print:m-0 print:p-0 print:bg-white print:text-black">
+      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: A4 landscape; margin: 10mm; } }' }} />
       {/* Header - Screen Only */}
       <div className="print:hidden space-y-4">
         <div>
@@ -156,8 +157,8 @@ export default function ComplianceRegisterPage() {
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-center text-surface-700 font-medium">{guest.roomNo}</td>
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{formatDate(guest.checkIn)}</td>
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{formatDate(guest.checkOut)}</td>
-                  <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{(guest as any).arrivingFrom || 'N/A'}</td>
-                  <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{(guest as any).goingTo || 'N/A'}</td>
+                  <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{guest.arrivingFrom || 'N/A'}</td>
+                  <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{guest.goingTo || 'N/A'}</td>
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black text-surface-600">{guest.purpose}</td>
                   <td className="px-4 py-3 print:px-2 print:py-1 print:border print:border-black print:hidden">
                     {guest.nationality.toLowerCase() !== 'indian' && guest.nationality.toLowerCase() !== 'india' ? (

@@ -97,22 +97,33 @@ complianceRouter.get('/guest-register', authorize('property_owner', 'general_man
         include: {
           booking: {
             include: {
-              bookingRooms: {
-                include: { room: true }
-              }
+              bookingRooms: { include: { room: true } },
+              guestProfile: { select: { nationality: true, idProofType: true, idProofNumber: true } },
             }
           }
         },
         orderBy: { booking: { checkInDate: 'asc' } }
       });
 
-      registerData = guests.map((g, idx) => ({
+      registerData = guests.map((g, idx) => {
+        // GuestProfile is the source of truth for nationality — BookingGuest defaults to "Indian"
+        // which is wrong for foreign nationals whose profile was linked after the booking was created.
+        const profileNationality = g.booking.guestProfile?.nationality;
+        const nationality =
+          (g.nationality && g.nationality !== 'Indian') ? g.nationality :
+          (profileNationality && profileNationality !== 'Indian') ? profileNationality :
+          g.nationality;
+
+        const idProofType = g.idProofType || g.booking.guestProfile?.idProofType;
+        const idProofNumber = g.idProofNumber || g.booking.guestProfile?.idProofNumber;
+
+        return ({
         sNo: idx + 1,
         fullName: g.fullName,
         fathersName: 'Not Recorded',
         address: 'Not Recorded',
-        nationality: g.nationality,
-        idProof: `${g.idProofType || 'N/A'} - ${g.idProofNumber || 'N/A'}`,
+        nationality,
+        idProof: `${idProofType || 'N/A'} - ${idProofNumber || 'N/A'}`,
         visaDetails: g.visaNumber ? `${g.visaNumber} (Exp: ${g.visaExpiryDate ? g.visaExpiryDate.toISOString().split('T')[0] : 'N/A'})` : 'N/A',
         roomNo: g.booking.bookingRooms.map(r => r.room?.roomNumber || 'Unassigned').join(', ') || 'N/A',
         checkIn: g.booking.checkInDate.toISOString(),
@@ -124,7 +135,8 @@ complianceRouter.get('/guest-register', authorize('property_owner', 'general_man
         cFormSubmitted: g.cFormSubmitted,
         cFormSubmittedAt: g.cFormSubmittedAt,
         guestId: g.id
-      }));
+        });
+      });
 
       await logAudit(req.tenantId!, req.userId, 'READ', 'compliance', 'register', { count: registerData.length }, req.ip || undefined);
     });
