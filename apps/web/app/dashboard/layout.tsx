@@ -292,7 +292,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main className="flex-1 p-6 lg:p-8">
-          <Toaster position="top-right" />
           <PropertyTypeProvider propertyType={propertyType}>
           {children}
           </PropertyTypeProvider>

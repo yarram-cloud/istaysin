@@ -404,18 +404,27 @@ export const voidPosOrderSchema = z.object({
 // Pricing Router Schemas
 // ============================================================
 export const createPricingSchema = z.object({
-  roomTypeId: z.string().uuid(),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  rate: z.number().min(0),
-  minStay: z.number().int().min(1).optional(),
-  isBlocked: z.boolean().default(false)
+  name: z.string().min(1),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).optional(),
+  roomTypeId: z.string().uuid().optional(),
+  adjustmentType: z.enum(['percentage', 'fixed_addition', 'fixed_override']),
+  adjustmentValue: z.number(),
+  priority: z.number().int().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export const updatePricingSchema = z.object({
-  rate: z.number().min(0).optional(),
-  minStay: z.number().int().min(1).optional(),
-  isBlocked: z.boolean().optional()
+  name: z.string().min(1).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).optional(),
+  roomTypeId: z.string().uuid().optional().nullable(),
+  adjustmentType: z.enum(['percentage', 'fixed_addition', 'fixed_override']).optional(),
+  adjustmentValue: z.number().optional(),
+  priority: z.number().int().optional(),
+  isActive: z.boolean().optional(),
 });
 
 // ============================================================

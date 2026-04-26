@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner';
 import { tenantsApi } from '@/lib/api';
 
-interface StepProgress { id: string; completed: boolean; detail: string | null; }
+interface StepProgress { id: string; completed: boolean; detail: string | null; skippable?: boolean; skipped?: boolean; }
 interface ProgressData { percent: number; completedCount: number; totalCount: number; steps: StepProgress[]; }
 
 const STEP_META: Record<string, {
@@ -34,10 +34,10 @@ const STEP_META: Record<string, {
     gradient: 'from-blue-500 to-cyan-500', iconBg: 'bg-blue-100', iconColor: 'text-blue-600',
   },
   branding: {
-    title: 'Set Appearance', subtitle: 'Logo, tagline & description',
-    icon: Palette, href: '/dashboard/settings?section=property',
-    guideToast: '🎨  Upload your logo and add a tagline.',
-    actionLabel: 'Set Branding',
+    title: 'Set Appearance', subtitle: 'Logo, tagline & website theme',
+    icon: Palette, href: '/dashboard/website',
+    guideToast: '🎨  Customise your property website — logo, colours & layout.',
+    actionLabel: 'Open Builder',
     gradient: 'from-pink-500 to-rose-500', iconBg: 'bg-pink-100', iconColor: 'text-pink-600',
   },
   billing: {
@@ -235,53 +235,89 @@ function MobileStepper({ steps, currentId, onSelect }: {
 
 /* ── Detail Card (current step CTA) ───────────────────────────────────────── */
 
-function DetailCard({ stepId, onNavigate }: {
+function DetailCard({ stepId, nextStepId, onNavigate, onSkip, skippable }: {
   stepId: string;
+  nextStepId: string | null;
   onNavigate: (href: string, t: string) => void;
+  onSkip?: (stepId: string) => void;
+  skippable?: boolean;
 }) {
   const meta = STEP_META[stepId];
   if (!meta) return null;
   const Icon = meta.icon;
+  const nextMeta = nextStepId ? STEP_META[nextStepId] : null;
+  const NextIcon = nextMeta?.icon;
 
   return (
     <motion.div key={stepId}
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="mt-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-surface-50 to-surface-100/50 border border-surface-150 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+      className="mt-4 rounded-2xl border border-surface-150 overflow-hidden"
     >
-      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${meta.iconBg}`}>
-        <Icon className={`w-5 h-5 ${meta.iconColor}`} />
+      {/* Current step */}
+      <div className="p-4 sm:p-5 bg-gradient-to-br from-surface-50 to-surface-100/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${meta.iconBg}`}>
+          <Icon className={`w-5 h-5 ${meta.iconColor}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-violet-500 mb-0.5">Up Next</p>
+          <p className="text-base font-bold text-surface-900 leading-tight">{meta.title}</p>
+          <p className="text-sm text-surface-500 mt-0.5">{meta.subtitle}</p>
+        </div>
+        <div className="shrink-0 w-full sm:w-auto flex flex-col gap-2">
+          <button onClick={() => onNavigate(meta.href, meta.guideToast)}
+            className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r ${meta.gradient} text-white text-sm font-bold hover:shadow-lg transition-all active:scale-[0.97] shadow-md`}>
+            {meta.actionLabel}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          {skippable && onSkip && (
+            <button onClick={() => onSkip(stepId)}
+              className="text-xs text-surface-400 hover:text-surface-600 transition-colors font-medium">
+              Skip this step →
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-violet-500 mb-0.5">Up Next</p>
-        <p className="text-base font-bold text-surface-900 leading-tight">{meta.title}</p>
-        <p className="text-sm text-surface-500 mt-0.5">{meta.subtitle}</p>
-      </div>
-      <button onClick={() => onNavigate(meta.href, meta.guideToast)}
-        className={`shrink-0 w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r ${meta.gradient} text-white text-sm font-bold hover:shadow-lg transition-all active:scale-[0.97] shadow-md`}>
-        {meta.actionLabel}
-        <ArrowRight className="w-4 h-4" />
-      </button>
+
+      {/* Next step preview */}
+      {nextMeta && NextIcon && (
+        <div className="px-4 sm:px-5 py-2.5 bg-surface-50/80 border-t border-surface-100 flex items-center gap-3">
+          <div className="w-6 h-6 rounded-lg bg-surface-100 flex items-center justify-center shrink-0">
+            <NextIcon className={`w-3.5 h-3.5 text-surface-400`} />
+          </div>
+          <p className="text-xs text-surface-400 flex-1 min-w-0">
+            <span className="font-semibold text-surface-500">Then:</span>{' '}
+            {nextMeta.title} — {nextMeta.subtitle}
+          </p>
+          <ChevronRight className="w-3.5 h-3.5 text-surface-300 shrink-0" />
+        </div>
+      )}
     </motion.div>
   );
 }
 
-function DoneCard({ stepId, detail }: { stepId: string; detail: string | null }) {
+function DoneCard({ stepId, detail, skipped }: { stepId: string; detail: string | null; skipped?: boolean }) {
   const meta = STEP_META[stepId];
   if (!meta) return null;
   return (
     <motion.div key={`done-${stepId}`}
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}
-      className="mt-4 p-4 sm:p-5 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex items-center gap-4">
-      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+      className={`mt-4 p-4 sm:p-5 rounded-2xl border flex items-center gap-4 ${
+        skipped ? 'bg-surface-50/60 border-surface-200' : 'bg-emerald-50/60 border-emerald-100'
+      }`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+        skipped ? 'bg-surface-100' : 'bg-emerald-100'
+      }`}>
+        <CheckCircle2 className={`w-5 h-5 ${skipped ? 'text-surface-400' : 'text-emerald-500'}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-emerald-700">{meta.title}</p>
-        <p className="text-xs text-emerald-500 mt-0.5">{detail || 'Completed successfully'}</p>
+        <p className={`text-sm font-bold ${skipped ? 'text-surface-500' : 'text-emerald-700'}`}>{meta.title}</p>
+        <p className={`text-xs mt-0.5 ${skipped ? 'text-surface-400' : 'text-emerald-500'}`}>{detail || 'Completed successfully'}</p>
       </div>
-      <span className="hidden sm:inline-block text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200">Done ✓</span>
+      <span className={`hidden sm:inline-block text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+        skipped ? 'bg-surface-100 text-surface-400 border-surface-200' : 'bg-emerald-100 text-emerald-600 border-emerald-200'
+      }`}>{skipped ? 'Skipped' : 'Done ✓'}</span>
     </motion.div>
   );
 }
@@ -329,12 +365,18 @@ export default function SetupProgressWidget() {
   }, [fetchProgress]);
 
   function handleNavigate(href: string, guideToast: string) {
-    toast.info(guideToast, { duration: 5000, style: {
-      background: 'linear-gradient(135deg, #1e1b4b, #312e81)', color: 'white',
-      border: 'none', borderRadius: '16px', fontWeight: '500', fontSize: '13px',
-      padding: '14px 18px', boxShadow: '0 8px 32px rgba(30,27,75,0.35)',
-    }});
-    router.push(href.includes('?section=') ? `${href}&from_setup=1` : href);
+    const url = href.includes('?') ? `${href}&from_setup=1` : `${href}?from_setup=1`;
+    router.push(url);
+  }
+
+  async function handleSkip(stepId: string) {
+    try {
+      await tenantsApi.skipSetupStep(stepId);
+      toast.success(`${STEP_META[stepId]?.title || stepId} skipped — you can set it up anytime.`);
+      fetchProgress();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to skip step');
+    }
   }
 
   if (done || !data) return null;
@@ -399,11 +441,15 @@ export default function SetupProgressWidget() {
 
                 {/* Detail card */}
                 <AnimatePresence mode="wait">
-                  {currentStepData && !currentStepData.progress.completed && (
-                    <DetailCard stepId={currentStepData.id} onNavigate={handleNavigate} />
-                  )}
+                  {currentStepData && !currentStepData.progress.completed && (() => {
+                    const curIdx = STEP_ORDER.indexOf(currentStepData.id);
+                    const nextIncomplete = STEP_ORDER.slice(curIdx + 1).find(
+                      sid => !orderedSteps.find(s => s.id === sid)?.progress.completed
+                    ) ?? null;
+                    return <DetailCard stepId={currentStepData.id} nextStepId={nextIncomplete} onNavigate={handleNavigate} onSkip={handleSkip} skippable={!!currentStepData.progress.skippable} />;
+                  })()}
                   {currentStepData && currentStepData.progress.completed && (
-                    <DoneCard stepId={currentStepData.id} detail={currentStepData.progress.detail} />
+                    <DoneCard stepId={currentStepData.id} detail={currentStepData.progress.detail} skipped={currentStepData.progress.skipped} />
                   )}
                 </AnimatePresence>
               </div>

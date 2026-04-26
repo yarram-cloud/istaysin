@@ -10,7 +10,8 @@ import { DomainSettings } from './domain-settings';
 import { CompetitorRatesSettings } from './competitor-rates';
 import { ComplianceSettings } from './compliance';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
 
 const LocationPicker = dynamic(() => import('./location-picker'), { ssr: false });
 
@@ -18,19 +19,16 @@ export default function SettingsPage() {
   const t = useTranslations('Dashboard');
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Auto-open a section when arriving from the setup guide (?section=xxx&from_setup=1)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get('section');
-    const fromSetup = params.get('from_setup');
-    if (section && fromSetup === '1') {
+    const section = searchParams.get('section');
+    const fromSetup = searchParams.get('from_setup');
+    if (section) {
       setActiveSection(section);
-      // Clean the URL so refreshing doesn't re-trigger
-      router.replace('/dashboard/settings', { scroll: false });
     }
-  }, [router]);
+  }, [searchParams]);
 
   const sections = [
     { id: 'property', icon: Building2, title: 'Property Details', desc: 'Name, address, type, contact info, check-in/out times' },
@@ -45,6 +43,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      <SetupNextStepBanner />
       <div>
         <h1 className="text-2xl font-display font-bold mb-1">{t('settingsPage.title')}</h1>
         <p className="text-surface-400">{t('settingsPage.subtitle')}</p>
@@ -169,7 +168,6 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
 
   return (
     <div>
-      <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
       <div className="grid md:grid-cols-2 gap-6 items-start">
         <div className="glass-card p-6">
           <h2 className="text-lg font-display font-bold mb-6">Property Details</h2>
@@ -272,7 +270,6 @@ function SubscriptionSettings({ onBack }: { onBack: () => void }) {
 
   return (
     <div>
-      <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
       <div className="glass-card p-6 max-w-2xl">
         <h2 className="text-xl font-display font-bold mb-6">Your Subscription Plan</h2>
         {!subscription ? (
@@ -348,7 +345,6 @@ function StaffSettings({ onBack }: { onBack: () => void }) {
 
   return (
     <div>
-      <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-display font-bold">Staff Members</h2>
@@ -520,7 +516,6 @@ function BillingSettings({ onBack }: { onBack: () => void }) {
 
   return (
     <div>
-      <button onClick={onBack} className="text-sm text-primary-400 hover:text-primary-300 mb-4">&larr; Back to Settings</button>
       <div className="glass-card p-6 max-w-2xl">
         <h2 className="text-lg font-display font-bold mb-6">Billing & Tax Configuration</h2>
         

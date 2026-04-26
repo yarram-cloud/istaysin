@@ -6,6 +6,7 @@ import { Layers, BedDouble, Key, Plus, Pencil, Trash2, ArrowLeft, Loader2, Save,
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
 
 // ── Types ──
 interface Floor { id: string; name: string; sortOrder: number; rooms?: any[]; }
@@ -35,6 +36,9 @@ export default function InventorySetupPage() {
   // Section collapse state (all open by default)
   const [openSections, setOpenSections] = useState({ floors: true, types: true, rooms: true });
 
+  // Check if we arrived from setup guide
+  const isFromSetup = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('from_setup') === '1';
+
   // ── Fetch all data ──
   const fetchAll = useCallback(async () => {
     try {
@@ -44,12 +48,26 @@ export default function InventorySetupPage() {
         roomsApi.getRoomTypes(),
         roomsApi.getRooms(),
       ]);
-      if (fRes.success) setFloors(fRes.data || []);
-      if (tRes.success) setRoomTypes(tRes.data || []);
-      if (rRes.success) setRooms(rRes.data || []);
+      const f = fRes.success ? (fRes.data || []) : [];
+      const t = tRes.success ? (tRes.data || []) : [];
+      const r = rRes.success ? (rRes.data || []) : [];
+      setFloors(f);
+      setRoomTypes(t);
+      setRooms(r);
+
+      // Context-aware guidance for setup
+      if (isFromSetup) {
+        if (f.length === 0) {
+          toast.info('Step 1: Start by adding your first Floor.', { duration: 6000 });
+        } else if (t.length === 0) {
+          toast.info('Step 2: Great! Now add a Room Type with a base rate.', { duration: 6000 });
+        } else if (r.length === 0) {
+          toast.info('Step 3: Finally, create individual Rooms to complete inventory.', { duration: 6000 });
+        }
+      }
     } catch { toast.error('Failed to load inventory'); }
     finally { setLoading(false); }
-  }, []);
+  }, [isFromSetup]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -63,6 +81,7 @@ export default function InventorySetupPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20 fade-in">
+      <SetupNextStepBanner />
       {/* Header */}
       <div>
         <button onClick={() => router.push('/dashboard/settings')} className="flex items-center gap-2 text-sm text-surface-500 hover:text-surface-900 transition-colors mb-2">
@@ -721,11 +740,20 @@ function RoomsSection({ rooms, setRooms, floors, roomTypes, onRefresh }: {
           </div>
           <button onClick={() => setShowAdd(false)} className="mt-5 p-2 text-surface-400 hover:bg-surface-100 rounded-lg transition-colors"><X className="w-4 h-4" /></button>
         </div>
-      ) : !noPrereqs ? (
-        <button onClick={openAdd} className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-semibold px-4 py-3 hover:bg-primary-50 rounded-xl border border-dashed border-primary-200 transition-all w-full justify-center">
-          <Plus className="w-4 h-4" /> Add Room
+      ) : (
+        <button 
+          onClick={noPrereqs ? undefined : openAdd}
+          disabled={noPrereqs}
+          className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl border border-dashed transition-all w-full justify-center ${
+            noPrereqs 
+              ? 'border-surface-200 text-surface-400 bg-surface-50/50 cursor-not-allowed opacity-80' 
+              : 'border-primary-200 text-primary-600 hover:text-primary-700 hover:bg-primary-50'
+          }`}
+        >
+          <Plus className="w-4 h-4" /> 
+          {noPrereqs ? 'Add Room (Requires Floor & Room Type)' : 'Add Room'}
         </button>
-      ) : null}
+      )}
     </div>
   );
 }

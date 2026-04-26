@@ -139,6 +139,8 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
 
     const cfg = (tenant.config as Record<string, any>) || {};
 
+    const skippedSteps: string[] = Array.isArray(cfg.skippedSetupSteps) ? cfg.skippedSetupSteps : [];
+
     const steps = [
       {
         id: 'property_info',
@@ -157,28 +159,44 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
       },
       {
         id: 'branding',
-        completed: !!(tenant.brandLogo && (tenant.tagline || tenant.description)),
-        detail: !tenant.brandLogo ? 'logo missing' : !(tenant.tagline || tenant.description) ? 'tagline/description missing' : null,
+        completed: !!(
+          (tenant.brandLogo && (tenant.tagline || tenant.description)) ||
+          (cfg.websiteBuilder && cfg.websiteBuilder.theme)
+        ),
+        detail: !tenant.brandLogo && !cfg.websiteBuilder?.theme
+          ? 'logo missing'
+          : !(tenant.tagline || tenant.description) && !cfg.websiteBuilder?.theme
+          ? 'tagline/description missing'
+          : cfg.websiteBuilder?.theme ? `Website theme: ${cfg.websiteBuilder.theme}` : null,
       },
       {
         id: 'billing',
-        completed: !!(tenant.gstNumber || cfg.gstExempt),
-        detail: !tenant.gstNumber && !cfg.gstExempt ? 'GST number not added' : null,
+        completed: !!(tenant.gstNumber || cfg.gstExempt || cfg.gstEnabled !== undefined),
+        detail: tenant.gstNumber ? `GSTIN: ${tenant.gstNumber}` : cfg.gstEnabled === false ? 'GST invoicing disabled' : cfg.gstEnabled ? 'GST enabled — add GSTIN' : 'Not configured yet',
       },
       {
         id: 'compliance',
-        completed: !!cfg.policeStationEmail,
-        detail: !cfg.policeStationEmail ? 'police station email not configured' : null,
+        completed: !!cfg.policeStationEmail || cfg.complianceEnabled === false || skippedSteps.includes('compliance'),
+        detail: cfg.complianceEnabled === false
+          ? 'Disabled — not required for this property'
+          : skippedSteps.includes('compliance') ? 'Skipped — can configure later'
+          : !cfg.policeStationEmail ? 'Police station email not configured' : `Email: ${cfg.policeStationEmail}`,
+        skippable: true,
+        skipped: skippedSteps.includes('compliance') || cfg.complianceEnabled === false,
       },
       {
         id: 'staff',
-        completed: staffCount > 1,
-        detail: `${staffCount} member(s) — ${staffCount > 1 ? 'team configured' : 'invite your first staff member'}`,
+        completed: staffCount > 1 || skippedSteps.includes('staff'),
+        detail: skippedSteps.includes('staff') ? 'Skipped — can invite later' : `${staffCount} member(s) — ${staffCount > 1 ? 'team configured' : 'invite your first staff member'}`,
+        skippable: true,
+        skipped: skippedSteps.includes('staff'),
       },
       {
         id: 'pricing',
-        completed: pricingCount > 0,
-        detail: pricingCount > 0 ? `${pricingCount} pricing rule(s)` : 'no pricing rules yet',
+        completed: pricingCount > 0 || skippedSteps.includes('pricing'),
+        detail: skippedSteps.includes('pricing') ? 'Skipped — can add later' : pricingCount > 0 ? `${pricingCount} pricing rule(s)` : 'No pricing rules yet',
+        skippable: true,
+        skipped: skippedSteps.includes('pricing'),
       },
     ];
 
@@ -189,6 +207,31 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
   } catch (err) {
     console.error('[SETUP PROGRESS ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch setup progress' });
+  }
+});
+
+// POST /tenants/skip-setup-step
+const SKIPPABLE_STEPS = ['compliance', 'staff', 'pricing'];
+tenantsRouter.post('/skip-setup-step', authenticate, resolveTenant, requireTenant, authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const { stepId } = req.body;
+    if (!stepId || !SKIPPABLE_STEPS.includes(stepId)) {
+      res.status(400).json({ success: false, error: `Step "${stepId}" cannot be skipped` });
+      return;
+    }
+    const tid = req.tenantId!;
+    const tenant = await prisma.tenant.findUnique({ where: { id: tid }, select: { config: true } });
+    const cfg = (tenant?.config as Record<string, any>) || {};
+    const skipped: string[] = Array.isArray(cfg.skippedSetupSteps) ? cfg.skippedSetupSteps : [];
+    if (!skipped.includes(stepId)) skipped.push(stepId);
+    await prisma.tenant.update({
+      where: { id: tid },
+      data: { config: { ...cfg, skippedSetupSteps: skipped } },
+    });
+    res.json({ success: true, message: `Step "${stepId}" skipped` });
+  } catch (err) {
+    console.error('[SKIP SETUP STEP ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to skip step' });
   }
 });
 

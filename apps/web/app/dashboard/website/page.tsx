@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
 
 // Curated hospitality icons for the visual picker
 const HOSPITALITY_ICONS: { id: string; label: string; icon: any }[] = [
@@ -292,6 +293,7 @@ export default function WebsiteBuilderPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
+      <SetupNextStepBanner />
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-surface-200 shadow-sm">
         <div>
           <h1 className="text-2xl font-display font-bold mb-1 text-surface-900">{t('websitePage.title')}</h1>

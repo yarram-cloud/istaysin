@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { pricingApi, roomsApi } from '@/lib/api';
+import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
 
 interface PricingRule {
   id: string;
@@ -87,6 +88,7 @@ export default function PricingPage() {
 
   return (
     <div className="space-y-6">
+      <SetupNextStepBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold mb-1">{t('pricingPage.title')}</h1>

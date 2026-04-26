@@ -232,6 +232,7 @@ export const tenantsApi = {
     apiFetch(`/tenants/staff/${userId}`, { method: 'DELETE' }),
 
   getSetupProgress: () => apiFetch('/tenants/setup-progress'),
+  skipSetupStep: (stepId: string) => apiFetch('/tenants/skip-setup-step', { method: 'POST', body: JSON.stringify({ stepId }) }),
 };
 
 // Dashboard helpers
