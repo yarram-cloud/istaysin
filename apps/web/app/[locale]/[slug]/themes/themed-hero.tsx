@@ -260,13 +260,13 @@ export default function ThemedHero({ config, property, themeTokens }: { config: 
         </section>
       );
 
-    default: // Fallback generic
+    default: // Fallback generic — uses the brand-gradient utility so secondaryColor is visibly consumed.
       return (
         <section className="relative min-h-[80vh] flex items-center justify-center bg-brand/10">
            <div className="text-center">
-              <h1 className="text-6xl font-bold mb-4">{headline}</h1>
+              <h1 className="text-6xl font-bold mb-4 brand-gradient-text">{headline}</h1>
               <p className="text-xl mb-8">{subheadline}</p>
-              <button className="bg-brand text-white px-8 py-3 rounded-xl">{buttonText}</button>
+              <button className="brand-gradient-bg text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-shadow">{buttonText}</button>
            </div>
         </section>
       );

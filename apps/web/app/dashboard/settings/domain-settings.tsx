@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Globe, Copy, Check, Pencil, ExternalLink, Loader2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import PlanGate from '@/app/dashboard/_components/plan-gate';
 
 interface DomainStatus {
   slug: string;
@@ -213,7 +214,8 @@ export function DomainSettings() {
       {/* Divider */}
       <div className="border-t border-white/[0.06]" />
 
-      {/* Custom Domain Section */}
+      {/* Custom Domain Section — Enterprise only */}
+      <PlanGate requiredPlan="enterprise" featureName="Custom Domain">
       <div className="space-y-3">
         <label className="text-xs font-semibold text-surface-500 uppercase tracking-wider">
           Custom Domain
@@ -291,6 +293,7 @@ export function DomainSettings() {
           </div>
         )}
       </div>
+      </PlanGate>
 
       {/* Status Message */}
       {msg && (

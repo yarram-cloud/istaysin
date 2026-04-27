@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { pricingApi, roomsApi, tenantsApi } from '@/lib/api';
-
+import PlanGate from '@/app/dashboard/_components/plan-gate';
 import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
 
 interface PricingRule {
@@ -113,6 +113,7 @@ export default function PricingPage() {
   }
 
   return (
+    <PlanGate requiredPlan="professional" featureName="Pricing Engine">
     <div className="space-y-6">
       <SetupNextStepBanner />
       <div className="flex items-center justify-between">
@@ -255,6 +256,7 @@ export default function PricingPage() {
       )}
 
     </div>
+    </PlanGate>
   );
 }
 

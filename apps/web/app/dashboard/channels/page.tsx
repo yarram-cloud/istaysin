@@ -2,10 +2,12 @@
 
 import { Network, Plus, ArrowRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import PlanGate from '@/app/dashboard/_components/plan-gate';
 
 export default function ChannelManagerPage() {
   const t = useTranslations('Dashboard');
   return (
+    <PlanGate requiredPlan="enterprise" featureName="Channel Manager">
     <div className="space-y-6 max-w-6xl">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -51,5 +53,6 @@ export default function ChannelManagerPage() {
         ))}
       </div>
     </div>
+    </PlanGate>
   );
 }

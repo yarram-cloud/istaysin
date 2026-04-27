@@ -50,22 +50,22 @@ const STATIC_PLANS = [
   {
     code: 'free', name: 'Free', highlight: false,
     actualPrice: 0, monthlyPrice: 0, yearlyPrice: 0,
-    features: ['Up to 5 rooms', '50 bookings/month', 'Basic dashboard', 'yourhotel.istaysin.com', 'Email support'],
+    features: ['Up to 5 rooms', '50 bookings/month', 'Basic dashboard', 'Walk-in booking engine', 'Email support'],
   },
   {
     code: 'basic', name: 'Starter', highlight: false,
     actualPrice: 1999, monthlyPrice: 999, yearlyPrice: 799,
-    features: ['Up to 20 rooms', 'Unlimited bookings', 'Staff management', 'GST invoicing', 'Priority email support'],
+    features: ['Up to 20 rooms', 'Unlimited bookings', 'yourhotel.istaysin.com', 'Website builder', 'Staff management', 'GST invoicing'],
   },
   {
     code: 'professional', name: 'Professional', highlight: true,
     actualPrice: 5999, monthlyPrice: 2999, yearlyPrice: 2499,
-    features: ['Up to 100 rooms', 'Custom domain', 'Advanced analytics', 'Seasonal rates & offers', 'Phone + email support', 'API access'],
+    features: ['Up to 100 rooms', 'Advanced analytics', 'Seasonal rates & offers', 'Pricing engine', 'Phone + email support', 'API access'],
   },
   {
     code: 'enterprise', name: 'Enterprise', highlight: false,
     actualPrice: null, monthlyPrice: null, yearlyPrice: null,
-    features: ['Unlimited rooms', 'OTA integration', 'Multi-property', 'Dedicated account manager', 'SLA guarantee', 'Custom development'],
+    features: ['Unlimited rooms', 'Custom domain', 'OTA integration', 'Multi-property', 'Dedicated account manager', 'Custom development'],
   },
 ];
 

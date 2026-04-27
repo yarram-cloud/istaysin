@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, use } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Building2, Users, BedDouble, CalendarDays,
@@ -43,8 +43,8 @@ const PLAN_COLORS: Record<string, string> = {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
-export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: tenantId } = use(params);
+export default function TenantDetailPage({ params }: { params: { id: string } }) {
+  const { id: tenantId } = params;
   const router = useRouter();
   const [tenant, setTenant] = useState<TenantDetail | null>(null);
   const [plans, setPlans] = useState<SaasPlan[]>([]);

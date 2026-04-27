@@ -16,7 +16,11 @@
       "Bash(curl -s http://localhost:4100/api/v1/health)",
       "Bash(curl -s -X POST http://localhost:4100/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"global-admin@e2e.com\",\"password\":\"Welcome@1\"}')",
       "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); const p=JSON.parse\\(d\\); console.log\\(p.data?.token ? p.data.token.substring\\(0,50\\)+'...' : JSON.stringify\\(p\\)\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(npx next *)",
+      "Bash(echo \"WEB_EXIT=$?\")",
+      "Bash(echo \"E2E_EXIT=$?\")"
     ]
   }
 }

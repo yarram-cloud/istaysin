@@ -6,12 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2, LayoutDashboard, BedDouble, CalendarDays, Users, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
-  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield, Languages
+  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield, Languages, Lock
 } from 'lucide-react';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { NextIntlClientProvider, useTranslations } from 'next-intl';
 import { PropertyTypeProvider, type PropertyType } from '@/lib/property-context';
 import { apiFetch } from '@/lib/api';
+import { type PlanCode, PLAN_LABELS, hasAccess } from '@/lib/plan-gate';
 
 const DASHBOARD_LOCALES = [
   { code: 'en', label: 'English', native: 'English' },
@@ -40,47 +41,48 @@ const sidebarGroups = [
   {
     category: 'Management', i18nKey: 'management',
     links: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Overview', i18nKey: 'overview' },
-      { href: '/dashboard/rooms', icon: BedDouble, label: 'Rooms', i18nKey: 'rooms' },
-      { href: '/dashboard/bookings', icon: CalendarDays, label: 'Bookings', i18nKey: 'bookings' },
-      { href: '/dashboard/guests', icon: Users, label: 'Guests', i18nKey: 'guests' },
-      { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics', i18nKey: 'analytics' },
+      { href: '/dashboard',           icon: LayoutDashboard, label: 'Overview',       i18nKey: 'overview',       requiredPlan: 'free' as PlanCode },
+      { href: '/dashboard/rooms',     icon: BedDouble,       label: 'Rooms',          i18nKey: 'rooms',          requiredPlan: 'free' as PlanCode },
+      { href: '/dashboard/bookings',  icon: CalendarDays,    label: 'Bookings',       i18nKey: 'bookings',       requiredPlan: 'free' as PlanCode },
+      { href: '/dashboard/guests',    icon: Users,           label: 'Guests',         i18nKey: 'guests',         requiredPlan: 'free' as PlanCode },
+      { href: '/dashboard/analytics', icon: BarChart3,       label: 'Analytics',      i18nKey: 'analytics',      requiredPlan: 'basic' as PlanCode },
     ]
   },
   {
     category: 'Front Desk', i18nKey: 'frontDesk',
     links: [
-      { href: '/dashboard/front-desk/shifts', icon: Clock, label: 'Staff Shifts', i18nKey: 'staffShifts' },
-      { href: '/dashboard/night-audit', icon: ClipboardList, label: 'Night Audit', i18nKey: 'nightAudit' },
-      { href: '/dashboard/rooms/calendar', icon: CalendarDays, label: 'Room Calendar', i18nKey: 'roomCalendar' },
-      { href: '/dashboard/housekeeping', icon: Sparkles, label: 'Housekeeping', i18nKey: 'housekeeping' },
-      { href: '/dashboard/reviews', icon: Star, label: 'Reviews', i18nKey: 'reviews' },
-      { href: '/dashboard/billing', icon: CreditCard, label: 'Billing', i18nKey: 'billing' },
-      { href: '/dashboard/compliance/register', icon: Shield, label: 'Compliance', i18nKey: 'compliance' },
+      { href: '/dashboard/front-desk/shifts', icon: Clock,          label: 'Staff Shifts',  i18nKey: 'staffShifts',   requiredPlan: 'basic' as PlanCode },
+      { href: '/dashboard/night-audit',       icon: ClipboardList,  label: 'Night Audit',   i18nKey: 'nightAudit',    requiredPlan: 'free' as PlanCode },
+      { href: '/dashboard/rooms/calendar',    icon: CalendarDays,   label: 'Room Calendar', i18nKey: 'roomCalendar',  requiredPlan: 'free' as PlanCode },
+      { href: '/dashboard/housekeeping',      icon: Sparkles,       label: 'Housekeeping',  i18nKey: 'housekeeping',  requiredPlan: 'free' as PlanCode },
+      { href: '/dashboard/reviews',           icon: Star,           label: 'Reviews',       i18nKey: 'reviews',       requiredPlan: 'basic' as PlanCode },
+      { href: '/dashboard/billing',           icon: CreditCard,     label: 'Billing',       i18nKey: 'billing',       requiredPlan: 'basic' as PlanCode },
+      { href: '/dashboard/compliance/register', icon: Shield,       label: 'Compliance',    i18nKey: 'compliance',    requiredPlan: 'basic' as PlanCode },
     ]
   },
   {
     category: 'Sales & Marketing', i18nKey: 'salesMarketing',
     links: [
-      { href: '/dashboard/channels', icon: Network, label: 'Channel Manager', i18nKey: 'channelManager' },
-      { href: '/dashboard/pricing', icon: TrendingUp, label: 'Pricing Engine', i18nKey: 'pricingEngine' },
-      { href: '/dashboard/coupons', icon: Tag, label: 'Coupons', i18nKey: 'coupons' },
-      { href: '/dashboard/website', icon: Globe, label: 'Website Builder', i18nKey: 'websiteBuilder' },
+      { href: '/dashboard/channels', icon: Network,    label: 'Channel Manager', i18nKey: 'channelManager', requiredPlan: 'enterprise' as PlanCode },
+      { href: '/dashboard/pricing',  icon: TrendingUp, label: 'Pricing Engine',  i18nKey: 'pricingEngine',  requiredPlan: 'professional' as PlanCode },
+      { href: '/dashboard/coupons',  icon: Tag,        label: 'Coupons',         i18nKey: 'coupons',        requiredPlan: 'basic' as PlanCode },
+      { href: '/dashboard/website',  icon: Globe,      label: 'Website Builder', i18nKey: 'websiteBuilder', requiredPlan: 'basic' as PlanCode },
     ]
   },
   {
     category: 'System', i18nKey: 'system',
     links: [
-      { href: '/dashboard/settings', icon: Settings, label: 'Settings', i18nKey: 'settings' },
+      { href: '/dashboard/settings', icon: Settings, label: 'Settings', i18nKey: 'settings', requiredPlan: 'free' as PlanCode },
     ]
   }
 ];
 
-const planLabels: Record<string, string> = {
-  free: 'Free Plan',
-  basic: 'Basic Plan',
+// Sidebar badge labels (longer display text than PLAN_LABELS)
+const SIDEBAR_PLAN_BADGE: Record<string, string> = {
+  free:         'Free Plan',
+  basic:        'Starter Plan',
   professional: 'Professional',
-  enterprise: 'Enterprise',
+  enterprise:   'Enterprise',
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -191,7 +193,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium truncate">{propertyName}</p>
-                <p className="text-xs text-primary-400 font-semibold uppercase tracking-wider">{planLabels[plan] || plan}</p>
+                <p className="text-xs text-primary-400 font-semibold uppercase tracking-wider">{SIDEBAR_PLAN_BADGE[plan] || plan}</p>
               </div>
               <div className="w-6 h-6 rounded-md flex items-center justify-center bg-surface-800 group-hover:bg-primary-900 transition-colors">
                 <Settings className="w-3.5 h-3.5 text-surface-400 group-hover:text-primary-300" />
@@ -209,6 +211,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="space-y-1">
                   {group.links.map((link) => {
                     const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href));
+                    const locked = !hasAccess(plan, link.requiredPlan);
+                    const requiredLabel = PLAN_LABELS[link.requiredPlan];
+
+                    if (locked) {
+                      return (
+                        <button
+                          key={link.href}
+                          onClick={() => {
+                            toast(`${link.label} requires the ${requiredLabel} plan`, {
+                              description: `Upgrade to unlock this feature.`,
+                              action: {
+                                label: 'Upgrade →',
+                                onClick: () => window.open('/pricing', '_blank', 'noopener,noreferrer'),
+                              },
+                              duration: 4000,
+                            });
+                          }}
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium w-full text-left text-surface-600 opacity-60 cursor-not-allowed hover:opacity-80 transition-opacity"
+                        >
+                          <link.icon className="w-5 h-5" />
+                          <span className="flex-1">{messages?.Dashboard?.sidebar?.[link.i18nKey] || link.label}</span>
+                          <Lock className="w-3.5 h-3.5 text-surface-500 shrink-0" />
+                        </button>
+                      );
+                    }
+
                     return (
                       <Link key={link.href} href={link.href}
                         className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

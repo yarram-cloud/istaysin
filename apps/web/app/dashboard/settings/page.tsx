@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt, TrendingUp, FileText, Layers, BedDouble, Key } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Users, CreditCard, Palette, Plus, X, Loader2, Trash2, Save, Globe, Receipt, TrendingUp, FileText, Layers, BedDouble, Key, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -12,14 +12,18 @@ import { ComplianceSettings } from './compliance';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
+import { type PlanCode, PLAN_LABELS, hasAccess, getCurrentPlan } from '@/lib/plan-gate';
 
 const LocationPicker = dynamic(() => import('./location-picker'), { ssr: false });
 
 export default function SettingsPage() {
   const t = useTranslations('Dashboard');
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [plan, setPlan] = useState('free');
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => { setPlan(getCurrentPlan()); }, []);
 
   // Auto-open a section when arriving from the setup guide (?section=xxx&from_setup=1)
   useEffect(() => {
@@ -30,15 +34,15 @@ export default function SettingsPage() {
     }
   }, [searchParams]);
 
-  const sections = [
-    { id: 'property', icon: Building2, title: 'Property Details', desc: 'Name, address, type, contact info, check-in/out times' },
-    { id: 'inventory', icon: Building2, title: 'Property Inventory', desc: 'Floors, room types, rooms & pricing — all in one place', href: '/dashboard/settings/inventory' },
-    { id: 'domain', icon: Globe, title: 'Domain Settings', desc: 'Subdomain, custom domain, and DNS configuration' },
-    { id: 'billing', icon: Receipt, title: 'Billing & Taxes', desc: 'GST settings, invoicing details' },
-    { id: 'competitor', icon: TrendingUp, title: 'Rate Comparison', desc: 'Manage your direct booking rate widget (OTA comparisons)' },
-    { id: 'compliance', icon: FileText, title: 'Local Compliance', desc: 'Police Register (Sarai Act) and FRRO Settings' },
-    { id: 'staff', icon: Users, title: 'Staff Management', desc: 'Invite and manage staff members with role-based access' },
-    { id: 'subscription', icon: CreditCard, title: 'Subscription', desc: 'View and manage your istaysin plan' },
+  const sections: { id: string; icon: any; title: string; desc: string; href?: string; requiredPlan?: PlanCode }[] = [
+    { id: 'property',     icon: Building2, title: 'Property Details',   desc: 'Name, address, type, contact info, check-in/out times' },
+    { id: 'inventory',   icon: Building2, title: 'Property Inventory',  desc: 'Floors, room types, rooms & pricing — all in one place', href: '/dashboard/settings/inventory' },
+    { id: 'domain',      icon: Globe,     title: 'Domain Settings',     desc: 'Subdomain, custom domain, and DNS configuration',    requiredPlan: 'basic' },
+    { id: 'billing',     icon: Receipt,   title: 'Billing & Taxes',     desc: 'GST settings, invoicing details' },
+    { id: 'competitor',  icon: TrendingUp, title: 'Rate Comparison',    desc: 'Manage your direct booking rate widget (OTA comparisons)' },
+    { id: 'compliance',  icon: FileText,  title: 'Local Compliance',    desc: 'Police Register (Sarai Act) and FRRO Settings' },
+    { id: 'staff',       icon: Users,     title: 'Staff Management',    desc: 'Invite and manage staff members with role-based access', requiredPlan: 'basic' },
+    { id: 'subscription', icon: CreditCard, title: 'Subscription',     desc: 'View and manage your istaysin plan' },
   ];
 
   return (
@@ -53,18 +57,40 @@ export default function SettingsPage() {
         <div className="grid md:grid-cols-2 gap-6">
           {sections.map((section) => {
             const Icon = section.icon;
+            const locked = !!(section.requiredPlan && !hasAccess(plan, section.requiredPlan));
+            const requiredLabel = section.requiredPlan ? PLAN_LABELS[section.requiredPlan] : '';
             return (
               <button key={section.id} onClick={() => {
+                  if (locked) {
+                    toast(`${section.title} requires the ${requiredLabel} plan`, {
+                      description: 'Upgrade to unlock this feature.',
+                      action: {
+                        label: 'Upgrade →',
+                        onClick: () => window.open('/pricing', '_blank', 'noopener,noreferrer'),
+                      },
+                      duration: 4000,
+                    });
+                    return;
+                  }
                   if (section.href) {
                     router.push(section.href);
                   } else {
                     setActiveSection(section.id);
                   }
                 }}
-                className="bg-white p-6 border border-surface-200 rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 transition-all cursor-pointer group text-left">
+                className={`bg-white p-6 border rounded-2xl shadow-sm hover:shadow-md transition-all text-left relative ${
+                  locked ? 'border-surface-200 opacity-70 cursor-not-allowed' : 'border-surface-200 hover:border-primary-200 cursor-pointer group'
+                }`}>
+                {locked && (
+                  <span className="absolute top-3 right-3 flex items-center gap-1 bg-surface-100 text-surface-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-surface-200">
+                    <Lock className="w-2.5 h-2.5" /> {requiredLabel}+
+                  </span>
+                )}
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Icon className="w-5 h-5 text-primary-600" />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    locked ? 'bg-surface-100 border border-surface-200' : 'bg-primary-50 border border-primary-100 group-hover:scale-110 transition-transform'
+                  }`}>
+                    <Icon className={`w-5 h-5 ${locked ? 'text-surface-400' : 'text-primary-600'}`} />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-surface-900 mb-1">{section.title}</h3>

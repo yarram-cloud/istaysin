@@ -3,37 +3,44 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Building2, MapPin, Users, CalendarDays, Search, ChevronRight,
+  Building2, MapPin, Users, CalendarDays, Search,
+  ChevronRight, BedDouble, SlidersHorizontal,
 } from 'lucide-react';
 import { platformApi } from '@/lib/api';
 
 interface Tenant {
-  id: string;
-  name: string;
-  slug: string;
-  status: string;
-  plan: string;
-  propertyType: string;
-  city?: string;
-  state?: string;
-  createdAt: string;
+  id: string; name: string; slug: string; status: string; plan: string;
+  propertyType: string; city?: string; state?: string; createdAt: string;
   owner: { fullName: string; email: string };
   _count: { rooms: number; bookings: number; memberships: number };
 }
 
+const STATUS_STYLE: Record<string, { pill: string; dot: string }> = {
+  pending_approval: { pill: 'bg-amber-500/15 text-amber-300 border-amber-500/25',   dot: 'bg-amber-400' },
+  active:           { pill: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25', dot: 'bg-emerald-400' },
+  suspended:        { pill: 'bg-red-500/15 text-red-300 border-red-500/25',          dot: 'bg-red-400' },
+};
+
+const PLAN_STYLE: Record<string, string> = {
+  free:         'bg-surface-700/80 text-surface-300 border-surface-600/40',
+  basic:        'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',
+  professional: 'bg-blue-500/15 text-blue-300 border-blue-500/25',
+  enterprise:   'bg-amber-500/15 text-amber-300 border-amber-500/25',
+};
+
 export default function AdminTenantsPage() {
   const router = useRouter();
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [tenants, setTenants]         = useState<Tenant[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage]               = useState(1);
+  const [totalPages, setTotalPages]   = useState(1);
 
   function fetchTenants() {
     setLoading(true);
     const params: Record<string, string> = { page: String(page), limit: '15' };
-    if (search) params.search = search;
+    if (search)       params.search = search;
     if (statusFilter) params.status = statusFilter;
 
     platformApi.getTenants(params)
@@ -53,139 +60,164 @@ export default function AdminTenantsPage() {
     fetchTenants();
   }
 
-  const statusColors: Record<string, string> = {
-    pending_approval: 'bg-amber-500/15 text-amber-300',
-    active: 'bg-emerald-500/15 text-emerald-300',
-    suspended: 'bg-red-500/15 text-red-300',
-  };
-
-  const planColors: Record<string, string> = {
-    free: 'bg-surface-700 text-surface-300',
-    starter: 'bg-blue-500/15 text-blue-300',
-    professional: 'bg-purple-500/15 text-purple-300',
-    enterprise: 'bg-amber-500/15 text-amber-300',
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-display font-bold">All Properties</h1>
-        <p className="text-surface-400 text-sm mt-1">Manage all registered properties on the platform</p>
+        <h1 className="text-3xl font-display font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+          All Properties
+        </h1>
+        <p className="text-surface-400 text-sm mt-1.5">
+          Manage all registered properties on the platform
+        </p>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <form onSubmit={handleSearch} className="flex-1 relative">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-surface-500" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, slug, or city..."
-            className="input-field pl-10 w-full bg-surface-800/50"
+            placeholder="Search by name, slug, or city…"
+            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-surface-900/80 border border-white/[0.08] text-white text-sm
+              focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 focus:outline-none
+              placeholder-surface-600 transition-all"
           />
         </form>
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="input-field bg-surface-800/50 w-full sm:w-40"
-        >
-          <option value="">All Status</option>
-          <option value="active">Active</option>
-          <option value="pending_approval">Pending</option>
-          <option value="suspended">Suspended</option>
-        </select>
+        <div className="relative">
+          <SlidersHorizontal className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500 pointer-events-none" />
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            className="pl-9 pr-8 py-2.5 rounded-xl bg-surface-900/80 border border-white/[0.08] text-white text-sm
+              focus:border-primary-500/50 focus:outline-none appearance-none w-full sm:w-44
+              transition-all cursor-pointer"
+          >
+            <option value="" className="bg-surface-900">All Status</option>
+            <option value="active" className="bg-surface-900">Active</option>
+            <option value="pending_approval" className="bg-surface-900">Pending</option>
+            <option value="suspended" className="bg-surface-900">Suspended</option>
+          </select>
+        </div>
       </div>
 
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <div className="w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : tenants.length === 0 ? (
+        <div className="text-center py-20 rounded-2xl border border-white/[0.06] bg-surface-900/30">
+          <Building2 className="w-14 h-14 text-surface-700 mx-auto mb-4" />
+          <p className="text-white font-semibold">No properties found</p>
+          <p className="text-surface-500 text-sm mt-1">Try adjusting your filters</p>
         </div>
       ) : (
         <>
-          <div className="glass-card rounded-2xl border border-white/[0.06] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/[0.06]">
-                    <th className="text-left px-5 py-3 font-medium text-surface-400">Property</th>
-                    <th className="text-left px-5 py-3 font-medium text-surface-400 hidden md:table-cell">Location</th>
-                    <th className="text-left px-5 py-3 font-medium text-surface-400">Status</th>
-                    <th className="text-left px-5 py-3 font-medium text-surface-400 hidden lg:table-cell">Plan</th>
-                    <th className="text-center px-5 py-3 font-medium text-surface-400 hidden lg:table-cell">Rooms</th>
-                    <th className="text-center px-5 py-3 font-medium text-surface-400 hidden lg:table-cell">Bookings</th>
-                    <th className="text-center px-5 py-3 font-medium text-surface-400 hidden lg:table-cell">Staff</th>
-                    <th className="text-left px-5 py-3 font-medium text-surface-400 hidden xl:table-cell">Owner</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tenants.map((t) => (
-                    <tr key={t.id} onClick={() => router.push(`/admin/tenants/${t.id}`)} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors cursor-pointer">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-primary-600/20 flex items-center justify-center shrink-0">
-                            <Building2 className="w-4 h-4 text-primary-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium truncate max-w-[180px]">{t.name}</p>
-                            <p className="text-xs text-surface-500">{t.propertyType}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 hidden md:table-cell">
-                        <div className="flex items-center gap-1.5 text-surface-400 text-xs">
-                          <MapPin className="w-3 h-3" />
-                          <span>{[t.city, t.state].filter(Boolean).join(', ') || '—'}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[t.status] || 'bg-surface-700 text-surface-300'}`}>
-                          {t.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${planColors[t.plan] || 'bg-surface-700 text-surface-300'}`}>
-                          {t.plan}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-center hidden lg:table-cell text-surface-400">{t._count.rooms}</td>
-                      <td className="px-5 py-3.5 text-center hidden lg:table-cell text-surface-400">{t._count.bookings}</td>
-                      <td className="px-5 py-3.5 text-center hidden lg:table-cell text-surface-400">{t._count.memberships}</td>
-                      <td className="px-5 py-3.5 hidden xl:table-cell">
-                        <p className="text-xs text-surface-300 truncate max-w-[140px]">{t.owner.fullName}</p>
-                        <p className="text-xs text-surface-500 truncate max-w-[140px]">{t.owner.email}</p>
-                      </td>
-                      <td className="px-3 py-3.5">
-                        <ChevronRight className="w-4 h-4 text-surface-600" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="rounded-2xl border border-white/[0.08] bg-surface-900/50 overflow-hidden">
+            {/* Table Head */}
+            <div className="hidden lg:grid lg:grid-cols-[minmax(200px,2fr)_minmax(160px,1.5fr)_120px_100px_60px_72px_60px_minmax(140px,1fr)_36px] gap-0 px-5 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+              {['Property', 'Location', 'Status', 'Plan', 'Rooms', 'Bookings', 'Staff', 'Owner', ''].map((h) => (
+                <span key={h} className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">{h}</span>
+              ))}
+            </div>
+
+            {/* Rows */}
+            <div className="divide-y divide-white/[0.04]">
+              {tenants.map((t) => {
+                const s = STATUS_STYLE[t.status] || { pill: 'bg-surface-700 text-surface-300 border-surface-600/40', dot: 'bg-surface-500' };
+                const p = PLAN_STYLE[t.plan]   || 'bg-surface-700/80 text-surface-300 border-surface-600/40';
+
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => router.push(`/admin/tenants/${t.id}`)}
+                    className="grid grid-cols-1 lg:grid-cols-[minmax(200px,2fr)_minmax(160px,1.5fr)_120px_100px_60px_72px_60px_minmax(140px,1fr)_36px]
+                      gap-3 lg:gap-0 px-5 py-4 hover:bg-white/[0.025] cursor-pointer transition-colors group"
+                  >
+                    {/* Property */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500/20 to-primary-600/5 border border-primary-500/20 flex items-center justify-center shrink-0">
+                        <Building2 className="w-4 h-4 text-primary-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white text-sm truncate">{t.name}</p>
+                        <p className="text-xs text-surface-500 capitalize">{t.propertyType}</p>
+                      </div>
+                    </div>
+
+                    {/* Location */}
+                    <div className="flex items-center gap-1.5 text-surface-400 text-xs">
+                      <MapPin className="w-3.5 h-3.5 shrink-0 text-surface-600" />
+                      <span className="truncate">{[t.city, t.state].filter(Boolean).join(', ') || '—'}</span>
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border font-semibold ${s.pill}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                        {t.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    {/* Plan */}
+                    <div className="flex items-center">
+                      <span className={`text-[11px] px-2.5 py-1 rounded-full border font-bold uppercase tracking-wide ${p}`}>
+                        {t.plan}
+                      </span>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex items-center gap-1 text-surface-400 text-xs lg:justify-center">
+                      <BedDouble className="w-3 h-3 text-surface-600 lg:hidden" />
+                      <span className="font-medium text-white/70">{t._count.rooms}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-surface-400 text-xs lg:justify-center">
+                      <CalendarDays className="w-3 h-3 text-surface-600 lg:hidden" />
+                      <span className="font-medium text-white/70">{t._count.bookings}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-surface-400 text-xs lg:justify-center">
+                      <Users className="w-3 h-3 text-surface-600 lg:hidden" />
+                      <span className="font-medium text-white/70">{t._count.memberships}</span>
+                    </div>
+
+                    {/* Owner */}
+                    <div className="min-w-0">
+                      <p className="text-xs text-surface-300 font-medium truncate">{t.owner.fullName}</p>
+                      <p className="text-[11px] text-surface-500 truncate">{t.owner.email}</p>
+                    </div>
+
+                    {/* Chevron */}
+                    <div className="hidden lg:flex items-center justify-center">
+                      <ChevronRight className="w-4 h-4 text-surface-600 group-hover:text-surface-400 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-3">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg text-sm bg-surface-800 text-surface-400 hover:text-white disabled:opacity-40 transition-colors"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-surface-900 border border-white/[0.08] text-surface-400 hover:text-white hover:border-white/[0.16] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                Previous
+                ← Previous
               </button>
-              <span className="text-sm text-surface-500">
-                Page {page} of {totalPages}
+              <span className="text-sm text-surface-500 tabular-nums">
+                Page <strong className="text-white">{page}</strong> of {totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-3 py-1.5 rounded-lg text-sm bg-surface-800 text-surface-400 hover:text-white disabled:opacity-40 transition-colors"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-surface-900 border border-white/[0.08] text-surface-400 hover:text-white hover:border-white/[0.16] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                Next
+                Next →
               </button>
             </div>
           )}

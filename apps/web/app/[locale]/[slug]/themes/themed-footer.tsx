@@ -24,7 +24,8 @@ export default function ThemedFooter({
     { href: '#amenities', label: t('amenities') }
   ];
 
-  const currentYear = new Date().getFullYear();
+  // Use IST for the displayed year so an SSR build in another timezone doesn't show the wrong year right around midnight India time.
+  const currentYear = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric' });
 
   // CMS overrides take priority over property-level fallbacks
   const email: string = contact?.email || property.contactEmail || '';
@@ -32,7 +33,7 @@ export default function ThemedFooter({
   const address: string = contact?.address || property.address || '';
   const copyrightText: string =
     (config.text && String(config.text).trim()) ||
-    `© ${currentYear} ${property.name}. All rights reserved.`;
+    `© ${currentYear} ${property.name}. ${t('allRightsReserved')}`;
 
   const socialLinks: Record<string, string> = config.socialLinks || {};
   const socialItems: Array<{ key: string; href: string; Icon: any; label: string }> = [
@@ -41,10 +42,12 @@ export default function ThemedFooter({
     { key: 'twitter', href: socialLinks.twitter || '', Icon: Twitter, label: 'Twitter / X' },
   ].filter((s) => s.href.trim().length > 0);
 
+  // Wrapper around the icon row uses opacity so we don't depend on Tailwind's
+  // currentColor alpha modifier (`border-current/20`) which is flaky in older browsers.
   const SocialBar = () => {
     if (socialItems.length === 0) return null;
     return (
-      <div className="flex items-center justify-center gap-4 mt-10">
+      <div className="flex items-center justify-center gap-3 mt-10 opacity-70 hover:opacity-100 transition-opacity">
         {socialItems.map(({ key, href, Icon, label }) => (
           <a
             key={key}
@@ -52,9 +55,9 @@ export default function ThemedFooter({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={label}
-            className="w-10 h-10 rounded-full border border-current/20 flex items-center justify-center hover:bg-current/10 transition-colors opacity-80 hover:opacity-100"
+            className="w-11 h-11 rounded-full border border-current flex items-center justify-center hover:bg-brand hover:text-white hover:border-brand transition-colors"
           >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-4 h-4" aria-hidden="true" />
           </a>
         ))}
       </div>

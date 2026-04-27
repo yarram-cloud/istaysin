@@ -88,8 +88,20 @@ export default async function PropertyLayout({
     .property-theme-text { color: var(--property-primary); }
     .property-theme-border { border-color: var(--property-primary); }
     .property-theme-hover:hover { filter: brightness(1.1); }
+
+    /* Reusable gradient utility that uses both brand colors. Themes can opt in via class. */
+    .brand-gradient-bg {
+      background-image: linear-gradient(135deg, var(--brand-color) 0%, var(--brand-color-secondary) 100%);
+    }
+    .brand-gradient-text {
+      background-image: linear-gradient(135deg, var(--brand-color) 0%, var(--brand-color-secondary) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
   `;
 
+  // No <main> here — PropertyLayoutClient owns the main landmark to avoid nested <main> elements.
   return (
     <NextIntlClientProvider messages={messages}>
       <div className="min-h-screen bg-surface-50 text-surface-900 font-sans flex flex-col">
@@ -97,7 +109,7 @@ export default async function PropertyLayout({
         {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
         {headScripts && <HtmlInjector html={headScripts} location="head" />}
 
-        <main className="flex-1 w-full">{children}</main>
+        {children}
 
         {bodyScripts && <HtmlInjector html={bodyScripts} location="body" />}
       </div>

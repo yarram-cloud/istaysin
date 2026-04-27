@@ -5,6 +5,7 @@ import { complianceApi } from '@/lib/api';
 import { Printer, Send, Loader2, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import PlanGate from '@/app/dashboard/_components/plan-gate';
 
 export default function ComplianceRegisterPage() {
   const t = useTranslations('Dashboard');
@@ -60,6 +61,7 @@ export default function ComplianceRegisterPage() {
   }
 
   return (
+    <PlanGate requiredPlan="basic" featureName="Compliance Register">
     <div className="space-y-6 print:m-0 print:p-0 print:bg-white print:text-black">
       <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: A4 landscape; margin: 10mm; } }' }} />
       {/* Header - Screen Only */}
@@ -192,5 +194,6 @@ export default function ComplianceRegisterPage() {
         </div>
       </div>
     </div>
+    </PlanGate>
   );
 }

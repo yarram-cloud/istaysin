@@ -229,26 +229,25 @@ const DEFAULT_PLANS = [
   { code: 'enterprise',   name: 'Enterprise',    actualPrice: 9999,  discountMonthly: 6999, discountYearly: 5999, features: ['Everything in Pro', 'WhatsApp Automation', 'Multi-Property', 'Dedicated Support', 'API Access'] },
 ];
 
-/** Auto-seed plans if the table is empty */
+/** Auto-seed / sync plans — idempotent, never throws on existing records */
 async function ensurePlansSeeded() {
-  const count = await prisma.saasPlan.count();
-  if (count === 0) {
-    for (const plan of DEFAULT_PLANS) {
-      await prisma.saasPlan.create({
-        data: {
-          code: plan.code,
-          name: plan.name,
-          actualPrice: plan.actualPrice,
-          discountMonthly: plan.discountMonthly,
-          discountYearly: plan.discountYearly,
-          features: plan.features,
-          isActive: true,
-        },
-      });
-    }
-    console.log('[PLATFORM] Seeded 4 default SaaS plans');
+  for (const plan of DEFAULT_PLANS) {
+    await prisma.saasPlan.upsert({
+      where: { code: plan.code },
+      update: {}, // never overwrite admin-edited prices on restart
+      create: {
+        code: plan.code,
+        name: plan.name,
+        actualPrice: plan.actualPrice,
+        discountMonthly: plan.discountMonthly,
+        discountYearly: plan.discountYearly,
+        features: plan.features,
+        isActive: true,
+      },
+    });
   }
 }
+
 
 // GET /platform/plans — list all SaaS plans
 platformRouter.get('/plans', async (_req: Request, res: Response) => {

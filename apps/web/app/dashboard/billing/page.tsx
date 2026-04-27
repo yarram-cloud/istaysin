@@ -5,6 +5,7 @@ import { CreditCard, Search, IndianRupee, FileText, Printer, Download, Clock } f
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { billingApi } from '@/lib/api';
+import PlanGate from '@/app/dashboard/_components/plan-gate';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -60,6 +61,7 @@ export default function BillingPage() {
   };
 
   return (
+    <PlanGate requiredPlan="basic" featureName="Billing & GST Invoicing">
     <div className="space-y-6">
       {/* Print Header (Visible only in print) */}
       <div className="hidden print:block invoice-header">
@@ -214,5 +216,6 @@ export default function BillingPage() {
         {t('computerGeneratedFooter')}
       </div>
     </div>
+    </PlanGate>
   );
 }

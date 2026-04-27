@@ -16,12 +16,16 @@ async function loginAndGetTokens(request: APIRequestContext) {
   return { token: body.data?.accessToken as string, tenantId: body.data?.tenantId as string };
 }
 
-async function injectAuth(page: Page, token: string, tenantId: string) {
-  await page.addInitScript(({ token, tenantId }) => {
+async function injectAuth(page: Page, token: string, tenantId: string, plan: string = 'basic') {
+  await page.addInitScript(({ token, tenantId, plan }) => {
     localStorage.setItem('accessToken', token);
     localStorage.setItem('tenantId', tenantId);
+    // Populate memberships so PlanGate components can read the plan tier
+    localStorage.setItem('memberships', JSON.stringify([
+      { tenant: { id: tenantId, plan } }
+    ]));
     document.cookie = `accessToken=${token}; path=/; max-age=86400; SameSite=Lax`;
-  }, { token, tenantId });
+  }, { token, tenantId, plan });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

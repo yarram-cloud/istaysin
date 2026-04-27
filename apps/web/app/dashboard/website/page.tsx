@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
+import PlanGate from '@/app/dashboard/_components/plan-gate';
 
 // Curated hospitality icons for the visual picker
 const HOSPITALITY_ICONS: { id: string; label: string; icon: any }[] = [
@@ -290,6 +291,7 @@ export default function WebsiteBuilderPage() {
   ];
 
   return (
+    <PlanGate requiredPlan="basic" featureName="Website Builder">
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
       <SetupNextStepBanner />
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-surface-200 shadow-sm">
@@ -403,7 +405,7 @@ export default function WebsiteBuilderPage() {
                       </div>
                       <p className="text-xs text-surface-500 leading-relaxed">
                         Your brand colors. <strong>Primary</strong> drives buttons, links, and accents across the live site.
-                        <strong> Secondary</strong> is used for hover states and gradient endpoints.
+                        <strong> Secondary</strong> is exposed as a CSS variable + gradient utility that themes use for hover states and gradient endpoints.
                       </p>
                     </div>
                     <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1235,6 +1237,7 @@ export default function WebsiteBuilderPage() {
 
           {/* 20. Domain — deep-links to the real domain mapping settings */}
           {activeTab === 'domain' && (
+            <PlanGate requiredPlan="enterprise" featureName="Custom Domain Mapping">
             <div className="space-y-6 animate-fade-in">
               <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">20. Custom Domain Mapping</h2>
               <div className="p-8 bg-surface-50 rounded-2xl border border-surface-200 shadow-sm text-center max-w-2xl mx-auto mt-8">
@@ -1263,10 +1266,12 @@ export default function WebsiteBuilderPage() {
                  </div>
               </div>
             </div>
+            </PlanGate>
           )}
 
         </div>
       </div>
     </div>
+    </PlanGate>
   );
 }
