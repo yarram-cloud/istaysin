@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Shield, LayoutDashboard, Building2, ClipboardCheck, LogOut, Menu, X,
+  Shield, LayoutDashboard, Building2, ClipboardCheck, LogOut, Menu, X, Settings,
 } from 'lucide-react';
 
 const adminLinks = [
   { href: '/admin', icon: LayoutDashboard, label: 'Overview' },
   { href: '/admin/registrations', icon: ClipboardCheck, label: 'Approvals' },
   { href: '/admin/tenants', icon: Building2, label: 'All Properties' },
+  { href: '/admin/settings', icon: Settings, label: 'Platform Settings' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

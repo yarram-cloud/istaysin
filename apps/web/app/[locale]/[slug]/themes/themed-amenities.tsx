@@ -31,7 +31,7 @@ export default function ThemedAmenities({ config, themeTokens }: { config: any, 
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-surface-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
         <div className="max-w-[1400px] mx-auto px-8">
           <div className="flex flex-col items-center mb-20 relative z-10">
-            <span className={`px-6 py-2 rounded-full ${themeTokens.primaryBg}/10 ${themeTokens.primaryText} font-bold tracking-widest uppercase text-xs mb-6`}>Features</span>
+            <span className={`px-6 py-2 rounded-full bg-brand/10 text-brand font-bold tracking-widest uppercase text-xs mb-6`}>Features</span>
             <h2 className={`text-5xl lg:text-[4rem] font-black text-surface-900 leading-tight text-center ${themeTokens.fontHeadingClass}`}>{config.title || t('facilities')}</h2>
           </div>
           

@@ -14,12 +14,12 @@ export default function ThemedNearby({ config, themeTokens }: { config: any, the
     return (
       <section className="py-32 bg-white relative overflow-hidden">
         {/* Playful Map Background Context */}
-        <div className={`absolute top-0 left-0 w-full h-[60vh] ${themeTokens.primaryBg}/5 -skew-y-3 transform-gpu z-0 opacity-50`} />
+        <div className={`absolute top-0 left-0 w-full h-[60vh] bg-brand/5 -skew-y-3 transform-gpu z-0 opacity-50`} />
         
         <div className="max-w-[1400px] mx-auto px-8 relative z-10">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-24 gap-10">
             <div className="max-w-3xl">
-              <span className={`inline-block px-5 py-2 rounded-full ${themeTokens.primaryBg}/10 ${themeTokens.primaryBg.replace('bg-', 'text-')} text-xs font-black tracking-widest uppercase mb-6 shadow-sm`}>Location</span>
+              <span className={`inline-block px-5 py-2 rounded-full bg-brand/10 text-brand text-xs font-black tracking-widest uppercase mb-6 shadow-sm`}>Location</span>
               <h3 className={`text-6xl font-black text-surface-950 leading-none tracking-tight ${themeTokens.fontHeadingClass}`}>{config.title || t('inTheNeighborhood')}</h3>
             </div>
             <div className={`w-20 h-20 rounded-[2rem] ${themeTokens.primaryBg} text-white flex items-center justify-center shadow-2xl rotate-12 hover:rotate-0 transition-transform duration-500`}>

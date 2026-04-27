@@ -19,7 +19,7 @@ export default function ThemedGallery({ config, themeTokens }: { config: any, th
         <div className="max-w-[1400px] mx-auto px-8 relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-end mb-24 gap-8">
             <div className="max-w-2xl">
-              <span className={`inline-block px-5 py-2 rounded-full ${themeTokens.primaryBg}/10 ${themeTokens.primaryBg.replace('bg-', 'text-')} text-xs font-black tracking-widest uppercase mb-6 shadow-sm`}>Visuals</span>
+              <span className={`inline-block px-5 py-2 rounded-full bg-brand/10 text-brand text-xs font-black tracking-widest uppercase mb-6 shadow-sm`}>Visuals</span>
               <h2 className={`text-5xl lg:text-[4.5rem] font-black text-surface-950 leading-tight ${themeTokens.fontHeadingClass}`}>{config.title || t('gallery')}</h2>
             </div>
             <button className={`${themeTokens.primaryBg} ${themeTokens.primaryBgHover} text-white px-10 py-5 rounded-full font-bold text-lg shadow-xl hover:shadow-[0_20px_40px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all`}>

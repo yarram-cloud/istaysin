@@ -13,6 +13,9 @@ const config: Config = {
         brand: {
           DEFAULT: 'rgb(var(--brand-color-rgb) / <alpha-value>)',
         },
+        'brand-secondary': {
+          DEFAULT: 'rgb(var(--brand-color-secondary-rgb) / <alpha-value>)',
+        },
         primary: {
           50: '#f4f7f6',
           100: '#e3ebe8',
@@ -56,6 +59,12 @@ const config: Config = {
       fontFamily: {
         sans: ['Calibri', '"Carlito"', 'system-ui', 'sans-serif'],
         display: ['Calibri', '"Carlito"', '"Playfair Display"', 'Georgia', 'serif'],
+        playfair: ['"Playfair Display"', 'Georgia', 'serif'],
+        montserrat: ['Montserrat', 'system-ui', 'sans-serif'],
+        merriweather: ['Merriweather', 'Georgia', 'serif'],
+        roboto: ['Roboto', 'system-ui', 'sans-serif'],
+        'open-sans': ['"Open Sans"', 'system-ui', 'sans-serif'],
+        lato: ['Lato', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',

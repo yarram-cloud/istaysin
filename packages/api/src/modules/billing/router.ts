@@ -9,25 +9,47 @@ export const billingRouter = Router();
 billingRouter.use(authenticate, resolveTenant, requireTenant);
 
 /**
- * GST calculation per the Sep 2025 slabs.
- * Slab is based on the DECLARED TARIFF (per room per night), NOT the actual charged amount.
- *   ≤ ₹1,000  → exempt (0%)
- *   ₹1,001 – ₹7,500  → 12% (6% CGST + 6% SGST)
- *   > ₹7,500  → 18% (9% CGST + 9% SGST)
- *
- * For non-room charges (food, laundry, etc.), default to 5% GST unless SAC code-specific.
+ * GST calculation.
+ * Room slabs are loaded from PlatformSettings (configurable by global admin).
+ * For non-room charges (food, laundry, etc.), rates remain fixed per SAC code.
  */
-function calculateGst(unitPrice: number, category: string): { rate: number; cgst: number; sgst: number } {
+
+// Default room GST slabs — fallback when PlatformSettings has no custom config
+const DEFAULT_ROOM_GST_SLABS = [
+  { maxRate: 1000,      gstPercent: 0 },
+  { maxRate: 7500,      gstPercent: 12 },
+  { maxRate: 99999999,  gstPercent: 18 },
+];
+
+async function loadRoomGstSlabs(): Promise<{ maxRate: number; gstPercent: number }[]> {
+  try {
+    const settings = await prisma.platformSettings.findUnique({ where: { id: 'global' } });
+    const config = (settings?.config as Record<string, any>) || {};
+    if (Array.isArray(config.gstSlabs) && config.gstSlabs.length > 0) {
+      return config.gstSlabs
+        .map((s: any) => ({ maxRate: Number(s.maxRate), gstPercent: Number(s.gstPercent) }))
+        .sort((a: any, b: any) => a.maxRate - b.maxRate);
+    }
+  } catch (err) {
+    console.error('[BILLING GST SLABS] Failed to load from DB, using defaults', err);
+  }
+  return DEFAULT_ROOM_GST_SLABS;
+}
+
+async function calculateGst(unitPrice: number, category: string): Promise<{ rate: number; cgst: number; sgst: number }> {
   let rate = 0;
 
   if (category === 'room' || category === 'room_upgrade') {
-    // GST slab based on declared tariff (unit price per room per night)
-    if (unitPrice > 7500) {
-      rate = 18;
-    } else if (unitPrice > 1000) {
-      rate = 12;
+    // GST slab based on declared tariff — loaded from PlatformSettings
+    const slabs = await loadRoomGstSlabs();
+    let matched = false;
+    for (const slab of slabs) {
+      if (unitPrice <= slab.maxRate) { rate = slab.gstPercent; matched = true; break; }
     }
-    // ≤ 1000: exempt
+    // If rate exceeds ALL slabs, use the last slab's rate as catch-all
+    if (!matched && slabs.length > 0) {
+      rate = slabs[slabs.length - 1].gstPercent;
+    }
   } else if (category === 'food' || category === 'beverage') {
     rate = 5; // Restaurant services in hotels: 5% without ITC
   } else {
@@ -84,7 +106,7 @@ billingRouter.post('/charge', authorize('property_owner', 'general_manager', 'fr
 
     const data = parsed.data;
     const totalPrice = data.quantity * data.unitPrice;
-    const gst = calculateGst(data.unitPrice, data.category);
+    const gst = await calculateGst(data.unitPrice, data.category);
 
     const result = await withTenant(req.tenantId!, async () => {
       const tenant = await prisma.tenant.findUnique({

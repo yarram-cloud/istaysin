@@ -20,6 +20,8 @@ export default function PropertyLayoutClient({ config, children, property }: { c
   const components = config.components || {};
   const brandColor = property.primaryColor || '#2563eb';
   const brandColorRgb = hexToRgb(brandColor);
+  const secondaryColor = property.secondaryColor || '#38bdf8';
+  const secondaryColorRgb = hexToRgb(secondaryColor);
 
   return (
     <div className="min-h-screen bg-surface-50 flex flex-col font-sans relative selection:bg-black/10">
@@ -29,13 +31,15 @@ export default function PropertyLayoutClient({ config, children, property }: { c
           :root {
             --brand-color: ${brandColor};
             --brand-color-rgb: ${brandColorRgb};
+            --brand-color-secondary: ${secondaryColor};
+            --brand-color-secondary-rgb: ${secondaryColorRgb};
           }
         `
       }} />
       <main className="flex-1 w-full flex flex-col relative z-0">
         {children}
       </main>
-      <ThemedFooter config={components.footer || {}} property={property} themeTokens={themeTokens} />
+      <ThemedFooter config={components.footer || {}} contact={components.contact || {}} property={property} themeTokens={themeTokens} />
     </div>
   );
 }

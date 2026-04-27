@@ -193,10 +193,13 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
       },
       {
         id: 'pricing',
-        completed: pricingCount > 0 || skippedSteps.includes('pricing'),
-        detail: skippedSteps.includes('pricing') ? 'Skipped — can add later' : pricingCount > 0 ? `${pricingCount} pricing rule(s)` : 'No pricing rules yet',
+        completed: pricingCount > 0 || cfg.pricingEnabled === false || skippedSteps.includes('pricing'),
+        detail: cfg.pricingEnabled === false
+          ? 'Disabled — using base room-type rates'
+          : skippedSteps.includes('pricing') ? 'Skipped — can add later'
+          : pricingCount > 0 ? `${pricingCount} pricing rule(s)` : 'No pricing rules yet',
         skippable: true,
-        skipped: skippedSteps.includes('pricing'),
+        skipped: skippedSteps.includes('pricing') || cfg.pricingEnabled === false,
       },
     ];
 
@@ -263,6 +266,8 @@ tenantsRouter.get('/:id/settings', authenticate, resolveTenant, requireTenant, a
     });
 
     let safeConfig = (tenant.config as Record<string, any>) || {};
+    const customPlanPricing = safeConfig.customPlanPricing as Record<string, any> | undefined;
+
     if (safeConfig.razorpaySecret) {
       safeConfig = {
         ...safeConfig,
@@ -270,12 +275,30 @@ tenantsRouter.get('/:id/settings', authenticate, resolveTenant, requireTenant, a
       };
     }
 
+    // Merge per-tenant custom pricing into global plan prices
+    const mergedPlans = saasPlans.map((plan: any) => {
+      if (customPlanPricing && customPlanPricing[plan.code]) {
+        const cp = customPlanPricing[plan.code];
+        return {
+          ...plan,
+          actualPrice: cp.monthlyPrice ?? plan.actualPrice,
+          discountMonthly: cp.discountedPrice ?? plan.discountMonthly,
+          discountYearly: cp.yearlyPrice ?? plan.discountYearly,
+          _hasCustomPricing: true,
+        };
+      }
+      return plan;
+    });
+
+    // Remove internal config from response
+    delete safeConfig.customPlanPricing;
+
     res.json({
       success: true,
       data: {
         ...tenant,
         config: safeConfig,
-        saasPlans
+        saasPlans: mergedPlans
       }
     });
   } catch (err) {

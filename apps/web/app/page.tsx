@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -10,6 +10,7 @@ import {
   Laptop, Smartphone, Sparkles, Zap,
   UserCheck, ShieldCheck,
 } from 'lucide-react';
+import { publicApi } from '@/lib/api';
 
 /* ─── FAQ Accordion Item ─── */
 function FaqItem({ q, a }: { q: string; a: string }) {
@@ -44,8 +45,56 @@ function StatItem({ value, label }: { value: string; label: string }) {
   );
 }
 
+// Hardcoded fallback plan data (matches backend defaults)
+const STATIC_PLANS = [
+  {
+    code: 'free', name: 'Free', highlight: false,
+    actualPrice: 0, monthlyPrice: 0, yearlyPrice: 0,
+    features: ['Up to 5 rooms', '50 bookings/month', 'Basic dashboard', 'yourhotel.istaysin.com', 'Email support'],
+  },
+  {
+    code: 'basic', name: 'Starter', highlight: false,
+    actualPrice: 1999, monthlyPrice: 999, yearlyPrice: 799,
+    features: ['Up to 20 rooms', 'Unlimited bookings', 'Staff management', 'GST invoicing', 'Priority email support'],
+  },
+  {
+    code: 'professional', name: 'Professional', highlight: true,
+    actualPrice: 5999, monthlyPrice: 2999, yearlyPrice: 2499,
+    features: ['Up to 100 rooms', 'Custom domain', 'Advanced analytics', 'Seasonal rates & offers', 'Phone + email support', 'API access'],
+  },
+  {
+    code: 'enterprise', name: 'Enterprise', highlight: false,
+    actualPrice: null, monthlyPrice: null, yearlyPrice: null,
+    features: ['Unlimited rooms', 'OTA integration', 'Multi-property', 'Dedicated account manager', 'SLA guarantee', 'Custom development'],
+  },
+];
+
+function fmt(n: number) {
+  return `₹${n.toLocaleString('en-IN')}`;
+}
+
 export default function LandingPage() {
   const [searchCity, setSearchCity] = useState('');
+  const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const [plans, setPlans] = useState(STATIC_PLANS);
+
+  useEffect(() => {
+    publicApi.getPlans().then((res: any) => {
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setPlans(prev => prev.map(staticPlan => {
+          if (staticPlan.code === 'enterprise') return staticPlan; // always Custom
+          const live = res.data.find((p: any) => p.code === staticPlan.code);
+          if (!live) return staticPlan;
+          return {
+            ...staticPlan,
+            actualPrice: live.actualPrice ?? staticPlan.actualPrice,
+            monthlyPrice: live.discountMonthly ?? staticPlan.monthlyPrice,
+            yearlyPrice: live.discountYearly ?? staticPlan.yearlyPrice,
+          };
+        }));
+      }
+    }).catch(() => { /* keep static fallback */ });
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -350,53 +399,117 @@ export default function LandingPage() {
       <section id="pricing" className="py-20 px-6 bg-surface-50">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-surface-500 mb-16 max-w-xl mx-auto">Start free. Upgrade when you grow. No hidden fees.</p>
+          <p className="text-surface-500 mb-10 max-w-xl mx-auto">Start free. Upgrade when you grow. No hidden fees.</p>
+
+          {/* ── Billing Toggle ── */}
+          <div className="inline-flex items-center gap-1 bg-surface-200 rounded-full p-1 mb-12">
+            <button
+              onClick={() => setBilling('monthly')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                billing === 'monthly'
+                  ? 'bg-white text-surface-900 shadow-sm'
+                  : 'text-surface-500 hover:text-surface-700'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBilling('yearly')}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+                billing === 'yearly'
+                  ? 'bg-white text-surface-900 shadow-sm'
+                  : 'text-surface-500 hover:text-surface-700'
+              }`}
+            >
+              Yearly
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                Save ~20%
+              </span>
+            </button>
+          </div>
 
           <div className="grid md:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {[
-              {
-                name: 'Free', price: '₹0', period: 'forever', highlight: false,
-                features: ['Up to 5 rooms', '50 bookings/month', 'Basic dashboard', 'yourhotel.istaysin.com', 'Email support'],
-              },
-              {
-                name: 'Starter', price: '₹999', period: '/month', highlight: false,
-                features: ['Up to 20 rooms', 'Unlimited bookings', 'Staff management', 'GST invoicing', 'Priority email support'],
-              },
-              {
-                name: 'Professional', price: '₹2,999', period: '/month', highlight: true,
-                features: ['Up to 100 rooms', 'Custom domain', 'Advanced analytics', 'Seasonal rates & offers', 'Phone + email support', 'API access'],
-              },
-              {
-                name: 'Enterprise', price: '₹7,999', period: '/month', highlight: false,
-                features: ['Unlimited rooms', 'OTA integration', 'Multi-property', 'Dedicated account manager', 'SLA guarantee', 'Custom development'],
-              },
-            ].map((plan) => (
-              <div key={plan.name} className={`glass-card p-6 flex flex-col relative ${plan.highlight ? 'border-primary-500 ring-2 ring-primary-100' : ''}`}>
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="px-3 py-1 bg-gradient-to-r from-primary-500 to-accent-500 text-white text-xs font-bold rounded-full shadow-md">
-                      Most Popular
-                    </span>
+            {plans.map((plan) => {
+              const isEnterprise = plan.code === 'enterprise';
+              const isFree = plan.actualPrice === 0;
+
+              // Prices to display
+              const originalPrice = isFree || isEnterprise ? null
+                : billing === 'monthly' ? plan.actualPrice
+                : plan.monthlyPrice;  // yearly shows monthly as "original"
+
+              const displayedPrice = isEnterprise ? null
+                : isFree ? 0
+                : billing === 'monthly' ? plan.monthlyPrice
+                : plan.yearlyPrice;
+
+              const priceLabel = isEnterprise ? 'Custom'
+                : displayedPrice === 0 ? '₹0'
+                : displayedPrice != null ? fmt(displayedPrice)
+                : '—';
+
+              const originalLabel = originalPrice != null && originalPrice !== displayedPrice
+                ? fmt(originalPrice)
+                : null;
+
+              const period = isEnterprise ? ''
+                : isFree ? 'forever'
+                : billing === 'yearly' ? '/mo · billed yearly'
+                : '/month';
+
+              return (
+                <div key={plan.name} className={`glass-card p-6 flex flex-col relative ${
+                  plan.highlight ? 'border-primary-500 ring-2 ring-primary-100' : ''
+                }`}>
+                  {plan.highlight && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="px-3 py-1 bg-gradient-to-r from-primary-500 to-accent-500 text-white text-xs font-bold rounded-full shadow-md">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+                  <h3 className="text-lg font-semibold text-surface-800 mb-1 mt-2">{plan.name}</h3>
+
+                  {/* Price block */}
+                  <div className="mb-4">
+                    {/* Strikethrough original */}
+                    {originalLabel && (
+                      <p className="text-sm text-surface-400 line-through mb-0.5">{originalLabel}</p>
+                    )}
+                    <p>
+                      <span className="text-3xl font-display font-bold text-surface-900">
+                        {priceLabel}
+                      </span>
+                      {period && <span className="text-xs text-surface-400 ml-1">{period}</span>}
+                    </p>
+                    {/* Yearly savings badge */}
+                    {!isEnterprise && !isFree && billing === 'yearly' && plan.monthlyPrice != null && plan.yearlyPrice != null && (
+                      <p className="text-xs text-emerald-600 font-medium mt-1">
+                        Save {fmt((plan.monthlyPrice - plan.yearlyPrice) * 12)}/yr
+                      </p>
+                    )}
                   </div>
-                )}
-                <h3 className="text-lg font-semibold text-surface-800 mb-1 mt-2">{plan.name}</h3>
-                <p className="mb-4">
-                  <span className="text-3xl font-display font-bold text-surface-900">{plan.price}</span>
-                  <span className="text-sm text-surface-400">{plan.period}</span>
-                </p>
-                <ul className="space-y-3 mb-6 flex-1 text-left">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-surface-600">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link href="/register" className={plan.highlight ? 'btn-primary text-sm' : 'btn-secondary text-sm'}>
-                  {plan.price === '₹0' ? 'Get Started Free' : 'Start 14-Day Trial'}
-                </Link>
-              </div>
-            ))}
+
+                  <ul className="space-y-3 mb-6 flex-1 text-left">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm text-surface-600">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    href={isEnterprise ? '/contact' : '/register'}
+                    className={plan.highlight ? 'btn-primary text-sm' : 'btn-secondary text-sm'}
+                  >
+                    {isFree ? 'Get Started Free'
+                    : isEnterprise ? 'Contact Sales'
+                    : 'Start 14-Day Trial'}
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

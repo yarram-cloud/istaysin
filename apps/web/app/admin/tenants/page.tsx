@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  Building2, MapPin, Users, CalendarDays, Search,
+  Building2, MapPin, Users, CalendarDays, Search, ChevronRight,
 } from 'lucide-react';
 import { platformApi } from '@/lib/api';
 
@@ -21,6 +22,7 @@ interface Tenant {
 }
 
 export default function AdminTenantsPage() {
+  const router = useRouter();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -120,7 +122,7 @@ export default function AdminTenantsPage() {
                 </thead>
                 <tbody>
                   {tenants.map((t) => (
-                    <tr key={t.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+                    <tr key={t.id} onClick={() => router.push(`/admin/tenants/${t.id}`)} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors cursor-pointer">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-primary-600/20 flex items-center justify-center shrink-0">
@@ -154,6 +156,9 @@ export default function AdminTenantsPage() {
                       <td className="px-5 py-3.5 hidden xl:table-cell">
                         <p className="text-xs text-surface-300 truncate max-w-[140px]">{t.owner.fullName}</p>
                         <p className="text-xs text-surface-500 truncate max-w-[140px]">{t.owner.email}</p>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <ChevronRight className="w-4 h-4 text-surface-600" />
                       </td>
                     </tr>
                   ))}

@@ -95,7 +95,6 @@ export default function WebsiteBuilderPage() {
     fontHeading: 'inter',
     fontBody: 'inter',
     borderRadius: 'rounded-2xl',
-    darkMode: 'light',
     components: {
       header: { enabled: true, style: 'default' },
       hero: { enabled: true, headline: '', subheadline: '', buttonText: 'Book Now' },
@@ -144,7 +143,6 @@ export default function WebsiteBuilderPage() {
                 fontHeading: config.fontHeading || 'inter',
                 fontBody: config.fontBody || 'inter',
                 borderRadius: config.borderRadius || 'rounded-2xl',
-                darkMode: config.darkMode || 'light',
                 components: { ...prev.components, ...config.components }
             }));
           }
@@ -394,89 +392,127 @@ export default function WebsiteBuilderPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-6 border-t border-surface-100">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-surface-900 border-b border-surface-100 pb-2">Color Palette</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Primary Color</label>
-                      <div className="flex gap-2 items-center">
-                        <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-surface-200 bg-white" />
-                        <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="input-field shadow-sm uppercase flex-1 text-sm py-1.5" />
+              <div className="space-y-5 pt-6 border-t border-surface-100">
+                {/* Color Palette */}
+                <div className="bg-surface-50/60 border border-surface-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    <div className="md:col-span-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Palette className="w-4 h-4 text-primary-600" />
+                        <h3 className="text-sm font-bold text-surface-900">Color Palette</h3>
                       </div>
+                      <p className="text-xs text-surface-500 leading-relaxed">
+                        Your brand colors. <strong>Primary</strong> drives buttons, links, and accents across the live site.
+                        <strong> Secondary</strong> is used for hover states and gradient endpoints.
+                      </p>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Secondary Color</label>
-                      <div className="flex gap-2 items-center">
-                        <input type="color" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-surface-200 bg-white" />
-                        <input type="text" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="input-field shadow-sm uppercase flex-1 text-sm py-1.5" />
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Primary</label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-surface-200 bg-white" />
+                          <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="input-field shadow-sm uppercase flex-1 text-sm py-1.5" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Secondary</label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-surface-200 bg-white" />
+                          <input type="text" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} className="input-field shadow-sm uppercase flex-1 text-sm py-1.5" />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-surface-900 border-b border-surface-100 pb-2">Typography Setup</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Heading Font</label>
-                      <select value={websiteConfig.fontHeading} onChange={e => setWebsiteConfig({ ...websiteConfig, fontHeading: e.target.value })} className="input-field shadow-sm text-sm">
-                        <option value="inter">Inter (Clean System)</option>
-                        <option value="playfair">Playfair Display (Serif)</option>
-                        <option value="montserrat">Montserrat (Modern)</option>
-                        <option value="merriweather">Merriweather (Classic)</option>
-                      </select>
+                {/* Typography */}
+                <div className="bg-surface-50/60 border border-surface-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    <div className="md:col-span-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Languages className="w-4 h-4 text-primary-600" />
+                        <h3 className="text-sm font-bold text-surface-900">Typography</h3>
+                      </div>
+                      <p className="text-xs text-surface-500 leading-relaxed">
+                        Pick the typeface for <strong>headings</strong> and <strong>body</strong> text.
+                        Playfair / Merriweather suit luxury &amp; heritage. Inter / Montserrat suit modern minimal.
+                      </p>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Body Font</label>
-                      <select value={websiteConfig.fontBody} onChange={e => setWebsiteConfig({ ...websiteConfig, fontBody: e.target.value })} className="input-field shadow-sm text-sm">
-                        <option value="inter">Inter (Legible)</option>
-                        <option value="roboto">Roboto (Standard)</option>
-                        <option value="open-sans">Open Sans (Friendly)</option>
-                        <option value="lato">Lato (Soft)</option>
-                      </select>
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Heading Font</label>
+                        <select value={websiteConfig.fontHeading} onChange={e => setWebsiteConfig({ ...websiteConfig, fontHeading: e.target.value })} className="input-field shadow-sm text-sm">
+                          <option value="inter">Inter — clean system</option>
+                          <option value="playfair">Playfair Display — serif</option>
+                          <option value="montserrat">Montserrat — modern</option>
+                          <option value="merriweather">Merriweather — classic</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Body Font</label>
+                        <select value={websiteConfig.fontBody} onChange={e => setWebsiteConfig({ ...websiteConfig, fontBody: e.target.value })} className="input-field shadow-sm text-sm">
+                          <option value="inter">Inter — legible</option>
+                          <option value="roboto">Roboto — standard</option>
+                          <option value="open-sans">Open Sans — friendly</option>
+                          <option value="lato">Lato — soft</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-surface-900 border-b border-surface-100 pb-2">Layout Guidelines</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Corner Styles</label>
+                {/* Layout */}
+                <div className="bg-surface-50/60 border border-surface-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    <div className="md:col-span-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Layout className="w-4 h-4 text-primary-600" />
+                        <h3 className="text-sm font-bold text-surface-900">Layout</h3>
+                      </div>
+                      <p className="text-xs text-surface-500 leading-relaxed">
+                        Corner roundness applies sitewide to <strong>cards, buttons, and images</strong>.
+                        Sharper corners feel editorial; softer corners feel friendly.
+                      </p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider block mb-1.5">Corner Styles</label>
                       <select value={websiteConfig.borderRadius} onChange={e => setWebsiteConfig({ ...websiteConfig, borderRadius: e.target.value })} className="input-field shadow-sm text-sm">
-                        <option value="rounded-none">Sharp Corners (0px)</option>
-                        <option value="rounded-md">Slight Curve (6px)</option>
-                        <option value="rounded-xl">Soft Curved (12px)</option>
-                        <option value="rounded-2xl">Modern Pill (16px+)</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Dark Mode Logic</label>
-                      <select value={websiteConfig.darkMode} onChange={e => setWebsiteConfig({ ...websiteConfig, darkMode: e.target.value })} className="input-field shadow-sm text-sm">
-                        <option value="light">Strictly Light Mode</option>
-                        <option value="dark">Strictly Dark Mode</option>
-                        <option value="auto">Auto (Visitor Preference)</option>
+                        <option value="rounded-none">Sharp Corners (0px) — editorial / heritage</option>
+                        <option value="rounded-md">Slight Curve (6px) — corporate</option>
+                        <option value="rounded-xl">Soft Curved (12px) — boutique</option>
+                        <option value="rounded-2xl">Modern Pill (16px+) — friendly / playful</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-surface-900 border-b border-surface-100 pb-2">Logos & Assets</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Brand Logo URL</label>
-                      <div className="flex gap-2">
-                        <input type="url" value={brandLogo} onChange={(e) => setBrandLogo(e.target.value)} className="input-field shadow-sm text-sm flex-1" placeholder="https://..." />
-                        <button onClick={() => handleFileUpload('brandLogo', setBrandLogo)} disabled={uploading === 'brandLogo'} className="border border-surface-200 bg-surface-50 hover:bg-primary-50 hover:text-primary-600 rounded-xl px-3 flex items-center justify-center transition-colors" title="Upload Image">
-                          {uploading === 'brandLogo' ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Upload className="w-4 h-4" />}
-                        </button>
+                {/* Brand Assets */}
+                <div className="bg-surface-50/60 border border-surface-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    <div className="md:col-span-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <ImageIcon className="w-4 h-4 text-primary-600" />
+                        <h3 className="text-sm font-bold text-surface-900">Brand Assets</h3>
                       </div>
+                      <p className="text-xs text-surface-500 leading-relaxed">
+                        <strong>Logo</strong> appears in the site header (replaces the property name).
+                        <strong> Tagline</strong> is used as the social-share preview when no SEO description is set.
+                      </p>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Default Tagline</label>
-                      <input type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} className="input-field shadow-sm text-sm" placeholder="Your luxurious getaway..." />
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Brand Logo URL</label>
+                        <div className="flex gap-2">
+                          <input type="url" value={brandLogo} onChange={(e) => setBrandLogo(e.target.value)} className="input-field shadow-sm text-sm flex-1" placeholder="https://..." />
+                          <button onClick={() => handleFileUpload('brandLogo', setBrandLogo)} disabled={uploading === 'brandLogo'} className="border border-surface-200 bg-surface-50 hover:bg-primary-50 hover:text-primary-600 rounded-xl px-3 flex items-center justify-center transition-colors" title="Upload Image">
+                            {uploading === 'brandLogo' ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Upload className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Default Tagline</label>
+                        <input type="text" value={tagline} onChange={(e) => setTagline(e.target.value)} className="input-field shadow-sm text-sm" placeholder="Your luxurious getaway..." />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1197,23 +1233,33 @@ export default function WebsiteBuilderPage() {
             </div>
           )}
 
-          {/* 20. Domain */}
+          {/* 20. Domain — deep-links to the real domain mapping settings */}
           {activeTab === 'domain' && (
             <div className="space-y-6 animate-fade-in">
               <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">20. Custom Domain Mapping</h2>
               <div className="p-8 bg-surface-50 rounded-2xl border border-surface-200 shadow-sm text-center max-w-2xl mx-auto mt-8">
                  <Globe className="w-16 h-16 text-primary-500 mx-auto mb-6 opacity-80" />
                  <h3 className="text-xl font-bold text-surface-900 mb-3">Bring your own Domain</h3>
-                 <p className="text-surface-600 mb-8 leading-relaxed">Map your branded domain name (e.g. www.yourhotel.com) instead of the default <code>.istays.in</code> subdomain. An SSL certificate will be automatically provisioned for you.</p>
-                 
-                 <div className="space-y-4 max-w-md mx-auto text-left mb-6">
-                    <label className="text-sm font-bold text-surface-900 block">Domain Name</label>
-                    <input type="text" value={websiteConfig.components.domain?.customDomain || ''} onChange={e => updateComponent('domain', { customDomain: e.target.value })} className="input-field shadow-sm text-center font-bold text-lg" placeholder="example.com" />
-                 </div>
-                 
+                 <p className="text-surface-600 mb-8 leading-relaxed">
+                   Map a branded domain (e.g. <code>www.yourhotel.com</code>) instead of the default <code>.istays.in</code> subdomain.
+                   Domain mapping with DNS verification and SSL provisioning is managed in <strong>Property Settings</strong> so the
+                   middleware can resolve incoming requests correctly.
+                 </p>
+
+                 <a
+                   href="/dashboard/settings"
+                   className="inline-flex items-center gap-2 bg-primary-700 hover:bg-primary-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm"
+                 >
+                   <Link2 className="w-4 h-4" />
+                   Open Domain Settings
+                 </a>
+
                  <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-left space-y-2 mt-8">
-                    <p className="text-sm font-semibold text-blue-800">DNS Instructions:</p>
-                    <p className="text-xs text-blue-700">Add an <strong>A Record</strong> pointing to <code>104.21.XX.XX</code> and a <strong>CNAME Record</strong> for <code>www</code> pointing to <code>cname.istays.in</code>.</p>
+                    <p className="text-sm font-semibold text-blue-800">Why is this not editable here?</p>
+                    <p className="text-xs text-blue-700">
+                      The website builder only edits content/theming. The custom domain field belongs to the tenant record
+                      itself (used by edge routing) and lives under <code>/dashboard/settings</code> alongside DNS verification.
+                    </p>
                  </div>
               </div>
             </div>

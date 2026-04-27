@@ -1,8 +1,19 @@
 'use client';
 import { ThemeStyleMap } from './theme-tokens';
 import { useTranslations } from 'next-intl';
+import { Facebook, Instagram, Twitter } from 'lucide-react';
 
-export default function ThemedFooter({ config, property, themeTokens }: { config: any, property: any, themeTokens: ThemeStyleMap }) {
+export default function ThemedFooter({
+  config,
+  contact,
+  property,
+  themeTokens,
+}: {
+  config: any;
+  contact?: any;
+  property: any;
+  themeTokens: ThemeStyleMap;
+}) {
   const t = useTranslations('PropertySite');
   if (!config?.enabled) return null;
 
@@ -14,6 +25,41 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
   ];
 
   const currentYear = new Date().getFullYear();
+
+  // CMS overrides take priority over property-level fallbacks
+  const email: string = contact?.email || property.contactEmail || '';
+  const phone: string = contact?.phone || property.contactPhone || '';
+  const address: string = contact?.address || property.address || '';
+  const copyrightText: string =
+    (config.text && String(config.text).trim()) ||
+    `© ${currentYear} ${property.name}. All rights reserved.`;
+
+  const socialLinks: Record<string, string> = config.socialLinks || {};
+  const socialItems: Array<{ key: string; href: string; Icon: any; label: string }> = [
+    { key: 'facebook', href: socialLinks.facebook || '', Icon: Facebook, label: 'Facebook' },
+    { key: 'instagram', href: socialLinks.instagram || '', Icon: Instagram, label: 'Instagram' },
+    { key: 'twitter', href: socialLinks.twitter || '', Icon: Twitter, label: 'Twitter / X' },
+  ].filter((s) => s.href.trim().length > 0);
+
+  const SocialBar = () => {
+    if (socialItems.length === 0) return null;
+    return (
+      <div className="flex items-center justify-center gap-4 mt-10">
+        {socialItems.map(({ key, href, Icon, label }) => (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            className="w-10 h-10 rounded-full border border-current/20 flex items-center justify-center hover:bg-current/10 transition-colors opacity-80 hover:opacity-100"
+          >
+            <Icon className="w-4 h-4" />
+          </a>
+        ))}
+      </div>
+    );
+  };
 
   switch (themeTokens.templateId) {
     case 'modern-minimal':
@@ -27,18 +73,19 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
               ))}
             </div>
             <address className={`not-italic text-gray-400 font-light mb-24 space-y-4 text-xl ${themeTokens.fontBodyClass}`}>
-               <p>{property.address}, {property.city}</p>
-               {property.contactPhone && <p>{property.contactPhone}</p>}
-               {property.contactEmail && <a href={`mailto:${property.contactEmail}`} className="block hover:text-white">{property.contactEmail}</a>}
+               <p>{address}, {property.city}</p>
+               {phone && <p>{phone}</p>}
+               {email && <a href={`mailto:${email}`} className="block hover:text-white">{email}</a>}
             </address>
             <div className={`w-full border-t border-gray-800 pt-10 flex flex-col md:flex-row items-center justify-between text-xs text-gray-600 ${themeTokens.fontBodyClass}`}>
               <div className="flex gap-8">
                 <a href="#" className="hover:text-gray-300 transition-colors">Privacy</a>
                 <a href="#" className="hover:text-gray-300 transition-colors">Terms</a>
               </div>
-              <p className="mt-6 md:mt-0">© {currentYear} {property.name}. All rights reserved.</p>
+              <p className="mt-6 md:mt-0">{copyrightText}</p>
             </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -62,21 +109,22 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
             <div className="md:col-span-4 pl-0 md:pl-12">
                <h5 className={`text-white uppercase tracking-[0.3em] text-xs font-bold mb-8 ${themeTokens.fontHeadingClass}`}>Contact</h5>
               <address className={`not-italic space-y-6 text-base font-light ${themeTokens.fontBodyClass}`}>
-                <p className="text-gray-300">{property.address}<br/>{property.city}</p>
-                {property.contactEmail && (
-                  <p><a href={`mailto:${property.contactEmail}`} className="text-brand hover:text-white transition-colors">{property.contactEmail}</a></p>
+                <p className="text-gray-300">{address}<br/>{property.city}</p>
+                {email && (
+                  <p><a href={`mailto:${email}`} className="text-brand hover:text-white transition-colors">{email}</a></p>
                 )}
-                {property.contactPhone && <p>{property.contactPhone}</p>}
+                {phone && <p>{phone}</p>}
               </address>
             </div>
           </div>
           <div className={`max-w-[1400px] mx-auto mt-8 flex flex-col md:flex-row items-center justify-between text-[10px] uppercase tracking-[0.3em] text-gray-600 ${themeTokens.fontBodyClass}`}>
-            <p>© {currentYear} {property.name}</p>
+            <p>{copyrightText}</p>
             <div className="flex gap-10 mt-6 md:mt-0">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
             </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -100,18 +148,19 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
             <div>
                <h5 className={`font-semibold mb-8 text-lg ${themeTokens.fontHeadingClass}`}>Visit Us</h5>
                <address className={`not-italic space-y-4 font-light text-green-200/80 ${themeTokens.fontBodyClass}`}>
-                 <p>{property.address}, <br/>{property.city}</p>
-                 {property.contactEmail && <p><a href={`mailto:${property.contactEmail}`} className="hover:text-white underline underline-offset-4 decoration-green-800">{property.contactEmail}</a></p>}
+                 <p>{address}, <br/>{property.city}</p>
+                 {email && <p><a href={`mailto:${email}`} className="hover:text-white underline underline-offset-4 decoration-green-800">{email}</a></p>}
                </address>
             </div>
           </div>
           <div className="max-w-[1400px] mx-auto mt-24 pt-8 border-t border-green-900 flex flex-col md:flex-row items-center justify-between text-sm text-green-900/50 text-green-300">
-             <p>© {currentYear} {property.name}</p>
+             <p>{copyrightText}</p>
              <div className="flex gap-6 mt-4 md:mt-0">
                <a href="#" className="hover:text-white transition-colors">Privacy</a>
                <a href="#" className="hover:text-white transition-colors">Terms</a>
              </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -127,13 +176,14 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
               </nav>
               <div className="w-16 h-[2px] bg-brand/30 mb-20" />
               <address className={`text-center not-italic text-lg text-gray-500 space-y-6 ${themeTokens.fontBodyClass}`}>
-                 <p className="font-semibold text-gray-700">{property.address}, {property.city}</p>
+                 <p className="font-semibold text-gray-700">{address}, {property.city}</p>
                  <div className="flex justify-center gap-8">
-                   {property.contactPhone && <a href={`tel:${property.contactPhone}`} className="hover:text-brand transition-colors">{property.contactPhone}</a>}
-                   {property.contactEmail && <a href={`mailto:${property.contactEmail}`} className="hover:text-brand border-b-2 border-brand pb-1 transition-colors">{property.contactEmail}</a>}
+                   {phone && <a href={`tel:${phone}`} className="hover:text-brand transition-colors">{phone}</a>}
+                   {email && <a href={`mailto:${email}`} className="hover:text-brand border-b-2 border-brand pb-1 transition-colors">{email}</a>}
                  </div>
               </address>
            </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -144,11 +194,11 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
               <div className="lg:col-span-5">
                  <h4 className={`text-5xl lg:text-7xl uppercase font-black text-white tracking-tighter mb-10 leading-[0.8] ${themeTokens.fontHeadingClass}`}>{property.name}</h4>
                  <address className={`not-italic text-xl font-light space-y-4 ${themeTokens.fontBodyClass}`}>
-                   <p>{property.address}</p>
+                   <p>{address}</p>
                    <p>{property.city}</p>
                    <div className="pt-8 space-y-2">
-                     {property.contactPhone && <p className="text-white font-bold">{property.contactPhone}</p>}
-                     {property.contactEmail && <p><a href={`mailto:${property.contactEmail}`} className="hover:text-white transition-colors text-white underline decoration-white/20 underline-offset-8">{property.contactEmail}</a></p>}
+                     {phone && <p className="text-white font-bold">{phone}</p>}
+                     {email && <p><a href={`mailto:${email}`} className="hover:text-white transition-colors text-white underline decoration-white/20 underline-offset-8">{email}</a></p>}
                    </div>
                  </address>
               </div>
@@ -161,6 +211,7 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
                  </ul>
               </div>
            </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -184,16 +235,17 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
              <div className="bg-surface-900 text-white p-12 rounded-[3rem] shadow-2xl max-w-3xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
                <address className={`not-italic text-left font-medium text-lg leading-relaxed ${themeTokens.fontBodyClass}`}>
                  <span className="text-gray-400 text-sm font-bold uppercase tracking-widest block mb-2">Location</span>
-                 {property.address}, <br/>{property.city}
+                 {address}, <br/>{property.city}
                </address>
                <div className="w-px h-16 bg-white/20 hidden md:block" />
                <div className="text-left font-medium text-lg space-y-2">
                  <span className="text-gray-400 text-sm font-bold uppercase tracking-widest block mb-2">Say Hello</span>
-                 {property.contactEmail && <a href={`mailto:${property.contactEmail}`} className={`block hover:text-brand transition-colors text-white ${themeTokens.fontBodyClass}`}>{property.contactEmail}</a>}
-                 {property.contactPhone && <p>{property.contactPhone}</p>}
+                 {email && <a href={`mailto:${email}`} className={`block hover:text-brand transition-colors text-white ${themeTokens.fontBodyClass}`}>{email}</a>}
+                 {phone && <p>{phone}</p>}
                </div>
              </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -218,25 +270,26 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
                 <address className={`not-italic text-sm text-blue-100 space-y-4 grid md:grid-cols-2 gap-4 ${themeTokens.fontBodyClass}`}>
                    <div>
                      <strong className="block text-white mb-2">Headquarters</strong>
-                     <p>{property.address}</p>
+                     <p>{address}</p>
                      <p>{property.city}</p>
                    </div>
                    <div>
                      <strong className="block text-white mb-2">Connect</strong>
-                     {property.contactPhone && <p>Phone: {property.contactPhone}</p>}
-                     {property.contactEmail && <p>Email: <a href={`mailto:${property.contactEmail}`} className="hover:underline">{property.contactEmail}</a></p>}
+                     {phone && <p>Phone: {phone}</p>}
+                     {email && <p>Email: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
                    </div>
                 </address>
              </div>
           </div>
           <div className="max-w-[1400px] mx-auto mt-20 pt-8 border-t border-blue-900/50 flex flex-col md:flex-row items-center justify-between text-xs text-blue-400">
-             <p>© {currentYear} {property.name}. All Rights Reserved.</p>
+             <p>{copyrightText}</p>
              <div className="flex gap-6 mt-4 md:mt-0">
                 <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
                 <a href="#" className="hover:text-white transition-colors">Terms of Use</a>
                 <a href="#" className="hover:text-white transition-colors">Legal Disclaimer</a>
              </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -261,14 +314,14 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
                <div className="border-x border-[#e8dfc8] px-8">
                   <h5 className={`text-sm uppercase tracking-[0.2em] font-serif font-bold mb-6 text-yellow-900/70`}>Enquiries</h5>
                   <address className={`not-italic space-y-4 ${themeTokens.fontBodyClass}`}>
-                    {property.contactPhone && <p><a href={`tel:${property.contactPhone}`} className="hover:text-yellow-700 text-lg">{property.contactPhone}</a></p>}
-                    {property.contactEmail && <p><a href={`mailto:${property.contactEmail}`} className="hover:text-yellow-700 underline decoration-[#e8dfc8] underline-offset-4">{property.contactEmail}</a></p>}
+                    {phone && <p><a href={`tel:${phone}`} className="hover:text-yellow-700 text-lg">{phone}</a></p>}
+                    {email && <p><a href={`mailto:${email}`} className="hover:text-yellow-700 underline decoration-[#e8dfc8] underline-offset-4">{email}</a></p>}
                   </address>
                </div>
                <div>
                   <h5 className={`text-sm uppercase tracking-[0.2em] font-serif font-bold mb-6 text-yellow-900/70`}>Location</h5>
                    <address className={`not-italic space-y-2 ${themeTokens.fontBodyClass}`}>
-                     <p>{property.address}</p>
+                     <p>{address}</p>
                      <p>{property.city}</p>
                    </address>
                </div>
@@ -278,6 +331,7 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
                 Est. {currentYear}
              </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -302,23 +356,24 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
                  <div className="flex gap-4">
                    <div className="w-8 h-8 bg-[#F2B94A] border-2 border-black shrink-0" />
                    <div>
-                     <p>{property.address}</p>
+                     <p>{address}</p>
                      <p>{property.city}</p>
                    </div>
                  </div>
-                 {property.contactEmail && (
+                 {email && (
                    <div className="flex gap-4 items-center">
                      <div className="w-8 h-8 bg-[#4CA28A] rounded-full border-2 border-black shrink-0" />
-                     <a href={`mailto:${property.contactEmail}`} className="hover:underline">{property.contactEmail}</a>
+                     <a href={`mailto:${email}`} className="hover:underline">{email}</a>
                    </div>
                  )}
                </address>
             </div>
           </div>
           <div className="max-w-[1200px] mx-auto px-6 mt-16 font-black uppercase text-sm border-t-4 border-black pt-8 flex justify-between">
-            <p>© {currentYear} {property.name}</p>
+            <p>{copyrightText}</p>
             <p>Built Solid</p>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -329,9 +384,9 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
              <div className="lg:col-span-5 bg-teal-900/50 p-12 rounded-[3rem] border border-teal-800">
                <h4 className={`text-5xl font-black mb-8 text-[#FF9F1C] ${themeTokens.fontHeadingClass}`}>{property.name}</h4>
                <address className={`not-italic text-lg text-teal-100/80 leading-relaxed font-light space-y-6 ${themeTokens.fontBodyClass}`}>
-                 <p className="flex items-start gap-4">📍 <span>{property.address}<br/>{property.city}</span></p>
-                 {property.contactEmail && <p className="flex items-center gap-4">📧 <a href={`mailto:${property.contactEmail}`} className="hover:text-white transition-colors">{property.contactEmail}</a></p>}
-                 {property.contactPhone && <p className="flex items-center gap-4">📞 {property.contactPhone}</p>}
+                 <p className="flex items-start gap-4">📍 <span>{address}<br/>{property.city}</span></p>
+                 {email && <p className="flex items-center gap-4">📧 <a href={`mailto:${email}`} className="hover:text-white transition-colors">{email}</a></p>}
+                 {phone && <p className="flex items-center gap-4">📞 {phone}</p>}
                </address>
              </div>
              <div className="lg:col-span-7 grid grid-cols-2 gap-12 lg:pl-16 p-12">
@@ -352,6 +407,7 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
                </div>
              </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -362,20 +418,21 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
              <div className="space-y-4">
                 <h4 className={`text-4xl font-bold text-white ${themeTokens.fontHeadingClass}`}>{property.name}</h4>
                 <address className={`not-italic text-sm ${themeTokens.fontBodyClass}`}>
-                  {property.address}, {property.city}
+                  {address}, {property.city}
                 </address>
              </div>
              <nav className="flex flex-wrap gap-6 text-sm font-medium">
                {quickLinks.map(link => (
                  <a key={link.href} href={link.href} className="hover:text-white transition-colors">{link.label}</a>
                ))}
-               <a href={`mailto:${property.contactEmail || ''}`} className="text-white hover:text-brand transition-colors">Contact</a>
+               <a href={`mailto:${email || ''}`} className="text-white hover:text-brand transition-colors">Contact</a>
              </nav>
           </div>
           <div className="max-w-6xl mx-auto mt-16 border-t border-white/10 pt-8 text-xs text-gray-600 flex justify-between">
-             <span>© {currentYear}</span>
+             <span>{copyrightText}</span>
              <span>Urban Stay</span>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -386,11 +443,11 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
              <div className="bg-white p-16 rounded-[60px] shadow-2xl border-4 border-gray-900 transform -rotate-1 hover:rotate-0 transition-transform duration-500">
                 <h4 className={`text-6xl font-black text-gray-900 uppercase tracking-tighter leading-[0.9] mb-12 ${themeTokens.fontHeadingClass}`}>{property.name}</h4>
                 <address className={`not-italic text-2xl font-medium text-gray-600 space-y-4 ${themeTokens.fontBodyClass}`}>
-                  <p>{property.address}</p>
+                  <p>{address}</p>
                   <p>{property.city}</p>
-                  {property.contactEmail && (
+                  {email && (
                     <div className="pt-8">
-                       <a href={`mailto:${property.contactEmail}`} className="inline-block bg-brand text-white px-8 py-3 rounded-full font-black text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">{property.contactEmail}</a>
+                       <a href={`mailto:${email}`} className="inline-block bg-brand text-white px-8 py-3 rounded-full font-black text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">{email}</a>
                     </div>
                   )}
                 </address>
@@ -405,6 +462,7 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
                 </ul>
              </div>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
 
@@ -427,15 +485,16 @@ export default function ThemedFooter({ config, property, themeTokens }: { config
             <div className="md:col-span-5 pl-0 lg:pl-12">
               <h5 className={`text-white font-bold mb-8 uppercase tracking-[0.2em] text-xs ${themeTokens.fontHeadingClass}`}>{t('contact')}</h5>
               <address className={`not-italic text-lg space-y-6 font-serif ${themeTokens.fontBodyClass}`}>
-                <p>Visit: <span className="text-surface-300">{property.address},<br/>{property.city}</span></p>
-                {property.contactPhone && <p>Ring: <a href={`tel:${property.contactPhone}`} className="hover:text-white text-surface-300">{property.contactPhone}</a></p>}
-                {property.contactEmail && <p>Write: <a href={`mailto:${property.contactEmail}`} className="hover:text-white text-surface-300">{property.contactEmail}</a></p>}
+                <p>Visit: <span className="text-surface-300">{address},<br/>{property.city}</span></p>
+                {phone && <p>Ring: <a href={`tel:${phone}`} className="hover:text-white text-surface-300">{phone}</a></p>}
+                {email && <p>Write: <a href={`mailto:${email}`} className="hover:text-white text-surface-300">{email}</a></p>}
               </address>
             </div>
           </div>
           <div className="max-w-[1400px] mx-auto mt-16 flex flex-col md:flex-row items-center justify-between text-xs font-semibold tracking-[0.2em] uppercase">
-            <p>© {currentYear} {property.name}.</p>
+            <p>{copyrightText}</p>
           </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
         </footer>
       );
   }

@@ -11,6 +11,30 @@ import { createRazorpayOrder, verifyRazorpayPayment } from '../../services/razor
 import { publicHintsLimiter } from '../../middleware/rate-limit';
 export const publicRouter = Router();
 
+// GET /public/plans — public plan pricing (no auth required)
+publicRouter.get('/plans', async (_req: Request, res: Response) => {
+  try {
+    const plans = await prisma.saasPlan.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        actualPrice: true,
+        discountMonthly: true,
+        discountYearly: true,
+        features: true,
+        description: true,
+      },
+      orderBy: { actualPrice: 'asc' },
+    });
+    res.json({ success: true, data: plans });
+  } catch (err) {
+    console.error('[PUBLIC PLANS ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch plans' });
+  }
+});
+
 // GET /public/properties — public property directory
 publicRouter.get('/properties', optionalAuth, async (req: Request, res: Response) => {
   try {

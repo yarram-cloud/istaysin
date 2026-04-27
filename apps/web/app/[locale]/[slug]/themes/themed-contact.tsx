@@ -11,6 +11,10 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
   
   if (!config?.enabled) return null;
 
+  // CMS overrides win over property-level fallbacks
+  const email: string = config.email || property.contactEmail || '';
+  const phone: string = config.phone || property.contactPhone || '';
+
   switch (themeTokens.templateId) {
      case 'modern-minimal':
        return (
@@ -38,13 +42,13 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                 viewport={{ once: true }}
                 className="grid gap-12 text-lg text-gray-600 font-light"
               >
-                 {property.contactEmail && (
-                   <a href={`mailto:${property.contactEmail}`} className="hover:text-black transition-colors block text-2xl md:text-4xl underline decoration-gray-200 underline-offset-8 hover:decoration-black">
-                     {property.contactEmail}
+                 {email && (
+                   <a href={`mailto:${email}`} className="hover:text-black transition-colors block text-2xl md:text-4xl underline decoration-gray-200 underline-offset-8 hover:decoration-black">
+                     {email}
                    </a>
                  )}
-                 {property.contactPhone && (
-                   <p className="text-xl md:text-2xl">{property.contactPhone}</p>
+                 {phone && (
+                   <p className="text-xl md:text-2xl">{phone}</p>
                  )}
               </motion.div>
            </div>
@@ -82,16 +86,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                >
                   <div className="absolute inset-0 border border-brand/20 m-4 pointer-events-none transition-all duration-700 group-hover:m-6 group-hover:border-brand/40" />
                   <div className="space-y-12 relative z-10">
-                     {property.contactPhone && (
+                     {phone && (
                        <div>
                           <span className={`text-xs text-brand uppercase tracking-[0.2em] font-bold block mb-4 ${themeTokens.fontBodyClass}`}>Call Us</span>
-                          <a href={`tel:${property.contactPhone}`} className={`text-3xl lg:text-4xl text-white font-serif hover:text-brand transition-colors block ${themeTokens.fontHeadingClass}`}>{property.contactPhone}</a>
+                          <a href={`tel:${phone}`} className={`text-3xl lg:text-4xl text-white font-serif hover:text-brand transition-colors block ${themeTokens.fontHeadingClass}`}>{phone}</a>
                        </div>
                      )}
-                     {property.contactEmail && (
+                     {email && (
                        <div>
                           <span className={`text-xs text-brand uppercase tracking-[0.2em] font-bold block mb-4 ${themeTokens.fontBodyClass}`}>Email Us</span>
-                          <a href={`mailto:${property.contactEmail}`} className={`text-xl lg:text-2xl text-white font-light hover:text-brand transition-colors block ${themeTokens.fontBodyClass}`}>{property.contactEmail}</a>
+                          <a href={`mailto:${email}`} className={`text-xl lg:text-2xl text-white font-light hover:text-brand transition-colors block ${themeTokens.fontBodyClass}`}>{email}</a>
                        </div>
                      )}
                   </div>
@@ -118,18 +122,18 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                      Reach Out Naturally
                   </h2>
                   <div className="grid md:grid-cols-2 gap-12 text-green-100">
-                     {property.contactPhone && (
+                     {phone && (
                         <div className="p-8 bg-green-900/30 rounded-3xl border border-green-800/50 hover:bg-green-800/40 transition-colors">
                            <span className="text-3xl block mb-4 text-green-400">🌿</span>
                            <p className="text-sm tracking-widest uppercase mb-2 opacity-70">Phone</p>
-                           <a href={`tel:${property.contactPhone}`} className="text-2xl font-light hover:text-white transition-colors">{property.contactPhone}</a>
+                           <a href={`tel:${phone}`} className="text-2xl font-light hover:text-white transition-colors">{phone}</a>
                         </div>
                      )}
-                     {property.contactEmail && (
+                     {email && (
                         <div className="p-8 bg-green-900/30 rounded-3xl border border-green-800/50 hover:bg-green-800/40 transition-colors">
                            <span className="text-3xl block mb-4 text-green-400">✉️</span>
                            <p className="text-sm tracking-widest uppercase mb-2 opacity-70">Email</p>
-                           <a href={`mailto:${property.contactEmail}`} className="text-xl font-light hover:text-white transition-colors">{property.contactEmail}</a>
+                           <a href={`mailto:${email}`} className="text-xl font-light hover:text-white transition-colors">{email}</a>
                         </div>
                      )}
                   </div>
@@ -152,16 +156,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                   <div className="w-16 h-1 bg-brand mb-12" />
                   
                   <div className="space-y-10">
-                     {property.contactPhone && (
+                     {phone && (
                         <div>
                            <h3 className={`text-sm tracking-widest uppercase font-bold text-gray-400 mb-2 ${themeTokens.fontBodyClass}`}>Ring Us</h3>
-                           <a href={`tel:${property.contactPhone}`} className="text-2xl font-bold text-gray-900 hover:text-brand transition-colors block">{property.contactPhone}</a>
+                           <a href={`tel:${phone}`} className="text-2xl font-bold text-gray-900 hover:text-brand transition-colors block">{phone}</a>
                         </div>
                      )}
-                     {property.contactEmail && (
+                     {email && (
                         <div>
                            <h3 className={`text-sm tracking-widest uppercase font-bold text-gray-400 mb-2 ${themeTokens.fontBodyClass}`}>Write Us</h3>
-                           <a href={`mailto:${property.contactEmail}`} className="text-xl text-gray-600 border-b-2 border-brand pb-1 hover:text-brand transition-colors">{property.contactEmail}</a>
+                           <a href={`mailto:${email}`} className="text-xl text-gray-600 border-b-2 border-brand pb-1 hover:text-brand transition-colors">{email}</a>
                         </div>
                      )}
                   </div>
@@ -201,16 +205,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                   transition={{ delay: 0.1 }}
                   className="grid md:grid-cols-2 gap-12 text-left bg-[#0a0a0a] border border-white/10 p-12 lg:p-16 hover:border-white/20 transition-colors"
                >
-                  {property.contactPhone && (
+                  {phone && (
                      <div className="md:border-r border-white/10">
                         <span className={`text-xs uppercase tracking-[0.4em] text-gray-500 font-bold block mb-6 ${themeTokens.fontBodyClass}`}>Telephone</span>
-                        <a href={`tel:${property.contactPhone}`} className="text-3xl text-white font-light hover:text-brand transition-colors block leading-none">{property.contactPhone}</a>
+                        <a href={`tel:${phone}`} className="text-3xl text-white font-light hover:text-brand transition-colors block leading-none">{phone}</a>
                      </div>
                   )}
-                  {property.contactEmail && (
+                  {email && (
                      <div className="md:pl-6">
                         <span className={`text-xs uppercase tracking-[0.4em] text-gray-500 font-bold block mb-6 ${themeTokens.fontBodyClass}`}>Electronic Mail</span>
-                        <a href={`mailto:${property.contactEmail}`} className="text-xl text-white font-light hover:text-brand transition-colors block underline decoration-white/20 underline-offset-8 hover:decoration-brand">{property.contactEmail}</a>
+                        <a href={`mailto:${email}`} className="text-xl text-white font-light hover:text-brand transition-colors block underline decoration-white/20 underline-offset-8 hover:decoration-brand">{email}</a>
                      </div>
                   )}
                </motion.div>
@@ -239,16 +243,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                   transition={{ delay: 0.1 }}
                   className="flex flex-col md:flex-row justify-center gap-8 md:gap-16"
                >
-                  {property.contactPhone && (
-                     <a href={`tel:${property.contactPhone}`} className="bg-white text-brand px-12 py-8 rounded-[3rem] shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all group">
+                  {phone && (
+                     <a href={`tel:${phone}`} className="bg-white text-brand px-12 py-8 rounded-[3rem] shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all group">
                         <span className="block text-4xl mb-4 group-hover:scale-110 transition-transform">📱</span>
-                        <span className={`text-2xl font-black ${themeTokens.fontBodyClass}`}>{property.contactPhone}</span>
+                        <span className={`text-2xl font-black ${themeTokens.fontBodyClass}`}>{phone}</span>
                      </a>
                   )}
-                  {property.contactEmail && (
-                     <a href={`mailto:${property.contactEmail}`} className="bg-surface-900 text-white px-12 py-8 rounded-[3rem] shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all group border-4 border-surface-800">
+                  {email && (
+                     <a href={`mailto:${email}`} className="bg-surface-900 text-white px-12 py-8 rounded-[3rem] shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all group border-4 border-surface-800">
                         <span className="block text-4xl mb-4 group-hover:scale-110 transition-transform">✉️</span>
-                        <span className={`text-xl font-bold ${themeTokens.fontBodyClass}`}>{property.contactEmail}</span>
+                        <span className={`text-xl font-bold ${themeTokens.fontBodyClass}`}>{email}</span>
                      </a>
                   )}
                </motion.div>
@@ -277,21 +281,21 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                   viewport={{ once: true }}
                   className="space-y-8 bg-gray-800 p-10 rounded-lg shadow-lg border border-gray-700"
                >
-                  {property.contactPhone && (
+                  {phone && (
                      <div className="flex items-center gap-6 border-b border-gray-700 pb-8">
                         <div className="w-12 h-12 bg-gray-700 rounded-full items-center justify-center flex shrink-0 text-brand font-bold">P</div>
                         <div>
                            <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Direct Line</p>
-                           <a href={`tel:${property.contactPhone}`} className="text-2xl font-bold hover:text-brand transition-colors">{property.contactPhone}</a>
+                           <a href={`tel:${phone}`} className="text-2xl font-bold hover:text-brand transition-colors">{phone}</a>
                         </div>
                      </div>
                   )}
-                  {property.contactEmail && (
+                  {email && (
                      <div className="flex items-center gap-6 pt-2">
                         <div className="w-12 h-12 bg-gray-700 rounded-full items-center justify-center flex shrink-0 text-brand font-bold">E</div>
                         <div>
                            <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">Email Address</p>
-                           <a href={`mailto:${property.contactEmail}`} className="text-xl font-medium hover:text-brand transition-colors">{property.contactEmail}</a>
+                           <a href={`mailto:${email}`} className="text-xl font-medium hover:text-brand transition-colors">{email}</a>
                         </div>
                      </div>
                   )}
@@ -322,16 +326,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                >
                   <div className="absolute inset-4 border border-dashed border-[#e8dfc8] pointer-events-none" />
                   <div className="grid md:grid-cols-2 gap-12 relative z-10 divide-y md:divide-y-0 md:divide-x divide-[#e8dfc8]">
-                     {property.contactPhone && (
+                     {phone && (
                         <div className="pb-8 md:pb-0 font-serif">
                            <p className="text-sm uppercase tracking-widest text-yellow-900/50 mb-6 font-sans font-bold">Telephone</p>
-                           <a href={`tel:${property.contactPhone}`} className="text-3xl hover:text-yellow-700 transition-colors block">{property.contactPhone}</a>
+                           <a href={`tel:${phone}`} className="text-3xl hover:text-yellow-700 transition-colors block">{phone}</a>
                         </div>
                      )}
-                     {property.contactEmail && (
+                     {email && (
                         <div className="pt-8 md:pt-0 font-serif">
                            <p className="text-sm uppercase tracking-widest text-yellow-900/50 mb-6 font-sans font-bold">Correspondence</p>
-                           <a href={`mailto:${property.contactEmail}`} className="text-xl hover:text-yellow-700 transition-colors block">{property.contactEmail}</a>
+                           <a href={`mailto:${email}`} className="text-xl hover:text-yellow-700 transition-colors block">{email}</a>
                         </div>
                      )}
                   </div>
@@ -354,20 +358,20 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                      {config.title || 'Contact Desk'}
                   </h2>
                   <div className="space-y-10">
-                     {property.contactPhone && (
+                     {phone && (
                         <div className="flex flex-col md:flex-row md:items-center gap-6">
                            <div className="bg-[#DF5339] border-4 border-black px-6 py-2 shrink-0">
                               <span className="font-black text-white uppercase text-xl">RING RING</span>
                            </div>
-                           <a href={`tel:${property.contactPhone}`} className={`text-4xl font-black text-black hover:text-[#DF5339] transition-colors ${themeTokens.fontBodyClass}`}>{property.contactPhone}</a>
+                           <a href={`tel:${phone}`} className={`text-4xl font-black text-black hover:text-[#DF5339] transition-colors ${themeTokens.fontBodyClass}`}>{phone}</a>
                         </div>
                      )}
-                     {property.contactEmail && (
+                     {email && (
                         <div className="flex flex-col md:flex-row md:items-center gap-6">
                            <div className="bg-[#F2B94A] border-4 border-black px-6 py-2 shrink-0">
                               <span className="font-black text-black uppercase text-xl">MAIL MAN</span>
                            </div>
-                           <a href={`mailto:${property.contactEmail}`} className={`text-2xl font-black text-black hover:underline underline-offset-8 decoration-4 ${themeTokens.fontBodyClass}`}>{property.contactEmail}</a>
+                           <a href={`mailto:${email}`} className={`text-2xl font-black text-black hover:underline underline-offset-8 decoration-4 ${themeTokens.fontBodyClass}`}>{email}</a>
                         </div>
                      )}
                   </div>
@@ -398,7 +402,7 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                   Reach Paradise
                </motion.h2>
                <div className="grid md:grid-cols-2 gap-12 text-teal-100">
-                  {property.contactPhone && (
+                  {phone && (
                      <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -407,10 +411,10 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                         className="bg-teal-900/40 p-12 rounded-[3rem] border border-teal-800 backdrop-blur-sm hover:bg-teal-800/50 transition-colors"
                      >
                         <span className="text-4xl block mb-6 drop-shadow-md">📞</span>
-                        <a href={`tel:${property.contactPhone}`} className="text-3xl font-bold hover:text-white transition-colors block">{property.contactPhone}</a>
+                        <a href={`tel:${phone}`} className="text-3xl font-bold hover:text-white transition-colors block">{phone}</a>
                      </motion.div>
                   )}
-                  {property.contactEmail && (
+                  {email && (
                      <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -419,7 +423,7 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                         className="bg-teal-900/40 p-12 rounded-[3rem] border border-teal-800 backdrop-blur-sm hover:bg-teal-800/50 transition-colors"
                      >
                         <span className="text-4xl block mb-6 drop-shadow-md">💌</span>
-                        <a href={`mailto:${property.contactEmail}`} className="text-xl font-medium hover:text-white transition-colors block">{property.contactEmail}</a>
+                        <a href={`mailto:${email}`} className="text-xl font-medium hover:text-white transition-colors block">{email}</a>
                      </motion.div>
                   )}
                </div>
@@ -446,16 +450,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                   viewport={{ once: true }}
                   className="space-y-6 text-right w-full md:w-auto"
                >
-                  {property.contactPhone && (
+                  {phone && (
                      <div className="flex flex-col md:items-end border-b border-white/10 pb-4">
                         <span className="text-xs uppercase tracking-widest text-surface-400 mb-2 font-bold block">T.</span>
-                        <a href={`tel:${property.contactPhone}`} className="text-2xl font-bold hover:text-brand transition-colors text-right">{property.contactPhone}</a>
+                        <a href={`tel:${phone}`} className="text-2xl font-bold hover:text-brand transition-colors text-right">{phone}</a>
                      </div>
                   )}
-                  {property.contactEmail && (
+                  {email && (
                      <div className="flex flex-col md:items-end">
                         <span className="text-xs uppercase tracking-widest text-surface-400 mb-2 font-bold block">E.</span>
-                        <a href={`mailto:${property.contactEmail}`} className="text-lg hover:text-brand transition-colors text-right">{property.contactEmail}</a>
+                        <a href={`mailto:${email}`} className="text-lg hover:text-brand transition-colors text-right">{email}</a>
                      </div>
                   )}
                </motion.div>
@@ -486,16 +490,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
                >
                   <div className="absolute -inset-4 border-4 border-white pointer-events-none" />
                   <div className="space-y-12">
-                     {property.contactPhone && (
+                     {phone && (
                         <div>
                            <p className="font-black text-gray-300 text-sm uppercase tracking-widest mb-2">Voice</p>
-                           <a href={`tel:${property.contactPhone}`} className={`text-5xl lg:text-6xl font-black text-gray-900 block hover:text-brand transition-colors tracking-tighter ${themeTokens.fontHeadingClass}`}>{property.contactPhone}</a>
+                           <a href={`tel:${phone}`} className={`text-5xl lg:text-6xl font-black text-gray-900 block hover:text-brand transition-colors tracking-tighter ${themeTokens.fontHeadingClass}`}>{phone}</a>
                         </div>
                      )}
-                     {property.contactEmail && (
+                     {email && (
                         <div>
                            <p className="font-black text-gray-300 text-sm uppercase tracking-widest mb-2">Digital</p>
-                           <a href={`mailto:${property.contactEmail}`} className={`text-2xl font-black text-gray-900 block hover:text-brand transition-colors tracking-tight underline decoration-4 underline-offset-8 decoration-gray-200 hover:decoration-brand ${themeTokens.fontHeadingClass}`}>{property.contactEmail}</a>
+                           <a href={`mailto:${email}`} className={`text-2xl font-black text-gray-900 block hover:text-brand transition-colors tracking-tight underline decoration-4 underline-offset-8 decoration-gray-200 hover:decoration-brand ${themeTokens.fontHeadingClass}`}>{email}</a>
                         </div>
                      )}
                   </div>
@@ -510,16 +514,16 @@ export default function ThemedContact({ config, property, themeTokens }: { confi
             <div className="max-w-[1000px] mx-auto text-center">
                <h2 className={`text-4xl font-bold text-gray-900 mb-12 ${themeTokens.fontHeadingClass}`}>{config.title || 'Contact Us'}</h2>
                <div className="grid md:grid-cols-2 gap-8">
-                  {property.contactPhone && (
+                  {phone && (
                      <div className="bg-white p-8 rounded shadow-sm border border-surface-200">
                         <h3 className={`text-lg font-bold text-gray-500 uppercase tracking-widest mb-4 ${themeTokens.fontBodyClass}`}>Phone</h3>
-                        <a href={`tel:${property.contactPhone}`} className="text-2xl font-bold text-brand hover:underline">{property.contactPhone}</a>
+                        <a href={`tel:${phone}`} className="text-2xl font-bold text-brand hover:underline">{phone}</a>
                      </div>
                   )}
-                  {property.contactEmail && (
+                  {email && (
                      <div className="bg-white p-8 rounded shadow-sm border border-surface-200">
                         <h3 className={`text-lg font-bold text-gray-500 uppercase tracking-widest mb-4 ${themeTokens.fontBodyClass}`}>Email</h3>
-                        <a href={`mailto:${property.contactEmail}`} className="text-xl text-gray-700 hover:text-brand hover:underline">{property.contactEmail}</a>
+                        <a href={`mailto:${email}`} className="text-xl text-gray-700 hover:text-brand hover:underline">{email}</a>
                      </div>
                   )}
                </div>

@@ -8,8 +8,41 @@ export interface PricingResult {
     date: string;
     rate: number;
     gstAmount: number;
+    gstPercent: number;
     ruleApplied?: string;
   }[];
+}
+
+// Default GST slabs — used when PlatformSettings has no custom config
+const DEFAULT_GST_SLABS = [
+  { maxRate: 1000,      gstPercent: 0 },
+  { maxRate: 7500,      gstPercent: 12 },
+  { maxRate: 99999999,  gstPercent: 18 },
+];
+
+/** Load GST slabs from PlatformSettings or fall back to defaults */
+async function loadGstSlabs(): Promise<{ maxRate: number; gstPercent: number }[]> {
+  try {
+    const settings = await prisma.platformSettings.findUnique({ where: { id: 'global' } });
+    const config = (settings?.config as Record<string, any>) || {};
+    if (Array.isArray(config.gstSlabs) && config.gstSlabs.length > 0) {
+      return config.gstSlabs
+        .map((s: any) => ({ maxRate: Number(s.maxRate), gstPercent: Number(s.gstPercent) }))
+        .sort((a: any, b: any) => a.maxRate - b.maxRate);
+    }
+  } catch (err) {
+    console.error('[GST SLABS] Failed to load from DB, using defaults', err);
+  }
+  return DEFAULT_GST_SLABS;
+}
+
+/** Determine GST percent for a given nightly rate using the slab table */
+function getGstPercent(rate: number, slabs: { maxRate: number; gstPercent: number }[]): number {
+  for (const slab of slabs) {
+    if (rate <= slab.maxRate) return slab.gstPercent;
+  }
+  // If rate exceeds all slabs, use the last slab's rate
+  return slabs[slabs.length - 1]?.gstPercent ?? 0;
 }
 
 export async function calculatePricing(
@@ -35,6 +68,9 @@ export async function calculatePricing(
   const tenantConfig = (tenant?.config as Record<string, any>) || {};
   const gstEnabled = tenantConfig.gstEnabled === true;
 
+  // Load GST slabs once per pricing calculation
+  const gstSlabs = gstEnabled ? await loadGstSlabs() : [];
+
   const baseRate = roomType.baseRate;
   const extraBedCharge = (roomType.extraBedCharge || 0) * extraBeds;
 
@@ -48,7 +84,7 @@ export async function calculatePricing(
     orderBy: { priority: 'desc' }, // Highest priority first
   });
 
-  const nightlyRates: { date: string; rate: number; gstAmount: number; ruleApplied?: string }[] = [];
+  const nightlyRates: { date: string; rate: number; gstAmount: number; gstPercent: number; ruleApplied?: string }[] = [];
   let totalAmount = 0;
   let totalGst = 0;
 
@@ -101,16 +137,11 @@ export async function calculatePricing(
 
     const finalNightRate = Math.round(appliedRate + extraBedCharge);
     let gstAmount = 0;
+    let gstPercent = 0;
 
-    if (gstEnabled) {
-      // Indian GST Slabs for Hotel Rooms
-      if (finalNightRate > 7500) {
-        gstAmount = finalNightRate * 0.18;
-      } else if (finalNightRate > 1000) {
-        gstAmount = finalNightRate * 0.12;
-      } else {
-        gstAmount = 0;
-      }
+    if (gstEnabled && gstSlabs.length > 0) {
+      gstPercent = getGstPercent(finalNightRate, gstSlabs);
+      gstAmount = finalNightRate * (gstPercent / 100);
     }
 
     gstAmount = Math.round(gstAmount);
@@ -119,6 +150,7 @@ export async function calculatePricing(
       date: current.toISOString().split('T')[0],
       rate: finalNightRate,
       gstAmount,
+      gstPercent,
       ruleApplied: appliedRuleName,
     });
 
@@ -136,3 +168,4 @@ export async function calculatePricing(
     nightlyRates 
   };
 }
+

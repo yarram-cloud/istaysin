@@ -5,7 +5,8 @@ import { Plus, X, Loader2, CalendarRange, Trash2, Edit2, TrendingUp, Filter } fr
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { pricingApi, roomsApi } from '@/lib/api';
+import { pricingApi, roomsApi, tenantsApi } from '@/lib/api';
+
 import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
 
 interface PricingRule {
@@ -34,15 +35,21 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRule, setEditingRule] = useState<PricingRule | null>(null);
+  const [pricingEnabled, setPricingEnabled] = useState(true);
+  const [savingToggle, setSavingToggle] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [pricingRes, roomsRes] = await Promise.all([
+      const [pricingRes, roomsRes, settingsRes] = await Promise.all([
         pricingApi.getRules(),
-        roomsApi.getRoomTypes()
+        roomsApi.getRoomTypes(),
+        tenantsApi.getSettings(),
       ]);
       if (pricingRes.success) setRules(pricingRes.data || []);
       if (roomsRes.success) setRoomTypes(roomsRes.data || []);
+      if (settingsRes.success && settingsRes.data) {
+        setPricingEnabled(settingsRes.data.config?.pricingEnabled !== false);
+      }
     } catch (err) {
       console.error('Pricing rules fetch failed:', err);
     } finally {
@@ -79,12 +86,31 @@ export default function PricingPage() {
 
   const formatAdjustment = (type: string, val: number) => {
     if (type === 'percentage') return `${val > 0 ? '+' : ''}${val}%`;
-    if (type === 'fixed_addition') return `${val > 0 ? '+' : ''}$${val}`;
-    if (type === 'fixed_override') return `Fixed $${val}`;
+    if (type === 'fixed_addition') return `${val > 0 ? '+' : ''}₹${val}`;
+    if (type === 'fixed_override') return `Fixed ₹${val}`;
     return val;
   };
 
   const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  async function handleTogglePricing() {
+    const newValue = !pricingEnabled;
+    setPricingEnabled(newValue);
+    setSavingToggle(true);
+    try {
+      const res = await tenantsApi.getSettings();
+      const currentConfig = res.data?.config || {};
+      await tenantsApi.updateSettings({
+        config: { ...currentConfig, pricingEnabled: newValue }
+      });
+      toast.success(newValue ? 'Pricing rules enabled.' : 'Pricing rules disabled — base room rates will be used.');
+    } catch (err: any) {
+      setPricingEnabled(!newValue);
+      toast.error(err.message || 'Failed to update setting');
+    } finally {
+      setSavingToggle(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -94,112 +120,138 @@ export default function PricingPage() {
           <h1 className="text-2xl font-display font-bold mb-1">{t('pricingPage.title')}</h1>
           <p className="text-surface-400">{t('pricingPage.subtitle')}</p>
         </div>
-        <button
-          onClick={() => { setShowAddModal(!showAddModal); if (showAddModal) setEditingRule(null); }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            showAddModal ? 'bg-primary-100 text-primary-700 border border-primary-200' : 'btn-primary'
-          }`}
-        >
-          <Plus className="w-4 h-4" /> {showAddModal ? t('common.cancel') : t('pricingPage.addRule')}
-        </button>
+        {pricingEnabled && (
+          <button
+            onClick={() => { setShowAddModal(!showAddModal); if (showAddModal) setEditingRule(null); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              showAddModal ? 'bg-primary-100 text-primary-700 border border-primary-200' : 'btn-primary'
+            }`}
+          >
+            <Plus className="w-4 h-4" /> {showAddModal ? t('common.cancel') : t('pricingPage.addRule')}
+          </button>
+        )}
       </div>
 
-      {/* Inline Rule Form */}
-      <AnimatePresence>
-        {showAddModal && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <RuleForm
-              onClose={() => { setShowAddModal(false); setEditingRule(null); }}
-              onSaved={() => { setShowAddModal(false); setEditingRule(null); fetchData(); }}
-              roomTypes={roomTypes}
-              editingRule={editingRule}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {loading ? (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-24 glass-card animate-pulse" />)}
+      {/* Enable/Disable Toggle */}
+      <div className="flex items-center justify-between p-4 rounded-xl bg-surface-50 border border-surface-200">
+        <div>
+          <p className="font-medium text-surface-900">Enable Dynamic Pricing Rules</p>
+          <p className="text-sm text-surface-500">Turn off if you only use base room-type rates. You can enable this later.</p>
         </div>
-      ) : rules.length === 0 ? (
-        <div className="glass-card p-12 text-center">
-          <TrendingUp className="w-12 h-12 text-surface-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">{t('pricingPage.noRules')}</h3>
-          <p className="text-surface-400 mb-6 max-w-sm mx-auto">
-            {t('pricingPage.noRulesDesc')}
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" className="sr-only peer" checked={pricingEnabled} onChange={handleTogglePricing} disabled={savingToggle} />
+          <div className="w-11 h-6 bg-surface-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+        </label>
+      </div>
+
+      {!pricingEnabled && (
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+          <p className="text-sm text-amber-700">
+            <strong>Pricing rules disabled.</strong> Your base room-type rates will be used for all bookings. You can enable dynamic pricing anytime.
           </p>
-          <button onClick={() => setShowAddModal(true)} className="btn-primary">{t('pricingPage.createFirstRule')}</button>
         </div>
-      ) : (
-        <div className="grid gap-4">
-          {rules.map((rule) => (
-            <div key={rule.id} className={`glass-card p-5 flex items-center justify-between transition-all ${!rule.isActive ? 'opacity-50 grayscale' : ''}`}>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-5 h-5 text-primary-400" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                    {rule.name}
-                    <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.06] text-surface-300">
-                      Priority {rule.priority}
-                    </span>
-                  </h3>
-                  
-                  <div className="flex flex-wrap text-sm text-surface-400 gap-x-4 gap-y-1 mt-1">
-                    {/* Date Range */}
-                    {rule.startDate || rule.endDate ? (
-                      <span className="flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" /> 
-                        {rule.startDate ? new Date(rule.startDate).toLocaleDateString() : 'Always'} 
-                        {' → '} 
-                        {rule.endDate ? new Date(rule.endDate).toLocaleDateString() : 'Always'}
-                      </span>
-                    ) : <span className="flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" /> Ongoing</span>}
-                    
-                    {/* Days of Week */}
-                    {rule.daysOfWeek && rule.daysOfWeek.length > 0 && (
-                      <span className="flex items-center gap-1.5"><Filter className="w-3.5 h-3.5" /> {rule.daysOfWeek.map(d => daysMap[d]).join(', ')}</span>
-                    )}
+      )}
 
-                    {/* Applies to Room Type */}
-                    <span className="flex items-center gap-1.5 px-2 rounded bg-surface-800 border border-white/[0.04]">
-                      {rule.roomType?.name || 'All Room Types'}
-                    </span>
+      {pricingEnabled && (
+        <>
+          {/* Inline Rule Form */}
+          <AnimatePresence>
+            {showAddModal && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                <RuleForm
+                  onClose={() => { setShowAddModal(false); setEditingRule(null); }}
+                  onSaved={() => { setShowAddModal(false); setEditingRule(null); fetchData(); }}
+                  roomTypes={roomTypes}
+                  editingRule={editingRule}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-24 glass-card animate-pulse" />)}
+            </div>
+          ) : rules.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <TrendingUp className="w-12 h-12 text-surface-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">{t('pricingPage.noRules')}</h3>
+              <p className="text-surface-400 mb-6 max-w-sm mx-auto">
+                {t('pricingPage.noRulesDesc')}
+              </p>
+              <button onClick={() => setShowAddModal(true)} className="btn-primary">{t('pricingPage.createFirstRule')}</button>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {rules.map((rule) => (
+                <div key={rule.id} className={`glass-card p-5 flex items-center justify-between transition-all ${!rule.isActive ? 'opacity-50 grayscale' : ''}`}>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center shrink-0">
+                      <TrendingUp className="w-5 h-5 text-primary-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                        {rule.name}
+                        <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-white/[0.06] text-surface-300">
+                          Priority {rule.priority}
+                        </span>
+                      </h3>
+                      
+                      <div className="flex flex-wrap text-sm text-surface-400 gap-x-4 gap-y-1 mt-1">
+                        {/* Date Range */}
+                        {rule.startDate || rule.endDate ? (
+                          <span className="flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" /> 
+                            {rule.startDate ? new Date(rule.startDate).toLocaleDateString() : 'Always'} 
+                            {' → '} 
+                            {rule.endDate ? new Date(rule.endDate).toLocaleDateString() : 'Always'}
+                          </span>
+                        ) : <span className="flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" /> Ongoing</span>}
+                        
+                        {/* Days of Week */}
+                        {rule.daysOfWeek && rule.daysOfWeek.length > 0 && (
+                          <span className="flex items-center gap-1.5"><Filter className="w-3.5 h-3.5" /> {rule.daysOfWeek.map(d => daysMap[d]).join(', ')}</span>
+                        )}
+
+                        {/* Applies to Room Type */}
+                        <span className="flex items-center gap-1.5 px-2 rounded bg-surface-800 border border-white/[0.04]">
+                          {rule.roomType?.name || 'All Room Types'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-primary-400">{formatAdjustment(rule.adjustmentType, rule.adjustmentValue)}</p>
+                      <p className="text-xs text-surface-400 uppercase tracking-widest">{rule.adjustmentType.replace('_', ' ')}</p>
+                    </div>
+
+                    <div className="h-10 w-px bg-white/[0.08]" />
+
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleToggleActive(rule)} 
+                        className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${rule.isActive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-surface-800 text-surface-400 border-white/[0.06]'}`}>
+                        {rule.isActive ? 'Active' : 'Paused'}
+                      </button>
+                      <button onClick={() => { setEditingRule(rule); setShowAddModal(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 rounded-lg hover:bg-white/[0.06] text-surface-400 transition-colors">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(rule.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-surface-400 hover:text-red-400 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-lg font-bold text-primary-400">{formatAdjustment(rule.adjustmentType, rule.adjustmentValue)}</p>
-                  <p className="text-xs text-surface-400 uppercase tracking-widest">{rule.adjustmentType.replace('_', ' ')}</p>
-                </div>
-
-                <div className="h-10 w-px bg-white/[0.08]" />
-
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleToggleActive(rule)} 
-                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${rule.isActive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-surface-800 text-surface-400 border-white/[0.06]'}`}>
-                    {rule.isActive ? 'Active' : 'Paused'}
-                  </button>
-                  <button onClick={() => { setEditingRule(rule); setShowAddModal(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 rounded-lg hover:bg-white/[0.06] text-surface-400 transition-colors">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleDelete(rule.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-surface-400 hover:text-red-400 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
     </div>

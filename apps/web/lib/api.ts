@@ -445,6 +445,7 @@ export const pricingApi = {
 
 // Public helpers (no auth needed)
 export const publicApi = {
+  getPlans: () => apiFetch('/public/plans'),
   properties: (params?: Record<string, string>) => {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/public/properties${query}`);
@@ -473,6 +474,23 @@ export const platformApi = {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/platform/tenants${query}`);
   },
+  getTenantDetail: (tenantId: string) => apiFetch(`/platform/tenants/${tenantId}/detail`),
+  // Plan Config
+  getPlans: () => apiFetch('/platform/plans'),
+  updatePlan: (id: string, data: any) =>
+    apiFetch(`/platform/plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updatePlansBulk: (plans: any[]) =>
+    apiFetch('/platform/plans-bulk', { method: 'PUT', body: JSON.stringify({ plans }) }),
+  // Per-tenant custom pricing
+  getTenantCustomPricing: (tenantId: string) => apiFetch(`/platform/tenants/${tenantId}/custom-pricing`),
+  updateTenantCustomPricing: (tenantId: string, customPlanPricing: any) =>
+    apiFetch(`/platform/tenants/${tenantId}/custom-pricing`, { method: 'PUT', body: JSON.stringify({ customPlanPricing }) }),
+  // GST Slabs
+  getGstSlabs: () => apiFetch('/platform/gst-slabs'),
+  updateGstSlabs: (slabs: any[]) =>
+    apiFetch('/platform/gst-slabs', { method: 'PUT', body: JSON.stringify({ slabs }) }),
+  resetGstSlabs: () =>
+    apiFetch('/platform/gst-slabs/reset', { method: 'POST' }),
 };
 
 // Reviews helpers
