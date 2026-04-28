@@ -101,10 +101,99 @@ export default async function PropertyLayout({
     }
   `;
 
+  // ── Build LodgingBusiness JSON-LD ─────────────────────────────────────────
+  // Maps propertyType enum to the most specific Schema.org sub-type for richer
+  // Google Hotel Search eligibility and correct lodging classification.
+  const SCHEMA_TYPE_MAP: Record<string, string> = {
+    hotel: 'Hotel',
+    resort: 'Resort',
+    hostel: 'Hostel',
+    lodge: 'LodgingBusiness',
+    homestay: 'BedAndBreakfast',
+    guest_house: 'GuestHouse',
+    pg: 'LodgingBusiness',
+  };
+  const schemaType = SCHEMA_TYPE_MAP[property.propertyType || ''] || 'LodgingBusiness';
+
+  // Aggregate rating from published reviews
+  const reviewRatings = (property.reviews || []).map((r: any) => r.rating).filter(Boolean);
+  const avgRating = reviewRatings.length > 0
+    ? (reviewRatings.reduce((s: number, r: number) => s + r, 0) / reviewRatings.length).toFixed(1)
+    : null;
+
+  // Room types → containsPlace entries (gives Google room-level price awareness)
+  const containsPlace = (property.roomTypes || []).map((rt: any) => ({
+    '@type': 'HotelRoom',
+    'name': rt.name,
+    'description': rt.description || undefined,
+    'occupancy': {
+      '@type': 'QuantitativeValue',
+      'maxValue': rt.maxOccupancy || 2,
+    },
+    ...(rt.baseRate ? {
+      'offers': {
+        '@type': 'Offer',
+        'priceSpecification': {
+          '@type': 'UnitPriceSpecification',
+          'price': rt.baseRate,
+          'priceCurrency': 'INR',
+          'unitCode': rt.pricingUnit === 'monthly' ? 'MON' : 'DAY',
+        },
+      },
+    } : {}),
+  }));
+
+  const jsonLd: Record<string, any> = {
+    '@context': 'https://schema.org',
+    '@type': schemaType,
+    'name': property.name,
+    ...(property.description ? { 'description': property.description } : {}),
+    ...(property.tagline ? { 'slogan': property.tagline } : {}),
+    ...(property.heroImage ? { 'image': property.heroImage } : {}),
+    ...(property.contactPhone ? { 'telephone': property.contactPhone } : {}),
+    ...(property.contactEmail ? { 'email': property.contactEmail } : {}),
+    'address': {
+      '@type': 'PostalAddress',
+      ...(property.address ? { 'streetAddress': property.address } : {}),
+      ...(property.city ? { 'addressLocality': property.city } : {}),
+      ...(property.state ? { 'addressRegion': property.state } : {}),
+      ...(property.pincode ? { 'postalCode': property.pincode } : {}),
+      'addressCountry': 'IN',
+    },
+    ...(property.latitude && property.longitude ? {
+      'geo': {
+        '@type': 'GeoCoordinates',
+        'latitude': property.latitude,
+        'longitude': property.longitude,
+      },
+    } : {}),
+    ...(property.defaultCheckInTime ? { 'checkinTime': property.defaultCheckInTime } : {}),
+    ...(property.defaultCheckOutTime ? { 'checkoutTime': property.defaultCheckOutTime } : {}),
+    ...(avgRating ? {
+      'aggregateRating': {
+        '@type': 'AggregateRating',
+        'ratingValue': avgRating,
+        'reviewCount': reviewRatings.length,
+        'bestRating': '5',
+        'worstRating': '1',
+      },
+    } : {}),
+    ...(containsPlace.length > 0 ? { 'containsPlace': containsPlace } : {}),
+  };
+
   // No <main> here — PropertyLayoutClient owns the main landmark to avoid nested <main> elements.
   return (
     <NextIntlClientProvider messages={messages}>
       <div className="min-h-screen bg-surface-50 text-surface-900 font-sans flex flex-col">
+        {/* ── Schema.org LodgingBusiness JSON-LD ──────────────────────────────
+             Required for Google Hotel Search eligibility and rich results.
+             Rendered server-side so it's available on the first byte to crawlers.
+        ────────────────────────────────────────────────────────────────────── */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+
         <style dangerouslySetInnerHTML={{ __html: themeStyles }} />
         {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
         {headScripts && <HtmlInjector html={headScripts} location="head" />}
