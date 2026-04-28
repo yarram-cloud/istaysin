@@ -43,18 +43,27 @@ export default function FloorsSettingsPage() {
   }, [fetchFloors]);
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this floor?')) return;
-    try {
-      setIsDeleting(id);
-      await roomsApi.deleteFloor(id);
-      setFloors(prev => prev.filter(f => f.id !== id));
-      toast.success('Floor deleted');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete floor');
-    } finally {
-      setIsDeleting(null);
-    }
+    toast('Delete this floor?', {
+      description: 'Rooms assigned to it will need reassignment.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            setIsDeleting(id);
+            await roomsApi.deleteFloor(id);
+            setFloors(prev => prev.filter(f => f.id !== id));
+            toast.success('Floor deleted');
+          } catch (err: any) {
+            toast.error(err.message || 'Failed to delete floor');
+          } finally {
+            setIsDeleting(null);
+          }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   }
+
 
   async function handleSaveEdit() {
     if (!editingId) return;

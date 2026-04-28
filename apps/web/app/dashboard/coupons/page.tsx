@@ -58,15 +58,24 @@ export default function CouponsPage() {
   }, [fetchData]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this coupon?')) return;
-    try {
-      await couponsApi.delete(id);
-      setCoupons(prev => prev.filter(c => c.id !== id));
-      toast.success('Coupon deleted successfully');
-    } catch (err) {
-      toast.error('Failed to delete coupon');
-    }
+    toast('Delete this coupon?', {
+      description: 'This action cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await couponsApi.delete(id);
+            setCoupons(prev => prev.filter(c => c.id !== id));
+            toast.success('Coupon deleted successfully');
+          } catch (err) {
+            toast.error('Failed to delete coupon');
+          }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   };
+
 
   const toggleStatus = async (coupon: Coupon) => {
     try {

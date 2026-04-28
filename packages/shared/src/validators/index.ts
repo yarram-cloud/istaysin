@@ -485,8 +485,9 @@ export const channelWebhookSchema = z.record(z.unknown());
 // Groups Router Schema
 // ============================================================
 export const createGroupBlockSchema = z.object({
+  blockCode: z.string().min(2).max(20).regex(/^[A-Z0-9-]+$/, 'Block code must be uppercase alphanumeric').optional(),
   name: z.string().min(2).max(200),
-  company: z.string().max(200).optional(),
+  companyName: z.string().max(200).optional(),
   checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   status: z.enum(['tentative', 'confirmed', 'cancelled']).default('tentative'),

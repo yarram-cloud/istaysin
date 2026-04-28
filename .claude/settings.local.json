@@ -23,7 +23,12 @@
       "Bash(echo \"E2E_EXIT=$?\")",
       "Bash(echo \"API_EXIT=$?\")",
       "Bash(echo \"WEB=$?\")",
-      "Bash(echo \"API=$?\")"
+      "Bash(echo \"API=$?\")",
+      "Bash(grep -rn 'withTenant\\\\|prisma\\\\.$transaction' C:/Users/rajya/.gemini/antigravity/playground/istays/packages/api/src/modules/dashboard/router.ts)",
+      "Bash(npm install *)",
+      "Bash(echo \"BUILD=$?\")",
+      "Bash(echo \"BUILD_EXIT=$?\")",
+      "Read(//tmp/**)"
     ]
   }
 }

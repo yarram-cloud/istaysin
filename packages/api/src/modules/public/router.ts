@@ -9,6 +9,7 @@ import { dispatchBookingConfirmation } from '../../services/whatsapp';
 import { logAudit } from '../../middleware/audit-log';
 import { createRazorpayOrder, verifyRazorpayPayment } from '../../services/razorpay';
 import { publicHintsLimiter } from '../../middleware/rate-limit';
+import { getPlanFeatures } from '../../config/plan-features';
 export const publicRouter = Router();
 
 // GET /public/plans — public plan pricing (no auth required)
@@ -107,7 +108,7 @@ publicRouter.get('/properties/:slug', optionalAuth, async (req: Request, res: Re
     const property = await prisma.tenant.findUnique({
       where: { slug: req.params.slug },
       select: {
-        id: true, name: true, slug: true, propertyType: true,
+        id: true, name: true, slug: true, propertyType: true, plan: true,
         address: true, city: true, state: true, pincode: true,
         contactPhone: true, contactEmail: true,
         latitude: true, longitude: true, brandLogo: true, heroImage: true,
@@ -138,13 +139,30 @@ publicRouter.get('/properties/:slug', optionalAuth, async (req: Request, res: Re
 
     // SECURITY PATCH: Strip sensitive configuration data from the public unauthenticated output
     const rawConfig = (property.config as Record<string, any>) || {};
-    const { razorpaySecret, twilioToken, ...safeConfig } = rawConfig;
-    
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { razorpaySecret, twilioToken, customPlanPricing, domainVerified, ...safeConfig } = rawConfig;
+
+    // Plan-gate the website-builder fields that inject tenant-controlled HTML/JS/CSS.
+    // The dashboard saves these for any plan, but they are only RENDERED on the
+    // public page when the plan permits — fail closed if the plan is unknown.
+    const features = getPlanFeatures(property.plan);
+    if (safeConfig.websiteBuilder?.components) {
+      const components = { ...safeConfig.websiteBuilder.components };
+      if (!features.customScripts && components.scripts) {
+        components.scripts = { head: '', body: '' };
+      }
+      if (!features.customCss && components.advanced) {
+        components.advanced = { ...components.advanced, customCss: '' };
+      }
+      safeConfig.websiteBuilder = { ...safeConfig.websiteBuilder, components };
+    }
+
     const data = {
       ...property,
       config: safeConfig,
       hasOnlinePayment: !!rawConfig.razorpayKeyId && !!rawConfig.razorpaySecret,
       allowPayAtHotel: rawConfig.allowPayAtHotel !== false, // default true
+      featureFlags: features,
     };
 
     res.json({ success: true, data });

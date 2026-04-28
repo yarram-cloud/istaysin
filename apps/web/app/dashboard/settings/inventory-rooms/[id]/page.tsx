@@ -75,19 +75,28 @@ export default function EditInventoryRoomPage({ params }: { params: { id: string
   }
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this room? This cannot be undone.')) return;
-    setDeleting(true);
-    try {
-      await roomsApi.deleteRoom(params.id);
-      toast.success('Room deleted');
-      router.push('/dashboard/settings/inventory-rooms');
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete room');
-    } finally {
-      setDeleting(false);
-    }
+    toast('Delete this room?', {
+      description: 'This cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          setDeleting(true);
+          try {
+            await roomsApi.deleteRoom(params.id);
+            toast.success('Room deleted');
+            router.push('/dashboard/settings/inventory-rooms');
+            router.refresh();
+          } catch (err: any) {
+            toast.error(err.message || 'Failed to delete room');
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   }
+
 
   if (initialLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-500" /></div>;

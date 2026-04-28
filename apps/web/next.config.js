@@ -27,6 +27,57 @@ const nextConfig = {
       },
     ];
   },
+  /**
+   * Baseline Content-Security-Policy for the public property pages.
+   *
+   * What this protects against: a tenant on a paid tier injects malicious
+   * JS via the website-builder Tracking Scripts feature. The CSP narrows
+   * the blast radius — even if the script runs, it can only call out to
+   * known analytics endpoints, not exfiltrate to arbitrary hosts.
+   *
+   * `'unsafe-inline'` for script-src is required because GTM / Pixel boot
+   * code is inline. Once we move to a strict-dynamic / nonce model, drop it.
+   * `'unsafe-eval'` is *not* listed — Razorpay's checkout iframe runs in its
+   * own origin so it doesn't need it on our pages.
+   */
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://static.hotjar.com https://www.clarity.ms https://checkout.razorpay.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https: wss:",
+      "frame-src 'self' https://www.google.com https://maps.google.com https://checkout.razorpay.com https://api.razorpay.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
+
+    return [
+      {
+        // Public property pages are at /[locale]/[slug] and below.
+        // The middleware also rewrites subdomain/custom-domain hosts to this
+        // path, so this matcher catches both routing styles.
+        source: '/:locale(en|hi|bn|ta|te|mr|kn|ml|gu|pa)/:slug/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: csp },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=()' },
+        ],
+      },
+      {
+        source: '/:locale(en|hi|bn|ta|te|mr|kn|ml|gu|pa)/:slug',
+        headers: [
+          { key: 'Content-Security-Policy', value: csp },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=()' },
+        ],
+      },
+    ];
+  },
 };
 
 const withNextIntl = require('next-intl/plugin')();

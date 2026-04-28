@@ -8,6 +8,8 @@ import { propertyRegistrationSchema, brandingSchema, staffInviteSchema } from '@
 import { logAudit } from '../../middleware/audit-log';
 import { sendPropertyApprovalEmail } from '../../services/email';
 import { getSubdomainUrl, getRootDomain } from '../../services/cloudflare';
+import { invalidateMembership } from '../../middleware/tenant-cache';
+import { getPlanFeatures } from '../../config/plan-features';
 
 export const tenantsRouter = Router();
 
@@ -298,7 +300,11 @@ tenantsRouter.get('/:id/settings', authenticate, resolveTenant, requireTenant, a
       data: {
         ...tenant,
         config: safeConfig,
-        saasPlans: mergedPlans
+        saasPlans: mergedPlans,
+        // Plan-derived feature flags so the dashboard can disable / hide
+        // controls without hardcoding plan names. Authoritative on the
+        // server — the public endpoint enforces the same flags.
+        featureFlags: getPlanFeatures(tenant.plan),
       }
     });
   } catch (err) {
@@ -456,6 +462,10 @@ tenantsRouter.post(
         },
       });
 
+      // Invalidate so the negative-cached "no membership" entry from earlier
+      // attempts (or a denied request) doesn't keep this staff out for 10s.
+      invalidateMembership(user.id, req.params.id);
+
       await logAudit(req.tenantId!, req.userId, 'INVITE_STAFF', 'tenant_membership', user.id, { phone, role }, req.ip || undefined);
 
       res.status(201).json({ success: true, message: `Staff invited: ${phone} as ${role}` });
@@ -494,6 +504,9 @@ tenantsRouter.put(
         where: { id: membership.id },
         data: { isActive },
       });
+
+      // Whether activating or deactivating, the cached membership state is now stale.
+      invalidateMembership(req.params.userId, req.tenantId!);
 
       await logAudit(req.tenantId!, req.userId, 'UPDATE_STAFF_STATUS', 'tenant_membership', membership.id, { isActive }, req.ip || undefined);
 
@@ -557,6 +570,8 @@ tenantsRouter.delete('/staff/:userId', authenticate, resolveTenant, requireTenan
       where: { id: membership.id },
       data: { isActive: false },
     });
+
+    invalidateMembership(req.params.userId, req.tenantId!);
 
     await logAudit(req.tenantId!, req.userId, 'REMOVE_STAFF', 'tenant_membership', membership.id, { userId: req.params.userId }, req.ip || undefined);
 

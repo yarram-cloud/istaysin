@@ -196,14 +196,22 @@ function FloorsSection({ floors, setFloors }: { floors: Floor[]; setFloors: Reac
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this floor? Rooms assigned to it will need reassignment.')) return;
-    setDeleting(id);
-    try {
-      await roomsApi.deleteFloor(id);
-      setFloors(prev => prev.filter(f => f.id !== id));
-      toast.success('Floor deleted');
-    } catch (err: any) { toast.error(err.message || 'Cannot delete — rooms still assigned'); }
-    finally { setDeleting(null); }
+    toast('Delete this floor?', {
+      description: 'Rooms assigned to it will need reassignment.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          setDeleting(id);
+          try {
+            await roomsApi.deleteFloor(id);
+            setFloors(prev => prev.filter(f => f.id !== id));
+            toast.success('Floor deleted');
+          } catch (err: any) { toast.error(err.message || 'Cannot delete — rooms still assigned'); }
+          finally { setDeleting(null); }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   }
 
   return (
@@ -307,14 +315,22 @@ function RoomTypesSection({ roomTypes, setRoomTypes, onRefresh }: { roomTypes: R
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this room type? Existing rooms will need reassignment.')) return;
-    setDeleting(id);
-    try {
-      await roomsApi.deleteRoomType(id);
-      setRoomTypes(prev => prev.filter(t => t.id !== id));
-      toast.success('Room type removed');
-    } catch (err: any) { toast.error(err.message || 'Cannot delete — rooms still assigned'); }
-    finally { setDeleting(null); }
+    toast('Delete this room type?', {
+      description: 'Existing rooms will need reassignment.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          setDeleting(id);
+          try {
+            await roomsApi.deleteRoomType(id);
+            setRoomTypes(prev => prev.filter(t => t.id !== id));
+            toast.success('Room type removed');
+          } catch (err: any) { toast.error(err.message || 'Cannot delete — rooms still assigned'); }
+          finally { setDeleting(null); }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   }
 
   const pricingLabel = (unit: string) => unit === 'monthly' ? '/month' : '/night';
@@ -540,14 +556,22 @@ function RoomsSection({ rooms, setRooms, floors, roomTypes, onRefresh }: {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this room?')) return;
-    setDeleting(id);
-    try {
-      await roomsApi.deleteRoom(id);
-      setRooms(prev => prev.filter(r => r.id !== id));
-      toast.success('Room deleted');
-    } catch (err: any) { toast.error(err.message || 'Failed'); }
-    finally { setDeleting(null); }
+    toast('Delete this room?', {
+      description: 'This cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          setDeleting(id);
+          try {
+            await roomsApi.deleteRoom(id);
+            setRooms(prev => prev.filter(r => r.id !== id));
+            toast.success('Room deleted');
+          } catch (err: any) { toast.error(err.message || 'Failed'); }
+          finally { setDeleting(null); }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   }
 
   function startEdit(r: Room) {

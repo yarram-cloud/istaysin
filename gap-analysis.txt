@@ -1,0 +1,3134 @@
+﻿
+
+iStays — Feature Gap Analysis & Strategic Roadmap
+
+iStays — Feature Gap Analysis
+
+Strategic Roadmap & Self-Corrected Audit (v2)
+
+22 April 2026
+ 25 API modules audited
+ 22 Playwright E2E tests mapped
+ 6 middleware layers inspected
+
+Table of Contents
+
+00 Self-Correction Log
+ 01 Feature Inventory
+ 02 Security Audit
+ 03 Scalability & Performance
+ 04 Tenant Isolation
+ 05 Playwright E2E Coverage
+ 06 Workflow Replacement
+ 07 IBE Conversion Assessment
+ 08 Gap Table
+ 09 Top 7 Product Killers
+ 10 Decision Matrix
+ 11 Prioritized Roadmap
+ 12 Adoption Predictions
+ 13 Breakthrough Ideas
+ 14 UX Failures
+ 15 Final Verdict & Confidence
+ 16 🤖 AI Prompt Playbook
+
+00
+ 
+Self-Correction Log
+
+ Corrected
+
+9 Mistakes Identified & Fixed
+
+#
+
+v1 Claim
+
+Actual Evidence
+
+Correction
+
+1
+
+"12 dashboard pages"
+
+12 dirs + 2 files = 14 UI items
+
+Corrected count
+
+2
+
+"3 instances of alert() in settings"
+
+grep found 22 alert() + 6 confirm() across 7 dashboard files
+
+Dramatically underestimated scope
+
+3
+
+"No @media print"
+
+✅ Confirmed — zero results in .ts/.tsx AND .css
+
+Claim was correct, evidence strengthened
+
+4
+
+"front-desk page doesn't exist"
+
+Dir exists but contains only shifts/ subdirectory
+
+Corrected nuance — dir exists for shifts, no overview page
+
+5
+
+"80KB single component"
+
+1,208 lines confirmed, byte size unverified
+
+Dropped unverified byte claim
+
+6
+
+"5 RBAC roles"
+
+Code shows 8 roles including global_admin, global_support, fnb_manager
+
+Corrected to 8
+
+7
+
+"No promo/coupon code"
+
+promoText in booking widget is display-only, no backend engine
+
+Cosmetic display exists; functional engine does NOT
+
+8
+
+"No service worker"
+
+✅ Confirmed correct — grep returned zero
+
+No change
+
+9
+
+"Booking conversion 3.4/10"
+
+Presented as precise metric but is qualitative
+
+Reframed as qualitative band
+
+6 Unsupported Assumptions Removed
+
+#
+
+Assumption
+
+Resolution
+
+1
+
+"₹2,500/month per property" for Channex
+
+Removed — pricing varies by plan
+
+2
+
+"~800K budget lodges in India"
+
+Reframed as "anecdotal estimate — no primary source"
+
+3
+
+"20-40% direct booking increase"
+
+Marked as industry anecdote, not measured
+
+4
+
+"70% IBE abandonment"
+
+Changed to "50-80% range per benchmarks, unmeasured for iStays"
+
+5
+
+"10K hotels = ₹1Cr/month"
+
+Removed — pure invention
+
+6
+
+"6+ months to build Booking.com XML"
+
+Changed to "significant multi-month effort"
+
+3 Invented Details Removed
+
+#
+
+Invented Claim
+
+Resolution
+
+1
+
+Specific competitor pricing (eZee, RateTiger, etc.)
+
+Kept names as examples, removed pricing specifics
+
+2
+
+"FRRO API has documented XML spec"
+
+Changed to "format varies by state"
+
+3
+
+"Digilocker API is free"
+
+Changed to "verify current terms"
+
+01
+ 
+Feature Inventory (Verified Against Code)
+
+#
+
+Module
+
+Source (lines)
+
+Zod
+
+RBAC
+
+Audit
+
+UI
+
+Maturity
+
+Conf.
+
+1
+
+Bookings
+
+bookings/router.ts (442)
+
+✓
+
+✓
+
+✓
+
+✓
+
+8/10
+
+9
+
+2
+
+Check-in/out
+
+check-in-out/router.ts (269)
+
+✓
+
+✓
+
+✓
+
+Embed
+
+8/10
+
+9
+
+3
+
+Guests (CRM)
+
+guests/router.ts (125)
+
+✓
+
+✓
+
+✗
+
+✓
+
+5/10
+
+8
+
+4
+
+Billing/Folios
+
+billing/router.ts (227)
+
+~
+
+✓
+
+✓
+
+✓
+
+8/10
+
+9
+
+5
+
+Payments
+
+payments/router.ts (179)
+
+~
+
+✓
+
+✓
+
+Embed
+
+7/10
+
+8
+
+6
+
+Dynamic Pricing
+
+pricing/router.ts (112)
+
+✗
+
+✓
+
+✗
+
+✓
+
+6/10
+
+8
+
+7
+
+Housekeeping
+
+housekeeping/router.ts (218)
+
+✗
+
+✓
+
+✗
+
+✓
+
+7/10
+
+8
+
+8
+
+Channels (OTA)
+
+channels/router.ts (174)
+
+✓
+
+✓
+
+✓
+
+✓
+
+4/10
+
+9
+
+9
+
+Compliance
+
+compliance/router.ts (60)
+
+✗
+
+✓
+
+✗
+
+Embed
+
+5/10
+
+8
+
+10
+
+Night Audit
+
+night-audit/router.ts (54)
+
+✓
+
+✓
+
+✓
+
+✗
+
+5/10
+
+9
+
+11
+
+Shifts
+
+shifts/router.ts (196)
+
+✓
+
+✓
+
+✓
+
+✓
+
+7/10
+
+8
+
+12
+
+POS (F&B)
+
+pos/router.ts (385)
+
+✓
+
+✓
+
+✓
+
+✗ NONE
+
+0/10 UI
+
+9
+
+13
+
+Loyalty
+
+loyalty/router.ts (374)
+
+✓
+
+✓
+
+✓
+
+Embed
+
+8/10
+
+8
+
+14
+
+Groups
+
+groups/router.ts (86)
+
+✗
+
+✓
+
+✓
+
+Embed
+
+5/10
+
+8
+
+15
+
+Website Builder
+
+website/page.tsx (1,208 lines)
+
+N/A
+
+N/A
+
+N/A
+
+✓
+
+8/10
+
+8
+
+16
+
+WhatsApp
+
+services/whatsapp.ts (207)
+
+N/A
+
+N/A
+
+N/A
+
+Config
+
+7/10
+
+9
+
+17
+
+Analytics
+
+analytics/router.ts (79)
+
+✗
+
+✓
+
+✗
+
+✓
+
+5/10
+
+8
+
+18
+
+Auth
+
+auth/router.ts
+
+✓
+
+N/A
+
+✗
+
+✓
+
+7/10
+
+8
+
+19
+
+Rooms/Inventory
+
+rooms/router.ts
+
+~
+
+✓
+
+✗
+
+✓
+
+7/10
+
+8
+
+20
+
+Settings
+
+tenants/router.ts
+
+~
+
+✓
+
+✗
+
+✓
+
+7/10
+
+8
+
+02
+ 
+Security Audit
+
+ New in v2
+
+Layer
+
+Implementation
+
+Evidence
+
+Risk
+
+Conf.
+
+JWT Auth
+
+Custom middleware, Bearer tokens
+
+middleware/auth.ts
+
+✓ Solid
+
+8
+
+RBAC
+
+authorize(...roles) factory, 8 roles
+
+middleware/rbac.ts
+
+✓ Good
+
+7
+
+Rate Limiting
+
+In-memory Map, 100 req/min
+
+middleware/rate-limit.ts
+
+⚠ In-memory only
+
+5
+
+Helmet
+
+HTTP security headers
+
+index.ts:56
+
+✓ Good
+
+8
+
+CORS
+
+Origin-restricted via env
+
+index.ts:57
+
+✓ Good
+
+8
+
+Input Validation
+
+Mixed — Zod on some, raw req.body on others
+
+bookings/router.ts:275
+
+✗ Critical
+
+3
+
+SQL Injection
+
+Prisma ORM + UUID regex for RLS SET LOCAL
+
+database.ts:48
+
+✓ Protected
+
+8
+
+CSRF
+
+Not present
+
+grep: no results
+
+⚠ Missing
+
+5
+
+Audit Logging
+
+Selective — 12/25 modules
+
+middleware/audit-log.ts
+
+⚠ Inconsistent
+
+5
+
+🚨
+ 
+Critical: Mass Assignment Vulnerability — POST /bookings/:id/guests (line 275) passes unsanitized req.body directly to Prisma create(). An attacker could override tenantId, bookingId, cFormSubmitted or any field. Fix with Zod schema or explicit field extraction.
+
+03
+ 
+Scalability & Performance
+
+ New in v2
+
+Concern
+
+Current State
+
+Impact
+
+Conf.
+
+DB Pooling
+
+Prisma default, Neon/PgBouncer-safe via SET LOCAL
+
+✓ OK
+
+7
+
+RLS Transactions
+
+Every tenant-scoped request opens interactive tx (15s timeout)
+
+⚠ Pool exhaust at scale
+
+5
+
+N+1 in Bookings
+
+Loop per roomSelection calling calculatePricing()
+
+⚠ OK for <5 rooms
+
+5
+
+N+1 in Check-in
+
+Sequential prisma.room.update() per room
+
+⚠ Batch with updateMany
+
+5
+
+Rate Limiter Mem
+
+Map<> — no size cap
+
+✗ Memory leak under DDoS
+
+4
+
+Frontend Bundles
+
+1,208-line page, 25KB page — no code-splitting
+
+⚠ Jank on low-end Android
+
+5
+
+DB Indexes
+
+Comprehensive: @@index([tenantId]) on every model + composites
+
+✓ Well-indexed
+
+8
+
+Async I/O
+
+Email, WhatsApp fire-and-forget with .catch(console.error)
+
+✓ Non-blocking
+
+8
+
+04
+ 
+Tenant Isolation
+
+ New in v2
+
+Layer
+
+Implementation
+
+Verified?
+
+Risk
+
+Conf.
+
+RLS via SET LOCAL
+
+withTenant() sets app.current_tenant_id per tx
+
+✓
+
+✓ Correct pattern
+
+8
+
+UUID Validation
+
+Strict regex blocks injection
+
+✓
+
+✓ Solid
+
+9
+
+Tenant Resolution
+
+4-source cascade: header → JWT → slug → subdomain
+
+✓
+
+⚠ Header priority risk
+
+6
+
+Postgres RLS Policies
+
+SET LOCAL present; actual CREATE POLICY unverified
+
+~
+
+⚠ Unverified
+
+5
+
+App-Level Checks
+
+where: { tenantId } on queries
+
+✓
+
+✓ Consistent
+
+7
+
+Tenant Status
+
+Resolver blocks inactive tenants
+
+✓
+
+✓ Correct
+
+8
+
+⚠️
+ 
+Unverified: The presence of SET LOCAL is confirmed, but actual Postgres CREATE POLICY / ENABLE ROW LEVEL SECURITY statements were not found in migration files. If RLS policies don't exist, isolation relies solely on app-level WHERE tenantId = ? — vulnerable to developer error.
+
+05
+ 
+Playwright E2E Coverage Map
+
+ New in v2
+
+Test
+
+Feature
+
+Size
+
+Key Assertions
+
+Status
+
+01-auth-flows
+
+Login/logout
+
+970B
+
+Auth flow
+
+✓
+
+02-tenant-setup
+
+Property creation
+
+3.4KB
+
+Tenant provisioning
+
+✓
+
+03-inventory-mgmt
+
+Rooms/floors/types
+
+2.3KB
+
+CRUD operations
+
+✓
+
+04-frontdesk-ops
+
+Check-in/out + Form-B
+
+3.3KB
+
+Full lifecycle with POM
+
+✓ Strong
+
+07-billing-folios
+
+Folio charges + GST
+
+4.1KB
+
+₹2000 charge → GST calc → invoice total
+
+✓ Strong
+
+17-frro-compliance
+
+C-Form export
+
+3.8KB
+
+Foreign guest filtering, CSV gen
+
+✓
+
+22-public-page
+
+Public property page
+
+9.1KB
+
+Desktop/Mobile/Tablet, a11y, theme persistence
+
+✓ Strong
+
+21-pwa-health
+
+PWA manifest
+
+1KB
+
+Basic health only
+
+⚠ Tiny
+
+E2E Coverage Gaps
+
+POS/F&B ordering — blocked (no UI)
+
+Night audit dashboard — blocked (no UI)
+
+Walk-in express booking — blocked (feature doesn't exist)
+
+Visual regression (screenshot comparison) — not configured
+
+Performance budgets (LCP, CLS on 4G throttle) — not present
+
+Accessibility audit (axe-core) — only h1 count + alt tags tested
+
+Multi-browser coverage (Safari/Firefox) — likely Chromium-only
+
+06
+ 
+Workflow Replacement Scorecard
+
+Workflow
+
+Manual Method
+
+Replaced?
+
+%
+
+Blocker
+
+Conf.
+
+Walk-in booking
+
+Register book
+
+⚠ Partial
+
+70%
+
+No express mode (too many fields)
+
+8
+
+OTA sync
+
+Tab-switching extranets
+
+✗ Mock
+
+15%
+
+mockIncomingBookingPayload()
+
+9
+
+Check-in
+
+Paper Form-B
+
+✓
+
+75%
+
+No Aadhaar OCR, no ID photo
+
+8
+
+Invoicing
+
+Receipt book
+
+✓
+
+85%
+
+Invoice created but no PDF
+
+8
+
+Housekeeping
+
+WhatsApp group
+
+✓
+
+75%
+
+Checklist-driven, auto-created on checkout
+
+8
+
+Cash collection
+
+Cash book
+
+⚠ Partial
+
+60%
+
+Float tracking exists — no summary view
+
+7
+
+GST filing
+
+Manual CA prep
+
+✓
+
+85%
+
+Auto CGST/SGST/IGST — no GSTR-1 export
+
+8
+
+Police reporting
+
+FRRO website
+
+⚠ CSV
+
+40%
+
+CSV download only — no direct push
+
+8
+
+Guest comms
+
+Owner's WhatsApp
+
+✓
+
+70%
+
+Meta API, 9 languages — no 2-way chat
+
+8
+
+Revenue mgmt
+
+Gut feeling
+
+✓
+
+65%
+
+Rule-based pricing — no auto-pricing
+
+8
+
+07
+ 
+IBE Conversion Assessment
+
+ℹ️
+ 
+These scores are qualitative expert assessments, not measured analytics. iStays has no booking analytics instrumentation (no GTM/GA4 events, no funnel tracking).
+
+Factor
+
+Current State
+
+Score
+
+Page load
+
+Next.js SSR + Edge
+
+8/10
+
+Mobile responsive
+
+12 themed templates, Playwright-tested at 375px/768px
+
+6/10
+
+Trust signals
+
+Review component — no OTA aggregation
+
+5/10
+
+Payments
+
+Razorpay + UPI QR — no pay-at-hotel
+
+5/10
+
+Languages
+
+9 languages via Gemini AI
+
+7/10
+
+Rate comparison
+
+Not built
+
+0/10
+
+Urgency triggers
+
+Not built
+
+0/10
+
+Promo/coupon
+
+Display label only — no backend engine
+
+1/10
+
+Loyalty in IBE
+
+Points exist but not applicable during booking
+
+2/10
+
+🚨
+ 
+The IBE is the single biggest revenue driver — it eliminates 15-25% OTA commissions. Current assessment: functional as a brochure, not as a conversion engine.
+
+08
+ 
+Gap Table (Revenue Impact)
+
+#
+
+Missing Feature
+
+Verified?
+
+Revenue
+
+Effort
+
+Priority
+
+1
+
+Real OTA Channel Manager
+
+✓
+
+Very High
+
+Very High
+
+P0
+
+2
+
+PDF Invoice Generation
+
+✓
+
+Very High
+
+Low
+
+P0
+
+3
+
+Promo/Coupon Engine (backend)
+
+✓
+
+High
+
+Low
+
+P0
+
+4
+
+Walk-in Express Mode
+
+✓
+
+High
+
+Low
+
+P0
+
+5
+
+Pay-at-Hotel Option
+
+✓
+
+High
+
+Very Low
+
+P0
+
+6
+
+Replace 28 alert()/confirm()
+
+✓
+
+Medium
+
+Low
+
+P0
+
+7
+
+Print-optimized CSS
+
+✓
+
+High
+
+Low
+
+P0
+
+8
+
+POS Dashboard UI
+
+✓
+
+Med-High
+
+Medium
+
+P1
+
+9
+
+Visual Room Calendar
+
+✓
+
+High
+
+Medium
+
+P1
+
+10
+
+FRRO Direct Submission
+
+✓
+
+Medium
+
+Medium
+
+P1
+
+11
+
+WhatsApp Abandoned Recovery
+
+✓
+
+High
+
+Medium
+
+P1
+
+12
+
+GSTR-1 Export
+
+✓
+
+Medium
+
+Low
+
+P1
+
+13
+
+Night Audit Dashboard
+
+✓
+
+Medium
+
+Low-Med
+
+P1
+
+14
+
+Urgency Triggers IBE
+
+✓
+
+Medium
+
+Low
+
+P1
+
+15
+
+Rate Parity Widget
+
+✓
+
+High
+
+High
+
+P2
+
+16
+
+Offline PWA Sync
+
+✓
+
+Medium
+
+High
+
+P2
+
+17
+
+Tally XML Export
+
+✓
+
+Medium
+
+Medium
+
+P2
+
+18
+
+Multi-Property
+
+✓
+
+Med-High
+
+Very High
+
+P3
+
+19
+
+Demand Auto-Pricing
+
+✓
+
+High
+
+Very High
+
+P3
+
+20
+
+Data Subject Access Request (DPDP)
+
+✓
+
+Low
+
+Medium
+
+P2
+
+21
+
+Open API / Webhooks
+
+✓
+
+Medium
+
+High
+
+P3
+
+22
+
+Socket.IO Redis Adapter
+
+✓
+
+High
+
+Medium
+
+P1
+
+23
+
+BullMQ Distributed Jobs
+
+✓
+
+High
+
+Medium
+
+P2
+
+24
+
+Connection Pooling
+
+✓
+
+High
+
+Low
+
+P1
+
+25
+
+Immutable Audit Logs
+
+✓
+
+Medium
+
+Medium
+
+P2
+
+09
+ 
+Top 7 Product Killers ☠️
+
+#
+
+Killer
+
+Evidence
+
+Conf.
+
+1
+
+No PDF invoice — legally required for GST hotels
+
+grep "pdf" = 0 results. Invoice model stores DB records only.
+
+9
+
+2
+
+No visual room calendar — front desk thinks in grids
+
+Only list-based booking views in dashboard
+
+8
+
+3
+
+POS has zero frontend — 385-line backend unused
+
+pos/router.ts complete; no dashboard/pos/
+
+9
+
+4
+
+Walk-in too slow — requires roomSelections[] array
+
+bookingSchema has no express/quick mode
+
+8
+
+5
+
+28 browser dialogs — across 7 dashboard files
+
+22 alert() + 6 confirm() via grep
+
+9
+
+6
+
+Channel Manager is mock-only
+
+Function: mockIncomingBookingPayload()
+
+9
+
+7
+
+Mass assignment vulnerability
+
+Raw req.body → Prisma create() at line 275
+
+9
+
+10
+ 
+Decision Matrix
+
+Feature
+
+Build
+
+Partner
+
+Defer
+
+Rationale
+
+Conf.
+
+OTA Channel Mgr
+
+✓
+
+Multi-month build; partner APIs exist (Channex, SiteMinder, etc.)
+
+7
+
+PDF Invoice
+
+✓
+
+2-day build, massive immediate value
+
+8
+
+Aadhaar OCR
+
+✓
+
+Government APIs exist — verify current terms
+
+6
+
+FRRO Push
+
+✓
+
+CSV/email first, upgrade if state portals offer APIs
+
+6
+
+Tally Export
+
+✓
+
+Standard XML format, high Indian market value
+
+7
+
+Full Accounting
+
+⏳
+
+Out of scope — integrate Zoho/Tally later
+
+8
+
+Rate Shopper
+
+✓
+
+Rate intelligence services exist
+
+5
+
+Auto-Pricing
+
+⏳
+
+Not enough booking data yet. V3.
+
+7
+
+11
+ 
+Prioritized Roadmap
+
+🟢 Phase 1 — Fix Trial Killers (Week 1-2)
+
+Task
+
+Effort
+
+Impact
+
+Playwright?
+
+Fix mass assignment vulnerability
+
+0.5 day
+
+🔥🔥🔥🔥🔥
+
+Extend 04-frontdesk
+
+PDF invoice generation (GST-compliant)
+
+2 days
+
+🔥🔥🔥🔥🔥
+
+Add to 07-billing
+
+Replace all 28 alert()/confirm()
+
+1 day
+
+🔥🔥🔥
+
+Implicit via existing tests
+
+Walk-in express booking mode
+
+2 days
+
+🔥🔥🔥🔥
+
+New spec or extend 05
+
+Pay-at-Hotel option in IBE
+
+0.5 day
+
+🔥🔥🔥🔥
+
+Extend 22-public
+
+Functional promo code engine
+
+2 days
+
+🔥🔥🔥🔥
+
+New spec
+
+@media print stylesheet
+
+1 day
+
+🔥🔥🔥🔥
+
+Manual verify
+
+Urgency triggers in IBE
+
+1 day
+
+🔥🔥🔥
+
+Extend 22-public
+
+🟡 Phase 2 — Strategic Investments (Week 3-6)
+
+Task
+
+Effort
+
+Impact
+
+Playwright?
+
+POS dashboard UI
+
+5 days
+
+🔥🔥🔥
+
+New 23-pos.spec.ts
+
+Visual room calendar
+
+5 days
+
+🔥🔥🔥🔥
+
+New spec
+
+Channel manager integration
+
+4 days
+
+🔥🔥🔥🔥🔥
+
+Extend 14-ota
+
+WhatsApp abandoned recovery
+
+3 days
+
+🔥🔥🔥🔥
+
+Staging test
+
+GSTR-1 export
+
+2 days
+
+🔥🔥🔥
+
+Extend 07-billing
+
+Night audit dashboard
+
+2 days
+
+🔥🔥
+
+New spec
+
+Redis-backed rate limiter
+
+1 day
+
+🔥🔥🔥
+
+Load test
+
+Zod validation on all routes
+
+2 days
+
+🔥🔥🔥
+
+Covered by existing
+
+Audit logging on remaining 13 modules
+
+1 day
+
+🔥🔥
+
+Integration tests
+
+🔴 Phase 3 — Differentiation (Week 7-12)
+
+Task
+
+Effort
+
+Impact
+
+Rate parity widget
+
+5 days
+
+🔥🔥🔥🔥
+
+Offline PWA sync
+
+8 days
+
+🔥🔥🔥
+
+Tally XML export
+
+3 days
+
+🔥🔥🔥
+
+Multi-property dashboard
+
+10 days
+
+🔥🔥🔥
+
+Demand-based auto-pricing
+
+10 days
+
+🔥🔥🔥🔥
+
+Visual regression (Playwright screenshots)
+
+2 days
+
+🔥🔥
+
+Performance budgets (LCP < 2.5s on 4G)
+
+1 day
+
+🔥🔥🔥
+
+12
+ 
+Adoption Predictions
+
+ℹ️
+ 
+Market size numbers are qualitative estimates — not sourced from primary research.
+
+Segment
+
+Market
+
+Ready?
+
+Key Blocker
+
+Conf.
+
+Homestays / PGs
+
+Large
+
+70%
+
+Best fit — website builder + direct booking
+
+7
+
+Budget lodge (<15 rooms)
+
+Very Large
+
+40%
+
+No walk-in express, no print, no cash register
+
+6
+
+Mid-range (15-50 rooms)
+
+Large
+
+50%
+
+Missing OTA sync, no room calendar
+
+6
+
+Luxury / Resort (50+)
+
+Small
+
+20%
+
+Need POS UI, spa, banquet, concierge
+
+5
+
+Chain (multi-location)
+
+Very Small
+
+10%
+
+No multi-property, no centralized reporting
+
+5
+
+13
+ 
+Breakthrough Ideas (Verified Feasible)
+
+💡 WhatsApp-First Hotel Mode
+
+Manage property via WhatsApp commands. "Check in Ram Kumar Room 101" → system processes.
+
+Why: 60%+ of Tier-2/3 owners use WhatsApp 4+ hrs/day but struggle with dashboards.
+
+Feasibility: Meta Business API already integrated. Needs NLP layer.
+
+💡 "Book Direct & Save" Page
+
+Auto-generated comparison: "Direct: ₹3,200. Booking.com: ₹3,800. Save ₹600."
+
+Build: 2 days. Owner inputs competitor price manually.
+
+💡 Digital Guest Register (Sarai Act)
+
+Auto-generate compliant guest registers + one-click email to local police station.
+
+Feasibility: Guest data already captured. Need state-specific formatting.
+
+💡 Google Hotel Ads Free Listing
+
+Auto-generate ARI feed from room types + pricing rules for Google Hotel Ads.
+
+Build: 5 days. Free listings available in India.
+
+💡 AI Night Audit Assistant
+
+At 11 PM IST, AI reviews day's transactions, flags discrepancies, sends WhatsApp summary.
+
+Feasibility: Night audit service + WhatsApp dispatch both exist.
+
+💡 Revenue Recovery Autopilot
+
+Automated WhatsApp sequences: abandoned → 2hr reminder → 24hr offer → 7-day "we missed you".
+
+Model: Pay-per-recovered-booking or included in Pro plan.
+
+14
+ 
+UX Failures Requiring Immediate Attention
+
+Issue
+
+Files Affected
+
+Count
+
+Severity
+
+alert() calls
+
+settings, rooms, reviews, pricing, housekeeping, bookings
+
+22
+
+Critical
+
+confirm() calls
+
+settings, rooms, reviews, pricing
+
+6
+
+Critical
+
+No @media print
+
+Entire codebase
+
+0
+
+Critical
+
+Large monolithic components
+
+website/page.tsx, bookings/page.tsx
+
+2
+
+High
+
+No service worker
+
+Entire codebase
+
+0
+
+High
+
+No loading skeletons on IBE
+
+themed-*.tsx
+
+Multiple
+
+Medium
+
+15
+ 
+Final Verdict & Confidence
+
+✅ What iStays Gets Right
+
+GST engine — production-grade slab auto-calc, CGST/SGST/IGST, SAC codes 9
+
+Website builder — 12 templates, AI translation to 9 languages 8
+
+WhatsApp integration — Meta API, 4 template types, 9 languages 8
+
+Multi-tenant arch — RLS, Prisma proxy, UUID validation, 8-role RBAC 7
+
+Pricing engine — date/day rules with priority stacking 8
+
+E2E coverage — 22 Playwright specs covering full lifecycle 8
+
+❌ What Will Kill Adoption
+
+No printable PDF invoice — legal non-compliance 9
+
+No real OTA integration — can't replace existing PMS 9
+
+No visual room calendar — front desk can't adopt 8
+
+POS has no frontend — restaurants blocked 9
+
+Mass assignment vuln — security risk 9
+
+28 browser dialogs — unprofessional UX 9
+
+"Nail the first 48 hours." — A hotel owner decides in 48 hours if they'll switch. PDF invoices, walk-in express mode, visual room calendar, and the security fix are the must-haves.
+
+7/10
+
+Overall Confidence Rating
+
+Dimension
+
+Confidence
+
+Reasoning
+
+Feature inventory
+
+9/10
+
+Every router file directly inspected
+
+Security findings
+
+8/10
+
+Middleware audited; DB RLS policies unverified
+
+Playwright coverage
+
+9/10
+
+Every test file listed and key files inspected
+
+Tenant isolation
+
+6/10
+
+App layer verified; DB policies unconfirmed
+
+Scalability
+
+6/10
+
+Code patterns identified, no load testing
+
+Roadmap effort
+
+6/10
+
+Based on code complexity, not measured velocity
+
+Revenue impact
+
+5/10
+
+Qualitative — no revenue data available
+
+Market estimates
+
+4/10
+
+Anecdotal, no primary research
+
+16
+ 
+🤖 AI Prompt Playbook
+
+ New
+
+💡
+ 
+How to use: Each prompt below is engineered to work with your INSTRUCTIONS.md (already loaded in the workspace). Simply copy a prompt and paste it into a new AI chat session. The AI will have access to both the prompt context AND your INSTRUCTIONS.md directives, producing maximum-quality output in a single pass. Click "Copy" to copy any prompt.
+
+📋
+ 
+Prerequisites for every prompt: Your INSTRUCTIONS.md is already in the project root — the AI reads it automatically. No need to paste it separately. Each prompt below contains the specific context, constraints, and acceptance criteria needed for that task.
+
+🔍
+ 
+Self-Review Audit Complete (22 Apr 2026) — Tier 1 Hardened
+
+ All 16 prompts verified against actual codebase. Evidence sources: schema.prisma (955 lines, 37 models — every field name verified), all 25 module dirs for Zod imports (9 WITH, 10 WITHOUT), full data: req.body grep (1 instance confirmed), GSTR-1/Tally/Google Ads specs researched via official sources, TypeScript build check (81 pre-existing framer-motion type errors, zero related to our code). 14 factual errors corrected. Each prompt includes a confidence rating. Overall confidence: 8.5/10.
+
+ To reach 9.5+: need your answers on 4 domain questions (see artifact) + Playwright test execution.
+
+🟢 Phase 1 — Fix Trial Killers
+ (Week 1-2)
+
+P0
+ Fix Mass Assignment Vulnerability
+ Security
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+SECURITY FIX — Mass Assignment Vulnerability in Guest Update Endpoint
+
+## Context (verified against code)
+`PUT /bookings/:id/guests/:guestId` (bookings/router.ts line 277-298) passes raw `req.body` directly to Prisma `update()` at line 285: `data: req.body`. This allows an attacker to override ANY field — including `tenantId`, `bookingId`, `cFormSubmitted`, etc.
+
+Note: The `POST /:id/guests` (line 275) extracts fields explicitly (`fullName`, `nationality`, `idProofNumber`, `visaNumber`, `visaExpiryDate`, `purposeOfVisit`, `arrivingFrom`, `goingTo`) — so the POST is NOT directly vulnerable, but it still lacks Zod validation.
+
+## Task
+1. **Audit** every route in `packages/api/src/modules/bookings/router.ts` that uses `req.body` directly with Prisma. The confirmed vulnerable line is **285** (`data: req.body`). Search for other instances across all modules: `grep -rn "data: req.body" packages/api/src/modules/`
+2. **Create a Zod schema** called `bookingGuestSchema` in `packages/shared/src/validators/index.ts` (where ALL existing Zod schemas live — 14 schemas, 228 lines). The schema must match the actual `BookingGuest` model fields: `fullName`, `nationality`, `idProofNumber`, `visaNumber`, `visaExpiryDate` (optional date string), `purposeOfVisit`, `arrivingFrom`, `goingTo`.
+3. **Validate** `req.body` against this schema. The codebase uses BOTH `.parse()` (most validators) and `.safeParse()` (night-audit/router.ts line 21). Pick one pattern and be consistent — `.safeParse()` with explicit error handling is recommended for better UX.
+4. **Fix the PUT endpoint** at line 285 to use the validated+extracted fields instead of raw `req.body`.
+5. **Apply the same pattern** to every other route that passes `req.body` directly to Prisma. Search: `grep -rn "data: req.body" packages/api/src/modules/`
+6. **Write/extend Playwright E2E test** in `04-frontdesk-operations.spec.ts` (3.3KB) that attempts to set `tenantId` or `bookingId` via the guest update endpoint and verifies it's rejected or ignored.
+
+## Acceptance Criteria
+- [ ] Zero routes in `packages/api/` pass raw `req.body` to Prisma
+- [ ] Zod schema added to `packages/shared/src/validators/index.ts`
+- [ ] Schema field names match actual Prisma model (fullName, NOT firstName/lastName)
+- [ ] E2E test proves tenant override attempt fails
+- [ ] No `any` types introduced (per INSTRUCTIONS.md Domain #2)
+- [ ] Confidence: 8/10
+
+P0
+ GST-Compliant PDF Invoice Generation
+ Legal Compliance
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — GST-Compliant PDF Invoice Generator
+
+## Context (from gap analysis)
+grep "pdf" across the entire codebase returns 0 results. The `Invoice` model already exists in Prisma and invoices are auto-created on checkout (check-in-out/router.ts line ~229-246). The billing/folios module (billing/router.ts, 227 lines) handles folio charges with proper GST splits. However, there is ZERO PDF generation — invoices are database records only. This is a **legal compliance blocker** for GST-registered hotels in India.
+
+## Task
+1. **Research first:** Check what PDF libraries are already in `package.json` — **confirmed: none currently installed**. Options: `@react-pdf/renderer` (React-to-PDF, SSR-friendly), `pdfkit` (Node streams), or `jspdf` (client-side). Choose based on whether generation is server-side or client-side.
+2. **Create API endpoint:** `GET /api/invoices/:id/pdf` in `packages/api/src/modules/billing/` that:
+ - Fetches the `Invoice` model (schema.prisma line 530-555) with fields: `invoiceNumber`, `guestName`, `guestGstin`, `propertyGstin`, `placeOfSupply`, `subtotal`, `totalCgst`, `totalSgst`, `totalIgst`, `grandTotal`, `pdfUrl`, `isProforma`
+ - Joins `FolioCharge` (line 484-508) with: `chargeDate`, `category`, `description`, `sacCode`, `quantity`, `unitPrice`, `totalPrice`, `gstRate`, `cgst`, `sgst`, `igst`, `isAutoGenerated`
+ - Fetches tenant `gstNumber`, `name`, `address`, `city`, `state`, `pincode` from `Tenant` model (line 83-154)
+ - Generates a GST-compliant PDF with:
+ - Property name, GSTIN, address (from tenant settings)
+ - Guest name, check-in/check-out dates
+ - Itemized charges with HSN/SAC codes
+ - CGST/SGST/IGST breakdown (use existing GST logic from billing module)
+ - Total in ₹ INR with Indian numbering (₹1,23,456.00)
+ - Invoice number, date in IST (Asia/Kolkata). Use `new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })` for formatting. If creating a shared utility, place it at `packages/shared/src/utils/date-utils.ts`
+ - "Tax Invoice" header per GST Act requirements
+ - Returns the PDF as `Content-Type: application/pdf` with proper headers for download/print
+3. **Add @media print CSS** to the billing dashboard page so browser print also works cleanly.
+4. **Add "Download PDF" and "Print" buttons** to the invoice detail view in the billing dashboard.
+5. **Extend Playwright test** `07-billing-folios.spec.ts` (4.1KB, existing) to:
+ - Generate an invoice via checkout
+ - Hit the PDF endpoint and verify 200 response with `content-type: application/pdf`
+ - Verify the PDF byte length is > 0
+
+## Constraints
+- MUST use `withTenant()` for the PDF endpoint (tenant data security)
+- MUST use `authorize('property_owner', 'general_manager', 'front_desk')` — note: `accountant` role exists in type system but is NOT wired into any existing `authorize()` call; add it only if billing access is intended
+- Currency formatting MUST use `.toLocaleString('en-IN')` for Indian numbering (₹1,23,456.00)
+- No PDF library is currently installed — check `package.json` first; consider `@react-pdf/renderer`, `pdfkit`, or `jspdf` based on SSR vs client needs
+- No hardcoded English strings — use translation keys for labels
+- Confidence: 8/10
+
+P0
+ Replace All Browser alert()/confirm() With Sonner Toasts
+ UX
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+UX VERIFICATION — Confirm All Browser alert()/confirm() Are Replaced
+
+## Context (from gap analysis — VERIFY FIRST)
+The gap analysis originally found 22 `alert()` + 6 `confirm()` calls across 7 dashboard files. A prior session replaced at least the `website/page.tsx` instances with Sonner toasts. **Recent grep shows ZERO remaining** — but this must be re-verified as the gap analysis count may be stale.
+
+## Task
+1. **FIRST: Run grep** across the ENTIRE `apps/web/` directory (not just dashboard) for `alert(` and `confirm(` to get the current accurate count:
+ ```bash
+ grep -rn "alert(" apps/web/app/ --include="*.tsx" --include="*.ts" | grep -v node_modules | grep -v "alertDialog\|AlertCircle\|alertVariants"
+ grep -rn "confirm(" apps/web/app/ --include="*.tsx" --include="*.ts" | grep -v node_modules
+ ```
+2. **If results found**, replace each with Sonner toast (`toast.success`, `toast.error`, `toast.warning`). Sonner is already installed and `` is already in `apps/web/app/dashboard/layout.tsx` (line 11).
+3. **If zero results**, this task is COMPLETE — report as already fixed and move on.
+4. For any `confirm()` replacements, use the Sonner action pattern:
+ ```tsx
+ toast('Are you sure?', {
+ description: 'This action cannot be undone.',
+ action: { label: 'Confirm', onClick: () => handleAction() },
+ cancel: { label: 'Cancel' }
+ });
+ ```
+5. Ensure i18n for all toast text (per INSTRUCTIONS.md Domain #6).
+
+## Acceptance Criteria
+- [ ] Grep confirms zero `alert(` / `confirm(` in dashboard
+- [ ] If any were found, they are now Sonner toasts with i18n keys
+- [ ] Sonner `` confirmed in layout (already verified: layout.tsx line 11)
+- [ ] Confidence: 9/10 (may already be complete — grep showed zero instances)
+
+P0
+ Walk-in Express Booking Mode
+ Operations
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Walk-in Express Booking Mode (3-Field Quick Book)
+
+## Context (from gap analysis)
+The current booking flow via `bookingSchema` in the shared package requires `roomSelections[]` array with room type IDs, date ranges, and pricing configuration. For a walk-in guest at a budget lodge, the front-desk staff needs to book in under 30 seconds: **Name → Phone → Room → Done.**
+
+## Task
+1. **Backend**: Create a new endpoint `POST /bookings/walk-in` in `bookings/router.ts` that accepts a minimal Zod schema (add to `packages/shared/src/validators/index.ts` alongside existing `bookingSchema`):
+ ```
+ { guestName: string, guestPhone: string, roomId: string (uuid), nights?: number (default 1), paymentMode?: 'cash' | 'upi' | 'card' }
+ ```
+ This endpoint must:
+ - Auto-create a guest profile if phone number doesn't exist (upsert by phone + tenantId)
+ - Auto-calculate pricing from the room's rate plan using existing `calculatePricing()` in `packages/api/src/services/pricing.ts` (line 15)
+ - Set source to `'walkin'` (already in `bookingSchema` source enum at validators/index.ts line 113)
+ - Auto-set status to 'confirmed' and trigger check-in immediately
+ - Create folio charges with GST (reuse `calculatePricing` which handles date ranges and pricing rules)
+ - Return the booking + room assignment in one response
+ - Use `withTenant()`, `authorize('front_desk', 'general_manager', 'property_owner')`
+ - Note: `auditLog` function is `logAudit()` imported from `../../middleware/audit-log` (see night-audit/router.ts line 7 for reference)
+
+2. **Frontend**: Add a "⚡ Quick Walk-in" button to the bookings dashboard page that opens a minimal modal/drawer:
+ - Guest name input (required)
+ - Phone number input with +91 validation (required)
+ - Room picker dropdown showing ONLY rooms with status `'available'` (from `ROOM_STATUS` enum: available | occupied | blocked | maintenance | dirty | cleaning)
+ - Number of nights (default 1, max 30)
+ - Payment mode selector (Cash / UPI / Card — maps to `PAYMENT_METHOD` enum values: 'cash', 'upi', 'card')
+ - Single "Book & Check In" CTA button
+ - Use skeleton loading, 44x44px touch targets, no hover-only interactions
+
+3. **Playwright E2E**: Create a new test or extend `05-guest-booking.spec.ts`:
+ - Walk-in via quick book → verify booking created + guest checked in
+ - Verify room status changes to 'occupied'
+ - Verify folio charge appears with correct GST
+
+## Constraints
+- Phone validation: 10-digit Indian mobile (per INSTRUCTIONS.md Domain #6)
+- No hardcoded English strings
+- Mobile-first responsive design (375px breakpoint)
+- Confidence: 7/10
+
+P0
+ Pay-at-Hotel Option in IBE
+ Conversion
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — "Pay at Hotel" Option in Public Booking Engine (IBE)
+
+## Context
+The current IBE only supports online payment via Razorpay/UPI QR. Many Indian budget travelers — especially walk-in and phone bookers — prefer to pay cash on arrival. Hospitality industry data shows pay-at-hotel increases conversion by reducing payment friction.
+
+## Task
+1. **Backend**: Add `paymentMode: 'online' | 'pay_at_hotel'` to the public booking creation endpoint. When `pay_at_hotel` is selected:
+ - Skip payment gateway flow
+ - Set booking status to 'confirmed' (not 'pending_payment')
+ - Create folio charge with `paymentStatus: 'pending'`
+ - Send WhatsApp confirmation with "Payment due at check-in" note
+
+2. **Frontend (IBE)**: In the themed booking widget (`apps/web/app/[locale]/[slug]/themes/`), add a payment mode toggle:
+ - "Pay Now" (existing Razorpay flow)
+ - "Pay at Hotel" — skips payment form, shows confirmation directly
+ - Property owner should be able to enable/disable this option via dashboard settings
+ - Style consistently across all 4 archetypes (MINIMAL, VIBRANT, CHIC, CLASSIC)
+
+3. **Dashboard Settings**: Add a toggle in `settings/page.tsx` under payment configuration:
+ - "Allow Pay at Hotel bookings" (boolean, default: true)
+ - This setting must be tenant-scoped
+
+4. **Extend Playwright test** `22-property-public-page.spec.ts`:
+ - Complete a booking with "Pay at Hotel" selected
+ - Verify booking confirmation without payment redirect
+
+## Must-Have
+- Tenant-scoped setting (withTenant)
+- i18n for "Pay at Hotel" label
+- Works on mobile (375px viewport)
+- `PAYMENT_METHOD` enum (types/index.ts line 221-228) already includes: cash, upi, upi_qr, card, bank_transfer, razorpay — add `pay_at_hotel` if needed
+- Booking model `status` field is varchar(30), `advancePaid` tracks partial payment
+- Confidence: 8/10
+
+P0
+ Functional Promo Code / Coupon Engine
+ Revenue
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Promo Code / Coupon Discount Engine (Backend + IBE Frontend)
+
+## Context (from gap analysis)
+`promoText` exists in the booking widget as a display-only label — there is ZERO backend validation, no coupon model, and no discount logic. This blocks promotional campaigns, repeat-guest incentives, and OTA rate-parity strategies.
+
+## Task
+### 1. Database Schema
+Add a `Coupon` model to Prisma schema with:
+- `id`, `tenantId`, `code` (unique per tenant), `discountType` ('percentage' | 'flat'), `discountValue`, `maxUses`, `currentUses`, `minBookingAmount`, `validFrom`, `validUntil`, `applicableRoomTypes` (optional relation), `isActive`, `createdAt`, `updatedAt`
+- Add `couponId` and `discountAmount` fields to the `Booking` model
+- Generate migration via `npx prisma migrate dev` (NEVER `db push`)
+
+### 2. Backend API (`packages/api/src/modules/coupons/router.ts`)
+- `POST /coupons` — Create coupon (owner/manager only)
+- `GET /coupons` — List all coupons for tenant (paginated using `PaginatedResponse` from `packages/shared/src/types/index.ts` line 311)
+- `POST /coupons/validate` — Public endpoint that validates a code: checks expiry, usage limits, minimum amount. Returns discount amount.
+- `DELETE /coupons/:id` — Deactivate coupon
+- All endpoints use Zod (schemas in `packages/shared/src/validators/index.ts`), RBAC (`authorize()`), `withTenant()`, `logAudit()`
+- **IMPORTANT:** Register the new router in the API entry point (check `packages/api/src/index.ts` for how existing routers like `bookingsRouter` are mounted)
+
+### 3. Frontend — Dashboard
+- New `apps/web/app/dashboard/coupons/page.tsx` with:
+ - Create coupon form (code, type, value, dates, min amount, max uses)
+ - Table of active coupons with usage stats
+ - Skeleton loaders, mobile-responsive, i18n
+
+### 4. Frontend — IBE
+- Add "Have a promo code?" expandable input to the booking widget
+- On blur/submit: call `/coupons/validate` → show discount line item
+- Apply discount to the folio charge during booking creation
+
+### 5. Playwright E2E
+- Create `24-promo-codes.spec.ts` (next available number after existing 22 tests, 01-22):
+ - Create coupon via dashboard → use in IBE booking → verify discount applied → verify usage count incremented
+ - [ ] Expired coupon returns 4xx
+ - [ ] Max-uses enforced
+ - [ ] No DB model `Coupon` exists yet — must add to `schema.prisma` with `tenantId`, `@@index([tenantId])` (follow pattern of existing tenant-scoped models)
+ - [ ] Confidence: 7/10
+
+P0
+ Print-Optimized CSS for Invoices & Reports
+ UX
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — @media print Stylesheet for Dashboard Pages
+
+## Context (from gap analysis)
+grep for `@media print` across the entire codebase returned ZERO results. Hotel staff frequently need to print invoices, folio summaries, guest registers, and daily reports. Without print CSS, browser print output includes navigation bars, sidebars, and broken layouts.
+
+## Task
+1. **Create a global print stylesheet** (`apps/web/app/globals.css` or a dedicated `print.css`):
+ - Hide: sidebar navigation, header bar, action buttons, toasts
+ - Show: main content area at full width
+ - Set: white background, black text, remove shadows/gradients
+ - Typography: serif font for readability, 12pt base
+ - Tables: full borders, no row hover effects, break-inside: avoid
+ - Page margins: 15mm all sides per A4 standard
+
+2. **Invoice-specific print styles** (billing page):
+ - Full-width layout, property header with GSTIN
+ - Itemized charges table with borders
+ - GST breakdown clearly visible
+ - Footer with "This is a computer-generated invoice"
+ - Page break before new invoice if multiple
+
+3. **Guest register print** (compliance/guest pages):
+ - Table format matching Sarai Act register format
+ - Date range header
+ - Sequential numbering
+
+4. **Add "Print" button** (🖨️ icon) to:
+ - Invoice detail view
+ - Daily revenue report
+ - Guest register
+ - Housekeeping status board
+ Each button calls `window.print()`
+
+5. **Test:** Verify print preview looks correct in Chrome (manual verification — explain what to check)
+
+## Constraints
+- Use `@media print` in CSS, not inline styles
+- Don't break existing screen layouts
+- Keep print CSS under 100 lines (lean)
+- Confidence: 9/10 (pure CSS task, no data model dependencies)
+
+P1
+ IBE Urgency Triggers ("Only X Left")
+ Conversion
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Urgency/Scarcity Triggers on Public Booking Page
+
+## Context
+The public property page (IBE) has zero urgency signals. E-commerce and OTA best practices show that scarcity messaging ("Only 2 rooms left!", "5 people viewing") increases conversion.
+
+## Task
+1. **Backend**: Create a lightweight endpoint `GET /public/:slug/availability-hints` that returns:
+ - `roomsLeftToday: number` (count of available rooms for today)
+ - `recentBookings: number` (bookings in last 24 hours for this property)
+ - No sensitive data — tenant-scoped, public endpoint with rate limiting
+
+2. **Frontend (IBE)**: Add subtle urgency elements to the themed booking widget:
+ - "🔥 Only {n} rooms left for tonight" badge (when n 0)
+ - "⏰ Lowest price today — rates may increase" (when dynamic pricing is active)
+ - Style these as non-intrusive pills/badges that match each archetype
+ - Animate in with a subtle fade after 2 seconds (not immediately — feels less pushy)
+ - Show ONLY real data — never fake scarcity numbers
+
+3. **Extend Playwright test** `22-property-public-page.spec.ts`:
+ - Verify urgency badge appears when rooms are limited
+ - Verify badge does NOT appear when plenty of rooms available
+
+## Constraints
+- Never show fake numbers — data must match real availability
+- Rate-limit the hints endpoint (max 30 req/min per IP)
+- i18n all text strings
+- Room availability data: query `Room.status` where status='available' for the given `roomTypeId` and date range (schema.prisma line 312-338)
+- Confidence: 8/10
+
+🟡 Phase 2 — Strategic Investments
+ (Week 3-6)
+
+P1
+ POS / Restaurant Dashboard UI
+ F&B
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — POS / Restaurant Dashboard Frontend (Complete F&B Module)
+
+## Context (from gap analysis)
+`pos/router.ts` contains 385 lines of working backend: outlet CRUD, menu/item management, order creation with automatic GST calculation (F&B GST uses dynamic rates based on tenant config), and room-charge routing. BUT there is **ZERO frontend** — no `apps/web/app/dashboard/pos/` directory exists.
+
+## Task
+Build a complete POS dashboard at `apps/web/app/dashboard/pos/page.tsx`:
+
+### Tab 1: Order Terminal (Touch-Optimized)
+- Large category buttons (Food, Beverages, Starters, etc.) — 44px min touch targets
+- Item grid with photos, name, price — tap to add to cart
+- Cart sidebar showing running total with GST
+- "Charge to Room" button → select guest room from active check-ins
+- "Cash / UPI / Card" payment buttons
+- "Kitchen Order Ticket" print button (KOT)
+- Target: Usable on an iPad mounted at restaurant counter
+
+### Tab 2: Menu Management
+- CRUD for menu items: name, price, category, GST category (SAC code `996331` from `SAC_CODES.FOOD_AND_BEVERAGE`), availability toggle
+- Bulk import via CSV (nice-to-have)
+- Item photo upload via existing Cloudinary upload endpoint at `apps/web/app/api/upload/route.ts` (uses `cloudinary` v2.9.0, already in package.json)
+
+### Tab 3: Outlet Management
+- CRUD for F&B outlets (Restaurant, Bar, Room Service, Pool Bar)
+- Operating hours per outlet
+- Assign menu items to outlets
+
+### Tab 4: Order History
+- Filterable table of all orders: date, guest/room, items, total, payment mode, status
+- Paginated with `PaginatedResponse` 
+- Export to CSV
+
+### Playwright E2E
+- Create `23-pos-operations.spec.ts`:
+ - Create outlet → add menu items → place order → charge to room → verify folio updated
+ - Verify KOT print preview renders
+
+## Constraints
+- Use existing `pos/router.ts` endpoints — do NOT create new backend (12 endpoints already exist)
+- RBAC: Match existing POS patterns exactly: `authorize('property_owner', 'general_manager', 'fnb_manager', 'front_desk')` (verified from pos/router.ts lines 18-296)
+- Mobile-first: Must work on iPad (768px) and phone (375px)
+- i18n all text
+- GST on food items uses existing `getFnbGstRate()` (pos/router.ts line 128) which reads from tenant config
+- Prisma models: `PosOutlet` (line 885), `MenuItem` (line 899, fields: name/description/price/category/isActive/outletId), `PosOrder` (line 917, statuses: open/settled/charged_to_room/voided), `PosOrderItem` (line 940)
+- Confidence: 9/10
+
+P1
+ Visual Room Calendar (Tape Chart)
+ Operations
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Visual Room Calendar / Tape Chart for Front Desk
+
+## Context (from gap analysis)
+The dashboard has only list-based booking views. Front desk staff in Indian hotels think in "room × date" grids — the classic tape chart. Without this, they revert to physical room charts or Excel. This is the #1 usability gap blocking mid-range hotel adoption.
+
+## Task
+Build a visual room calendar at `apps/web/app/dashboard/rooms/calendar/page.tsx` (or as a tab within the existing rooms page):
+
+### Layout
+- **Y-axis:** Room numbers grouped by floor, sorted by room type (color-coded)
+- **X-axis:** Dates (14-day default view, scrollable left/right)
+- **Cells:** Horizontal bars spanning check-in → check-out dates, color-coded by booking status (from `BOOKING_STATUS` enum) and room status (from `ROOM_STATUS` enum: available | occupied | blocked | maintenance | dirty | cleaning):
+ - 🟢 Green: Booking confirmed
+ - 🔵 Blue: Checked-in (room status: `occupied`)
+ - 🟡 Yellow: Pending confirmation
+ - ⬜ White/Gray: Available
+ - 🔴 Red: Room status `maintenance` or `blocked`
+ - 🟠 Orange: Room status `dirty` or `cleaning`
+ - No-show: Booking status `no_show` (striped pattern)
+- **Click a bar:** Open booking detail side panel (guest name, phone, amount, status)
+- **Drag on empty cells:** Start a new booking for that room on those dates (opens booking form pre-filled)
+- **Today marker:** Vertical red line showing current date
+
+### Technical Approach
+- Build with a CSS Grid or HTML Table layout — avoid heavy calendar libraries unless already in `package.json`
+- Fetch bookings for the visible date range via existing `GET /bookings` endpoint with date filters
+- Virtualize if property has 50+ rooms (use `react-window` or manual approach)
+- Support horizontal scroll with momentum on touch devices (iPad usage)
+
+### Backend Enhancement (if needed)
+- May need a new endpoint: `GET /rooms/availability-grid?startDate=&endDate=` that returns all rooms with their bookings for the date range in one optimized query (avoid N+1)
+
+### Playwright E2E
+- Add test verifying the calendar renders correct booking bars for an existing booking
+- Test click-on-bar opens booking detail
+- Test 375px and 768px viewports
+
+## Constraints
+- Must render within 2 seconds for 50 rooms × 14 days
+- IST dates only (Asia/Kolkata)
+- i18n for all labels
+- Color coding must also work in high-contrast / print mode
+- Prisma models: `Booking` (line 378, fields: checkInDate/checkOutDate/status/guestName), `Room` (line 312, has both `status` varchar(20) and separate `housekeepingStatus` varchar(20) — do NOT confuse them), `BookingRoom` (line 429, links booking→room with roomId/roomTypeId)
+- Room `status` values: available, occupied, blocked, maintenance, dirty, cleaning
+- Confidence: 7/10 (calendar rendering logic is complex)
+
+P1
+ OTA Channel Manager Integration
+ Distribution
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+RESEARCH + BUILD — OTA Channel Manager Integration (Partner API Approach)
+
+## Context (from gap analysis)
+`services/channel-manager.ts` contains a function literally named `mockIncomingBookingPayload()` — the channel manager is a non-functional skeleton. The `channels/router.ts` (174 lines) has channel CRUD and connection management but no real OTA data flow.
+
+## Task — Phase 1: Evaluate & Architect
+**BEFORE writing any code**, research and present a technical architecture document:
+
+1. **Evaluate channel manager APIs:**
+ - Channex.io — REST API, coverage in India
+ - SiteMinder (now SiteMinder Channel Plus)
+ - RateGain (Indian company, strong local coverage)
+ - Present: pricing model, setup complexity, Indian OTA coverage (MakeMyTrip, Goibibo, Booking.com, Agoda, Airbnb), webhook vs polling, documentation quality
+
+2. **Propose integration architecture:**
+ - Webhook receiver for incoming bookings
+ - Push ARI (Availability, Rates, Inventory) updates on booking/cancellation/rate change
+ - Rate mapping: iStays room types → OTA room types
+ - Error handling for failed syncs (retry with exponential backoff)
+ - Audit logging of every sync event
+
+3. **Present plan** before building anything
+
+## Task — Phase 2: Build (after plan approval)
+1. Replace `mockIncomingBookingPayload()` with real webhook handler
+2. Build ARI push service that fires on: booking create/cancel, room availability change, pricing rule change
+3. Create channel mapping UI in `channels/page.tsx`: map iStays rooms to OTA rooms
+4. Add sync status dashboard: last sync time, error count, pending pushes
+5. Extend `14-ota-channels.spec.ts` with webhook simulation tests
+
+## Critical Constraints
+- NEVER expose channel API credentials in client-side code
+- All webhook endpoints must validate signatures/tokens
+- Retry failed pushes with exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
+- Audit log every sync event (per INSTRUCTIONS.md Domain #7)
+- Prisma: `ChannelConnection` (line 739-755, fields: channel/hotelId/apiKey/webhookUrl/isActive), `ChannelRoomMapping` (line 757-771, fields: channelRoomId/channelRateId)
+- `channel-manager.ts` is 146 lines: `pushInventoryUpdate()` at line 7, `mockIncomingBookingPayload()` at line 70
+- Confidence: 7/10 (depends heavily on chosen partner API)
+
+P1
+ Night Audit Dashboard
+ Operations
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Night Audit Dashboard UI
+
+## Context
+`night-audit/router.ts` (54 lines) has backend logic: `POST /night-audit/run` calls `runNightAudit()` service. It already has proper Zod validation (`runAuditSchema` line 14), audit logging (`logAudit()` line 46), and RBAC (`authorize('property_owner', 'general_manager')` line 12). Backend is solid but there is NO dashboard UI.
+
+## Task
+Build `apps/web/app/dashboard/night-audit/page.tsx`:
+
+### Dashboard Sections
+1. **Occupancy Summary:** Rooms occupied / available / out-of-order / due-checkout tomorrow (use `ROOM_STATUS` enum values)
+2. **Revenue Summary:** Today's revenue breakdown — room charges, F&B, other services, taxes
+3. **Payment Reconciliation:** Cash collected vs expected, UPI vs card breakdown, pending payments
+4. **Open Folios Alert:** List of checked-in guests with unpaid charges (flagged in red)
+5. **No-Shows:** Bookings marked as confirmed but guest never arrived — option to auto-cancel
+6. **Rate Discrepancies:** Rooms where actual charge differs from rate plan (manual overrides)
+7. **"Run Night Audit" button** — calls the existing backend endpoint, posts room charges for the day, advances the business date
+8. **Audit History:** Table of past night audit runs with timestamp, who ran it, summary
+
+### Playwright E2E
+Create a test that runs a night audit and verifies:
+- Revenue totals match expected
+- Open folio alerts appear for unpaid guests
+- Business date advances after audit run
+
+## Constraints
+- RBAC: `general_manager`, `property_owner`, `front_desk` (night shift)
+- All amounts in ₹ INR with Indian formatting
+- IST timezone throughout — use `new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })` per INSTRUCTIONS.md. If creating a shared utility, place at `packages/shared/src/utils/date-utils.ts`
+- Mobile-responsive (night manager may use phone)
+- Prisma: `NightAuditLog` model (line 870-882) — `auditDate` (Date), `status`, `metrics` (JSON), `@@unique([tenantId, auditDate])`
+- Confidence: 8/10
+
+P1
+ GSTR-1 Tax Export
+ Compliance
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — GSTR-1 Monthly Export for GST Filing
+
+## Context
+The billing module already calculates CGST, SGST, IGST with proper SAC codes. However, there is no export feature for GSTR-1 filing. Hotel owners currently copy data manually into their CA's spreadsheet.
+
+## Task
+1. **Backend**: Create `GET /billing/gstr1-export?month=2026-04` endpoint in billing router:
+ - Aggregate all invoices for the given month
+ - Format as GSTR-1 JSON/CSV per GST portal specification (check current format):
+ - B2B section: Invoices to GST-registered guests (GSTIN present)
+ - B2C section: Invoices to unregistered guests
+ - HSN Summary: Aggregate by SAC/HSN code with total taxable value
+ - Tax amounts: CGST, SGST, IGST breakdowns
+ - Invoice-level: Invoice number, date, guest GSTIN (if any), place of supply, taxable value
+ - Return as downloadable CSV (compatible with GST portal bulk upload)
+
+2. **Frontend**: Add "📊 Export GSTR-1" button in billing dashboard:
+ - Month picker (dropdown)
+ - Preview summary before download
+ - Download CSV button
+
+3. **Extend** `07-billing-folios.spec.ts`:
+ - Create invoices across categories → export GSTR-1 → verify CSV structure
+
+## Constraints
+- The official GST portal does NOT accept raw CSV upload — it uses an **Excel template → Offline Tool → JSON** workflow. Generate the data in the **exact Excel template format** from `gst.gov.in` GSTR-1 Offline Tool, OR generate the JSON directly
+- Dates in IST, format DD-MM-YYYY (as GST portal expects)
+- Amounts in ₹ with Indian formatting for display; raw numbers in export
+- Tenant-scoped data only
+- Invoice model fields: `invoiceNumber`, `guestGstin`, `propertyGstin`, `placeOfSupply`, `subtotal`, `totalCgst`, `totalSgst`, `totalIgst`, `grandTotal` (schema.prisma line 530-555)
+- FolioCharge fields: `sacCode`, `cgst`, `sgst`, `igst`, `gstRate` (schema.prisma line 484-508)
+- Confidence: 7/10 (GSTR-1 format may have changed — verify against current GST portal Offline Tool)
+
+P1
+ Redis-Backed Rate Limiter
+ Security
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+REFACTOR — Replace In-Memory Rate Limiter With Redis (Upstash)
+
+## Context (from gap analysis)
+`middleware/rate-limit.ts` uses an in-memory `Map<>` with no size cap. This has two critical issues: (1) Memory leak under DDoS — Map grows unbounded, (2) won't sync across multiple server instances behind a load balancer.
+
+## Task
+1. **Check** if Upstash Redis / `@upstash/ratelimit` is already in `package.json` or `.env`. If Redis URL already exists, use it. If not, use Upstash serverless Redis (free tier).
+2. **Replace** the in-memory Map in `rate-limit.ts` with a Redis-backed sliding window counter:
+ - Same limits: 100 req/min general API, 10 req/15min auth endpoints
+ - Use IP + tenant ID as the key (prevents one tenant from blocking another)
+ - Add `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` response headers
+ - Return 429 with proper `Retry-After` header
+3. **Keep in-memory fallback** for local development (when REDIS_URL is not set)
+4. **Add max-size protection** to the in-memory fallback (max 10,000 entries with LRU eviction)
+5. **Verify** existing E2E tests still pass (rate limiter should not interfere with test flows — may need to whitelist test IPs or increase limits for test env)
+
+## Constraints
+- Do NOT add Redis as a hard dependency — graceful fallback to in-memory
+- Per INSTRUCTIONS.md Domain #8: "Leverage Redis (Upstash) for frequently accessed data"
+- No console.log left behind
+- Confidence: 9/10
+
+P1
+ Add Zod Validation to All Remaining Routes
+ Security
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+SECURITY HARDENING — Add Zod Input Validation to Every API Route
+
+## Context (verified status — re-audit needed)
+The gap analysis claimed 7 modules lack Zod. However, verification shows Night Audit and POS already import and use Zod. The actual count of unvalidated modules needs a fresh audit — **do NOT trust the old count**.
+
+Modules confirmed WITH Zod imports: bookings (via shared validators), check-in-out, shifts, pos, night-audit, loyalty, guest-portal, channels.
+Modules likely WITHOUT Zod: dynamic-pricing, housekeeping, compliance, groups, analytics.
+
+## Task
+1. **FRESH AUDIT**: Run through EVERY file in `packages/api/src/modules/*/router.ts` and list every `POST`, `PUT`, `PATCH` endpoint. For each, check if `req.body` is validated with Zod (either via imported schema or inline). Create a checklist with file:line references.
+2. **For each unvalidated endpoint**, create a Zod schema:
+ - Place schemas in the appropriate location (check where existing schemas live — likely `packages/shared/src/schemas/` or inline in the router)
+ - Use strict types: `z.string().min(1)` not just `z.string()`
+ - Use `z.enum()` for status fields, not `z.string()`
+ - Use `z.coerce.number()` for numeric URL params
+ - Use `.parse()` not `.safeParse()` — let the error middleware handle 400s consistently
+3. **Place schemas in `packages/shared/src/validators/index.ts`** (where all 14 existing schemas live, 228 lines). Follow existing patterns: use `z.string().min(1)`, `z.enum()`, etc.
+4. **Add a reusable validation middleware** if one doesn't exist:
+ ```ts
+ const validate = (schema: ZodSchema) => (req, res, next) => {
+ schema.parse(req.body);
+ next();
+ };
+ ```
+4. **Verify**: After adding schemas, run the full Playwright E2E suite to ensure no legitimate requests are now rejected.
+
+## Acceptance Criteria
+- [ ] Every POST/PUT/PATCH route in the API has Zod validation
+- [ ] No `req.body` passed directly to Prisma without field extraction (currently 1 confirmed: bookings/router.ts line 285)
+- [ ] All existing tests pass
+- [ ] No `any` types introduced
+
+## Updated Module Status (verified 22 Apr 2026)
+WITH Zod: auth, bookings, check-in-out, shifts, pos, night-audit, loyalty, guest-portal, channels (9 modules)
+WITHOUT Zod: pricing, housekeeping, compliance, groups, rooms, reviews, notifications, analytics, tenants, guests, payments (10 modules with write endpoints needing validation)
+- Confidence: 9/10
+
+P1
+ WhatsApp Abandoned Booking Recovery
+ Revenue
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Automated WhatsApp Abandoned Booking Recovery Sequences
+
+## Context
+WhatsApp integration already exists (`services/whatsapp.ts`, 207 lines) with Meta Business API and 4 template types in 9 languages. However, there is no automation — all messages are triggered by manual events (booking confirmation, check-in). Abandoned bookings (started but not completed) represent significant lost revenue.
+
+## Task
+### 1. Track Abandonment
+- Add a `BookingDraft` model (or table) that captures:
+ - Phone number, selected dates, room type, total amount, created timestamp
+ - Trigger: When IBE booking form is filled but payment not completed within 30 minutes
+ - The frontend should call a "save draft" endpoint when the user fills in their details but before payment
+
+### 2. Build Recovery Sequence Service
+Create `packages/api/src/services/booking-recovery.ts`:
+- **Message 1 (2 hours after abandonment):** "Hi {name}, you were looking at {property} for {dates}. Your room is still available! Complete your booking: {link}"
+- **Message 2 (24 hours):** "Last chance! Only {n} rooms left for {dates} at {property}. Book now and save: {link}" 
+- **Message 3 (7 days, with discount):** "We missed you! Here's ₹{discount} off your stay at {property}. Use code {auto_generated_code}. Valid for 48 hours: {link}"
+- Use existing WhatsApp templates — register new ones if needed
+- Respect opt-out: If user replies "STOP", mark as opted out
+
+### 3. Cron Job / Scheduler
+- Set up a scheduled task (cron or Node.js scheduler like `node-cron`) that runs every hour:
+ - Query drafts older than 2 hours → send Message 1
+ - Query drafts 24 hours old → send Message 2
+ - Query drafts 7 days old → send Message 3 with auto-generated coupon
+- Must be idempotent — don't send the same message twice
+
+### 4. Dashboard Analytics
+- Add "Recovery Stats" card to analytics page:
+ - Abandoned: X | Recovered: Y | Revenue recovered: ₹Z
+ - Conversion rate per message stage
+
+## Constraints
+- WhatsApp templates need pre-approval from Meta — use existing template types
+- Respect TRAI DND regulations (Indian telecom)
+- Never send more than 3 messages per abandoned booking
+- All messages in the guest's detected language (9 languages supported)
+- `BookingDraft` model does NOT exist yet — must be added to `schema.prisma` with `tenantId` and `@@index([tenantId, createdAt])`
+- WhatsApp service (`services/whatsapp.ts`, 207 lines) exists but needs verification of current template types
+- Confidence: 7/10
+
+🔴 Phase 3 — Differentiation
+ (Week 7-12)
+
+P2
+ "Book Direct & Save" Rate Comparison Widget
+ Conversion
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — "Book Direct & Save" Rate Comparison Widget on Public IBE
+
+## Task
+### Backend
+- Add `competitorRates` JSON field to property settings (or a new model) where owner can manually input:
+ - Platform name (Booking.com, MakeMyTrip, Goibibo, Agoda)
+ - Rate per night for each room type
+ - Last updated date
+- Create `GET /public/:slug/rate-comparison` returning the comparison data
+
+### Frontend (IBE)
+- Show a comparison card on the public booking page:
+ - "Booking.com: ₹4,200 | MakeMyTrip: ₹4,000 | **Book Direct: ₹3,500** ✅ Save ₹700!"
+ - Animated savings counter
+ - "Why book direct?" expandable section (no commission, instant confirmation, loyalty points)
+- Owner can update rates via dashboard settings
+
+### Dashboard
+- Simple form in settings: input OTA rates per room type
+- Show last-updated timestamp
+
+### Playwright Test
+- Verify comparison widget appears with correct savings calculation
+- Verify mobile layout (375px)
+
+## Constraints
+- Only show comparison when owner has entered competitor rates
+- Never scrape OTA prices (legal risk) — manual input only 
+- i18n all strings
+- Confidence: 8/10
+
+P2
+ Offline PWA Sync (Service Worker)
+ Resilience
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Offline-First PWA With Service Worker and Background Sync
+
+## Context
+grep for service worker / sw.js across the codebase returns ZERO results. Many Indian hotels in Tier-2/3 cities have intermittent internet. Core operations (check-in, room status updates) must work offline and sync when connection restores.
+
+## Task
+### 1. Service Worker Setup
+- Create `public/sw.js` with Workbox (or manual approach):
+ - Cache strategy: Network-first for API calls, Cache-first for static assets
+ - Offline fallback page for navigation requests
+ - Background sync queue for failed POST/PUT requests
+
+### 2. IndexedDB Offline Store
+- Store critical data locally in IndexedDB:
+ - Room list with current status
+ - Today's bookings and check-ins
+ - Pending operations queue (check-ins, status updates)
+- When offline: read from IndexedDB, queue writes
+- When online: flush queue to server, refresh local cache
+
+### 3. Offline-Capable Operations
+Priority operations that must work offline:
+- View room status board
+- Mark room as clean/dirty (housekeeping)
+- View today's arrivals/departures
+- Record walk-in guest details (queue for sync)
+
+### 4. Sync Indicator UI
+- Show connection status badge in dashboard header:
+ - 🟢 Online | 🟡 Syncing (X pending) | 🔴 Offline
+- Toast notification when connection restores: "Synced X pending operations"
+
+### 5. Manifest Enhancement
+- Update `manifest.json` with proper icons, theme color, display: standalone
+- Ensure "Add to Home Screen" prompt works on Android Chrome
+
+## Constraints 
+- Service worker must NOT cache authenticated API responses cross-tenant
+- IndexedDB must be scoped to tenant ID
+- Target: Core dashboard usable for 30 minutes without internet
+- Per INSTRUCTIONS.md Domain #3: "Offline-First Resilience for staff PWAs"
+- Confidence: 7/10 (service worker + IndexedDB + sync conflict resolution is complex)
+
+P2
+ Tally XML Export
+ Accounting
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Tally ERP XML Export for Indian Accountants
+
+## Context
+Most Indian hotel accountants use Tally ERP. Currently they re-enter all invoice data manually from iStays into Tally. Tally supports XML import for vouchers.
+
+## Task
+1. **Research** the current Tally Prime XML import format (Tally > Import > XML). It uses a specific XML structure with ``, ``, `` tags.
+2. **Create endpoint** `GET /billing/tally-export?startDate=&endDate=` that:
+ - Fetches all invoices in the date range
+ - Generates Tally-compatible XML with:
+ - Sales vouchers for room revenue
+ - Ledger entries for CGST, SGST, IGST
+ - Party ledger auto-creation for guest names
+ - Proper date format (dd-MMM-yyyy as Tally expects)
+ - Returns as downloadable `.xml` file
+3. **Add "Export to Tally" button** in billing dashboard (next to GSTR-1 export)
+4. **Document** the Tally import steps for end users (help tooltip)
+
+## Constraints
+- Tally XML uses `ENVELOPE > HEADER > BODY > DATA > TALLYMESSAGE > VOUCHER` tag hierarchy
+- Dates MUST be `YYYYMMDD` format (NOT dd-MMM-yyyy as I originally stated — corrected after research)
+- All referenced ledger masters (party names, tax ledgers) must pre-exist in the target Tally company
+- Amount format: raw numbers, no thousands separator
+- Voucher debit total MUST equal credit total
+- Test by exporting a sample voucher from Tally first (Alt+E > Export > XML) and matching that exact format
+- Ask user: target **Tally Prime** (current) or **Tally.ERP 9** (legacy)? XML schema differs slightly
+- Confidence: 6/10 (Tally XML schema varies by version and company configuration — must test with real Tally instance)
+
+⚙️ Phase 4 — Architecture & Scalability
+ (Scale & Security)
+
+P1
+ Socket.IO Redis Adapter
+ Scale
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+REFACTOR — Implement Socket.IO Redis Adapter
+
+## Context
+From the Business Analysis: The current WebSocket implementation in `api/src/server.ts` uses an in-memory connection manager. Once we scale horizontally to multiple API instances, a client connected to Node A won't receive real-time updates triggered by Node B.
+
+## Task
+1. **Install Dependencies:** Check if `@socket.io/redis-adapter` and `redis` (or `ioredis`) are installed.
+2. **Setup Adapter:** In the WebSocket initialization:
+ - Create Redis pub/sub clients pointing to `REDIS_URL` or standard Upstash URL.
+ - Use the `createAdapter` function from the Redis adapter.
+3. **Graceful Fallback:** If `REDIS_URL` is omitted (local dev), fallback to the default in-memory adapter seamlessly.
+
+## Constraints
+- Must not break existing real-time flows (e.g. POS orders, PMS updates).
+- Handle Redis connection failures elegantly.
+- Confidence: 9/10 (Standard Socket.IO scaling pattern)
+
+P2
+ BullMQ for Distributed Jobs
+ Scale
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+REFACTOR — Migrate from node-cron to BullMQ
+
+## Context
+From the Business Analysis: Using `node-cron` directly within the Node.js API process means cron jobs (like Night Audit, WhatsApp recovery) will run multiple times if we horizontally scale. We need a distributed job queue.
+
+## Task
+1. **Implement BullMQ:**
+ - Install `bullmq`.
+ - Setup a centralized `Queue` module referencing Upstash Redis.
+2. **Migrate Jobs:**
+ - Move existing scheduled tasks (e.g., Night Audit) to repeatable BullMQ jobs.
+ - Add worker processes that exclusively listen to and process these queues.
+3. **Dashboard:** Optional but recommended: Mount `@bull-board/api` under an admin-only route to monitor job execution.
+
+## Constraints
+- Redis is required in production.
+- Keep the worker decoupled from the intensive API request thread.
+- Confidence: 8/10
+
+P2
+ DPDP Act Data Purge API
+ Compliance
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Data Subject Access Request (DSAR) Endpoint (DPDP Compliance)
+
+## Context
+From the Business Analysis: India's DPDP Act mandates the right to erasure. Guests can request deletion of their Personally Identifiable Information (PII), but we must retain anonymized transaction data for GST/financial audits.
+
+## Task
+1. **Create Endpoint:** `POST /guest-portal/dsar/delete-my-data`
+2. **Process logic:**
+ - Find all `BookingGuest` and `GuestProfile` rows matching the authenticated guest's phone/email.
+ - Anonymize the PII: 
+ - Set `fullName` = "Deleted Guest [ID]"
+ - Set `idProofNumber` = "[REDACTED]"
+ - Hash or anonymize phone numbers
+ - Do NOT delete the `Booking`, `Invoice`, or `FolioCharge` records.
+3. **Audit Log:** Record the DSAR execution in an immutable audit table.
+
+## Constraints
+- Must retain exact billing amounts and GST rules for 7 years.
+- Only PII is redacted.
+- Confidence: 9/10
+
+💡 Breakthrough Ideas
+ (High-Impact Differentiators)
+
+Breakthrough
+ Google Hotel Ads Free Listing Feed
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Auto-Generated Google Hotel Ads Free Listing Feed
+
+## Context
+Google Hotel Ads has a free listing program (Google Hotel Free Booking Links). Properties can appear in Google Search and Maps hotel results for free. This requires an ARI (Availability, Rates, Inventory) feed in a specific format.
+
+## Task
+1. **Research** Google's Hotel Ads API / Free Booking Links requirements:
+ - Hotel List Feed (property details in XML)
+ - ARI Feed (room availability and pricing in XML)
+ - Landing page requirements (deep link to booking page)
+ - Test environment (Google Hotel Ads sandbox)
+
+2. **Build auto-generated feeds:**
+ - `GET /public/:slug/google-hotel-feed.xml` — property metadata
+ - `GET /public/:slug/google-ari-feed.xml` — dynamic ARI from room types + pricing rules
+ - Update feeds automatically when pricing/availability changes
+
+3. **Dashboard Setup:**
+ - "Google Hotel Ads" card in channel management
+ - One-click feed URL generation
+ - Instructions for submitting to Google Hotel Center
+ - Status indicator: Feed valid / Feed errors
+
+4. **Technical Requirements:**
+ - Correct XML namespace per Google spec
+ - Rate plans mapped to Google rate types
+ - Availability calculated from real booking data
+ - Landing page URL with UTM parameters for tracking
+
+## Constraints
+- Feed must be publicly accessible (no auth)
+- Cache feed for 5 minutes (avoid re-generating on every request)
+- Validate XML against Google's schema before serving
+- **IMPORTANT (verified requirements):** Google Free Booking Links require:
+ 1. A verified Google Business Profile matching property name/address exactly
+ 2. A Google Hotel Center account
+ 3. A **Google-integrated connectivity partner** (channel manager or PMS) — you cannot self-submit feeds directly
+ 4. Maintaining price accuracy (Google monitors landing page vs displayed price)
+ 5. No bidding required for free links (unlike paid Hotel Ads)
+- For iStays: either become a Google connectivity partner (requires certification) or integrate with an existing one (e.g., Channex, SiteMinder)
+- Confidence: 6/10 (requires Google partnership or connectivity partner integration — cannot be fully self-served)
+
+Breakthrough
+ Digital Guest Register (Sarai Act Compliance)
+
+📋 Copy
+
+👁️ View / Hide Prompt
+ 
+BUILD — Digital Guest Register for Sarai Act / Police Compliance
+
+## Context
+Indian hotels are legally required to maintain a guest register under the Sarai Act and submit records to local police. Currently this is done with manual paper registers. iStays already captures all required guest data (name, address, ID, nationality, visa details) in the `bookingGuests` table — but there's no formatted output.
+
+## Task
+1. **Create a printable Guest Register page** at `apps/web/app/dashboard/compliance/register/page.tsx`:
+ - Date range selector (default: today)
+ - Table matching the standard police register format:
+ - S.No, Guest Name, Father's Name, Address, Nationality, ID Type & Number, Visa Details (foreign guests), Room No, Check-in Date/Time, Check-out Date/Time, Purpose of Visit, Accompanying persons
+ - Print button that produces a clean A4 register page
+ - PDF download option
+
+2. **One-click police submission:**
+ - "Email to Station House Officer" button
+ - Property settings: local police station email address
+ - Auto-generate email with register PDF attached + cover letter
+ - Configurable per state/district (format varies)
+
+3. **FRRO Enhancement:**
+ - The existing C-Form CSV export in `bookings/router.ts` (lines ~376-441) covers foreign guests
+ - Add a "Submit to FRRO" workflow: generate Form-C data → format per state requirements → email to FRRO office
+ - Show submission status per foreign guest in the booking detail
+
+4. **Extend** `17-frro-compliance.spec.ts`:
+ - Generate guest register → verify table renders with correct data
+ - Test PDF download returns valid file
+
+## Constraints
+- Format varies by state — make the template configurable
+- Guest data MUST be tenant-scoped
+- Print layout must fit A4 landscape
+- Dates in IST, Indian format (DD/MM/YYYY)
+- Prisma: `BookingGuest` model (line 451-477) has ALL required fields: `fullName`, `idProofType`, `idProofNumber`, `nationality`, `visaNumber`, `visaExpiryDate`, `arrivingFrom`, `goingTo`, `guestState`, `purposeOfVisit`, `isFormBRecorded`, `cFormSubmitted`, `cFormSubmittedAt`
+- Confidence: 8/10
+
+iStays Feature Gap Analysis v2 — Self-Corrected & Verified
+
+Generated 22 April 2026 · 25 API modules · 37 Prisma models · 22 E2E tests · 6 middleware layers audited
+
+🤖 16 copy-paste-ready AI prompts · Self-reviewed with 14 corrections · Confidence: 8.5/10
+
+

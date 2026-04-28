@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../config/database';
+import { getTenantById, getTenantBySlug, getActiveMembership } from './tenant-cache';
 
 declare global {
   namespace Express {
@@ -20,16 +20,18 @@ declare global {
  * 2. JWT payload (tenantId)
  * 3. x-tenant-slug header
  * 4. Request hostname (subdomain)
+ *
+ * All tenant + membership lookups go through `tenant-cache` so the same authed
+ * request doesn't re-hit the DB for every API call. See tenant-cache.ts for
+ * TTL / invalidation semantics. Mutations that change cached fields
+ * (status, plan, schemaName) MUST call invalidateTenant() to bypass the TTL.
  */
 export async function resolveTenant(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     // 1. From x-tenant-id header — ALWAYS takes priority
     const headerTenantId = req.headers['x-tenant-id'] as string;
     if (headerTenantId && /^[0-9a-f-]{36}$/i.test(headerTenantId)) {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: headerTenantId },
-        select: { id: true, schemaName: true, status: true, plan: true },
-      });
+      const tenant = await getTenantById(headerTenantId);
 
       if (!tenant || (tenant.status !== 'active' && tenant.status !== 'pending_approval')) {
         res.status(403).json({ success: false, error: 'Property not found or inactive' });
@@ -38,10 +40,7 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
 
       // Verify the authenticated user is actually a member of this tenant
       if (req.userId) {
-        const membership = await prisma.tenantMembership.findFirst({
-          where: { userId: req.userId, tenantId: tenant.id, isActive: true },
-          select: { id: true },
-        });
+        const membership = await getActiveMembership(req.userId, tenant.id);
         if (!membership) {
           res.status(403).json({ success: false, error: 'Access denied: you are not a member of this property' });
           return;
@@ -59,15 +58,9 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
     // 2. From JWT payload — also verify membership is still active (handles revoked staff)
     if (req.user?.tenantId) {
       const [tenant, membership] = await Promise.all([
-        prisma.tenant.findUnique({
-          where: { id: req.user.tenantId },
-          select: { id: true, schemaName: true, status: true, plan: true },
-        }),
+        getTenantById(req.user.tenantId),
         req.userId
-          ? prisma.tenantMembership.findFirst({
-              where: { userId: req.userId, tenantId: req.user.tenantId, isActive: true },
-              select: { id: true },
-            })
+          ? getActiveMembership(req.userId, req.user.tenantId)
           : Promise.resolve(null),
       ]);
 
@@ -107,10 +100,7 @@ export async function resolveTenant(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true, schemaName: true, status: true, plan: true },
-    });
+    const tenant = await getTenantBySlug(tenantSlug);
 
     if (!tenant || tenant.status !== 'active') {
       res.status(404).json({ success: false, error: 'Property not found or inactive' });

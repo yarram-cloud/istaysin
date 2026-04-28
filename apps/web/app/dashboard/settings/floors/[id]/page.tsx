@@ -60,19 +60,28 @@ export default function EditFloorPage({ params }: { params: { id: string } }) {
   }
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this floor? This cannot be undone.')) return;
-    setDeleting(true);
-    try {
-      await roomsApi.deleteFloor(params.id);
-      toast.success('Floor deleted successfully');
-      router.push('/dashboard/settings/floors');
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Cannot delete floor. It may have rooms assigned to it.');
-    } finally {
-      setDeleting(false);
-    }
+    toast('Delete this floor?', {
+      description: 'This cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          setDeleting(true);
+          try {
+            await roomsApi.deleteFloor(params.id);
+            toast.success('Floor deleted successfully');
+            router.push('/dashboard/settings/floors');
+            router.refresh();
+          } catch (err: any) {
+            toast.error(err.message || 'Cannot delete floor. It may have rooms assigned to it.');
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   }
+
 
   if (initialLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-500" /></div>;

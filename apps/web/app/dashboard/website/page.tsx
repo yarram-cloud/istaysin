@@ -1205,34 +1205,39 @@ export default function WebsiteBuilderPage() {
             </div>
           )}
 
-          {/* 18. Scripts */}
+          {/* 18. Scripts — gated: tenant-controlled JS is the multi-tenant XSS surface,
+              so the API only renders these scripts on the public page for paid tiers. */}
           {activeTab === 'scripts' && (
-            <div className="space-y-6 animate-fade-in">
-              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">18. Tracking Scripts</h2>
-              <div className="space-y-6 bg-surface-50 p-6 rounded-2xl border border-surface-200">
-                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-surface-900 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded ml-2">Head Scripts</label>
-                  <p className="text-xs text-surface-500 mb-2 block">Will be injected directly inside the &lt;head&gt; tag. Use for GTM or Meta Pixels.</p>
-                  <textarea rows={6} value={websiteConfig.components.scripts?.head || ''} onChange={e => updateComponent('scripts', { head: e.target.value })} className="input-field shadow-sm font-mono text-sm bg-surface-900 text-green-400 border-none" placeholder="<!-- Google Tag Manager -->" />
-                 </div>
-                 <div className="space-y-2 pt-4">
-                  <label className="text-sm font-bold text-surface-900 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded ml-2">Body Scripts</label>
-                  <p className="text-xs text-surface-500 mb-2 block">Will be injected at the end of the &lt;body&gt; tag. Use for Chat widgets.</p>
-                  <textarea rows={6} value={websiteConfig.components.scripts?.body || ''} onChange={e => updateComponent('scripts', { body: e.target.value })} className="input-field shadow-sm font-mono text-sm bg-surface-900 text-green-400 border-none" placeholder="<script>...</script>" />
-                 </div>
+            <PlanGate requiredPlan="professional" featureName="Tracking Scripts">
+              <div className="space-y-6 animate-fade-in">
+                <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">18. Tracking Scripts</h2>
+                <div className="space-y-6 bg-surface-50 p-6 rounded-2xl border border-surface-200">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-surface-900 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded ml-2">Head Scripts</label>
+                    <p className="text-xs text-surface-500 mb-2 block">Will be injected directly inside the &lt;head&gt; tag. Use for GTM or Meta Pixels.</p>
+                    <textarea rows={6} value={websiteConfig.components.scripts?.head || ''} onChange={e => updateComponent('scripts', { head: e.target.value })} className="input-field shadow-sm font-mono text-sm bg-surface-900 text-green-400 border-none" placeholder="<!-- Google Tag Manager -->" />
+                  </div>
+                  <div className="space-y-2 pt-4">
+                    <label className="text-sm font-bold text-surface-900 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded ml-2">Body Scripts</label>
+                    <p className="text-xs text-surface-500 mb-2 block">Will be injected at the end of the &lt;body&gt; tag. Use for Chat widgets.</p>
+                    <textarea rows={6} value={websiteConfig.components.scripts?.body || ''} onChange={e => updateComponent('scripts', { body: e.target.value })} className="input-field shadow-sm font-mono text-sm bg-surface-900 text-green-400 border-none" placeholder="<script>...</script>" />
+                  </div>
+                </div>
               </div>
-            </div>
+            </PlanGate>
           )}
 
-          {/* 19. Advanced */}
+          {/* 19. Advanced — same plan gate as scripts. */}
           {activeTab === 'advanced' && (
-            <div className="space-y-6 animate-fade-in">
-              <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">19. Advanced CSS overrides</h2>
-              <div className="space-y-2 bg-surface-900 p-6 rounded-2xl shadow-sm border border-surface-800">
-                <p className="text-sm text-surface-400 mb-4 font-mono">/* Provide standard CSS logic here to override theme variables globally. */</p>
-                <textarea rows={16} value={websiteConfig.components.advanced?.customCss || ''} onChange={e => updateComponent('advanced', { customCss: e.target.value })} className="w-full bg-surface-950 border border-surface-700 rounded-xl p-4 text-blue-300 font-mono text-sm focus:outline-none focus:border-primary-500 transition-colors shadow-inner" placeholder=":root {&#10;  --primary-500: #000; &#10;}" />
+            <PlanGate requiredPlan="professional" featureName="Advanced CSS Overrides">
+              <div className="space-y-6 animate-fade-in">
+                <h2 className="text-xl font-bold text-surface-900 mb-2 border-b border-surface-100 pb-4">19. Advanced CSS overrides</h2>
+                <div className="space-y-2 bg-surface-900 p-6 rounded-2xl shadow-sm border border-surface-800">
+                  <p className="text-sm text-surface-400 mb-4 font-mono">/* Provide standard CSS logic here to override theme variables globally. */</p>
+                  <textarea rows={16} value={websiteConfig.components.advanced?.customCss || ''} onChange={e => updateComponent('advanced', { customCss: e.target.value })} className="w-full bg-surface-950 border border-surface-700 rounded-xl p-4 text-blue-300 font-mono text-sm focus:outline-none focus:border-primary-500 transition-colors shadow-inner" placeholder=":root {&#10;  --primary-500: #000; &#10;}" />
+                </div>
               </div>
-            </div>
+            </PlanGate>
           )}
 
           {/* 20. Domain — deep-links to the real domain mapping settings */}

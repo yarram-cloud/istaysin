@@ -68,19 +68,28 @@ export default function EditRoomTypePage({ params }: { params: { id: string } })
   }
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this room type? This cannot be undone.')) return;
-    setDeleting(true);
-    try {
-      await roomsApi.deleteRoomType(params.id);
-      toast.success('Room type deleted safely');
-      router.push('/dashboard/settings/room-types');
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete room type');
-    } finally {
-      setDeleting(false);
-    }
+    toast('Delete this room type?', {
+      description: 'This cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          setDeleting(true);
+          try {
+            await roomsApi.deleteRoomType(params.id);
+            toast.success('Room type deleted safely');
+            router.push('/dashboard/settings/room-types');
+            router.refresh();
+          } catch (err: any) {
+            toast.error(err.message || 'Failed to delete room type');
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   }
+
 
   if (loading) {
     return (

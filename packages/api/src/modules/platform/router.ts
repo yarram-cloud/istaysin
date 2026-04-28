@@ -5,6 +5,7 @@ import { prisma } from '../../config/database';
 import { authenticate } from '../../middleware/auth';
 import { requireGlobalAdmin } from '../../middleware/rbac';
 import { logAudit } from '../../middleware/audit-log';
+import { invalidateTenant } from '../../middleware/tenant-cache';
 import { sendPropertyApprovalEmail } from '../../services/email';
 import { getSubdomainUrl } from '../../services/cloudflare';
 
@@ -35,6 +36,10 @@ platformRouter.post('/approve/:id', validateRequest(platformApproveSchema), asyn
       include: { owner: { select: { email: true } } },
     });
 
+    // Drop cached resolver entry so the new status takes effect immediately
+    // instead of within the cache TTL.
+    invalidateTenant(tenant.id);
+
     const subdomainUrl = getSubdomainUrl(tenant.slug);
     sendPropertyApprovalEmail(tenant.owner.email || '', { propertyName: tenant.name, status: 'approved', subdomainUrl }).catch(console.error);
     await logAudit(tenant.id, req.userId, 'APPROVE', 'tenant', tenant.id, { subdomainUrl }, req.ip || undefined);
@@ -54,6 +59,8 @@ platformRouter.post('/reject/:id', validateRequest(platformRejectSchema), async 
       data: { status: 'suspended' },
       include: { owner: { select: { email: true } } },
     });
+
+    invalidateTenant(tenant.id);
 
     sendPropertyApprovalEmail(tenant.owner.email || '', { propertyName: tenant.name, status: 'rejected', reason }).catch(console.error);
 
@@ -403,6 +410,8 @@ platformRouter.patch('/tenants/:tenantId/plan', async (req: Request, res: Respon
       });
       return tenant;
     });
+
+    invalidateTenant(updated.id);
 
     await logAudit(
       updated.id,

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import * as Sentry from '@sentry/node';
 import { getJwtSecret } from '../config/jwt';
 
 export interface AuthPayload {
@@ -37,6 +38,13 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     const payload = jwt.verify(token, secret) as AuthPayload;
     req.user = payload;
     req.userId = payload.userId;
+
+    // Tag the active Sentry scope so any exception captured during this
+    // request carries the user/tenant context. No-op when SENTRY_DSN is unset.
+    Sentry.getCurrentScope().setUser({ id: payload.userId, email: payload.email });
+    if (payload.tenantId) Sentry.getCurrentScope().setTag('tenantId', payload.tenantId);
+    if (payload.role) Sentry.getCurrentScope().setTag('role', payload.role);
+
     next();
   } catch (error) {
     res.status(401).json({ success: false, error: 'Session expired, please log in again' });
@@ -56,6 +64,10 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
       const secret = getJwtSecret();
       req.user = jwt.verify(token, secret) as AuthPayload;
       req.userId = req.user.userId;
+
+      Sentry.getCurrentScope().setUser({ id: req.user.userId, email: req.user.email });
+      if (req.user.tenantId) Sentry.getCurrentScope().setTag('tenantId', req.user.tenantId);
+      if (req.user.role) Sentry.getCurrentScope().setTag('role', req.user.role);
     } catch {
       // Ignore invalid tokens for optional auth
     }
