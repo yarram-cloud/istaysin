@@ -83,23 +83,23 @@ export default function AdminRegistrationsPage() {
   const activeTab = FILTER_TABS.find((t) => t.id === filter)!;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-display font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
             Property Registrations
           </h1>
-          <p className="text-surface-400 text-sm mt-1.5">Review and manage property registration requests</p>
+          <p className="text-surface-400 text-sm mt-1">Review and manage property registration requests</p>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-surface-900/80 border border-white/[0.06] backdrop-blur">
+        <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-surface-900/80 border border-white/[0.06] backdrop-blur self-start">
           {FILTER_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all border ${
                 filter === tab.id
                   ? `${tab.activeBg} ${tab.color} border-current/30`
                   : 'text-surface-500 hover:text-white border-transparent hover:bg-white/[0.04]'

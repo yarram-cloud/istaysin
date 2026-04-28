@@ -29,10 +29,10 @@ export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<'plans' | 'gst'>('plans');
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-6 max-w-5xl">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-display font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
           Platform Settings
         </h1>
         <p className="text-surface-400 text-sm mt-1.5">
@@ -40,23 +40,24 @@ export default function AdminSettingsPage() {
         </p>
       </div>
 
-      {/* Tab Switcher */}
-      <div className="flex gap-1 p-1.5 rounded-2xl bg-surface-900/80 border border-white/[0.06] w-fit backdrop-blur">
+      {/* Tab Switcher — full-width on mobile */}
+      <div className="flex gap-1 p-1.5 rounded-2xl bg-surface-900/80 border border-white/[0.06] w-full sm:w-fit backdrop-blur">
         {[
-          { id: 'plans' as const, label: 'Plan Pricing & Trials', icon: Zap },
-          { id: 'gst'   as const, label: 'GST Tax Slabs',         icon: IndianRupee },
+          { id: 'plans' as const, label: 'Plan Pricing', mobileLabel: 'Pricing', icon: Zap },
+          { id: 'gst'   as const, label: 'GST Slabs',    mobileLabel: 'GST',     icon: IndianRupee },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
+            className={`flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
               activeTab === tab.id
                 ? 'bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/20'
                 : 'text-surface-400 hover:text-white hover:bg-white/[0.05]'
             }`}
           >
             <tab.icon className="w-4 h-4" />
-            {tab.label}
+            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="sm:hidden">{tab.mobileLabel}</span>
           </button>
         ))}
       </div>

@@ -20,7 +20,10 @@
       "Bash(echo \"EXIT=$?\")",
       "Bash(npx next *)",
       "Bash(echo \"WEB_EXIT=$?\")",
-      "Bash(echo \"E2E_EXIT=$?\")"
+      "Bash(echo \"E2E_EXIT=$?\")",
+      "Bash(echo \"API_EXIT=$?\")",
+      "Bash(echo \"WEB=$?\")",
+      "Bash(echo \"API=$?\")"
     ]
   }
 }

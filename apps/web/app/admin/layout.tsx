@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Shield, LayoutDashboard, Building2, ClipboardCheck,
-  LogOut, Menu, X, Settings, ChevronRight,
+  LogOut, Menu, X, Settings, ChevronRight, TrendingUp,
 } from 'lucide-react';
 
 const adminLinks = [
   { href: '/admin',              icon: LayoutDashboard, label: 'Overview',          color: 'text-blue-400',   active_bg: 'bg-blue-500/10 border-blue-500/20' },
   { href: '/admin/registrations',icon: ClipboardCheck,  label: 'Approvals',         color: 'text-amber-400',  active_bg: 'bg-amber-500/10 border-amber-500/20' },
   { href: '/admin/tenants',      icon: Building2,       label: 'All Properties',    color: 'text-emerald-400',active_bg: 'bg-emerald-500/10 border-emerald-500/20' },
+  { href: '/admin/revenue',      icon: TrendingUp,      label: 'Revenue',           color: 'text-cyan-400',   active_bg: 'bg-cyan-500/10 border-cyan-500/20' },
   { href: '/admin/settings',     icon: Settings,        label: 'Platform Settings', color: 'text-violet-400', active_bg: 'bg-violet-500/10 border-violet-500/20' },
 ];
 
@@ -136,13 +137,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Bottom actions */}
         <div className="px-3 pb-4 border-t border-white/[0.05] pt-3 space-y-0.5">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-surface-400 hover:text-white hover:bg-white/[0.05] border border-transparent transition-all group"
-          >
-            <Building2 className="w-4 h-4 text-surface-500 group-hover:text-white" />
-            Tenant Dashboard
-          </Link>
+          <div className="mb-1">
+            <p className="px-3 text-[10px] font-bold text-surface-600 uppercase tracking-widest mb-1">Switch Context</p>
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-surface-400 hover:text-white hover:bg-white/[0.05] border border-transparent transition-all group"
+            >
+              <Building2 className="w-4 h-4 text-surface-500 group-hover:text-emerald-400 transition-colors" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium leading-none">Property Dashboard</p>
+                <p className="text-[10px] text-surface-600 mt-0.5">Switch to owner view</p>
+              </div>
+            </Link>
+          </div>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400/70 hover:text-red-300 hover:bg-red-500/10 border border-transparent transition-all group"
@@ -189,7 +196,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Page */}
-        <main className="flex-1 p-5 sm:p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

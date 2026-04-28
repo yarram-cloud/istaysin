@@ -475,6 +475,8 @@ export const platformApi = {
     return apiFetch(`/platform/tenants${query}`);
   },
   getTenantDetail: (tenantId: string) => apiFetch(`/platform/tenants/${tenantId}/detail`),
+  updateTenantPlan: (tenantId: string, plan: string) =>
+    apiFetch(`/platform/tenants/${tenantId}/plan`, { method: 'PATCH', body: JSON.stringify({ plan }) }),
   // Plan Config
   getPlans: () => apiFetch('/platform/plans'),
   updatePlan: (id: string, data: any) =>
@@ -491,6 +493,11 @@ export const platformApi = {
     apiFetch('/platform/gst-slabs', { method: 'PUT', body: JSON.stringify({ slabs }) }),
   resetGstSlabs: () =>
     apiFetch('/platform/gst-slabs/reset', { method: 'POST' }),
+  // Revenue & Subscriptions
+  getRevenue: (params?: Record<string, string>) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiFetch(`/platform/revenue${query}`);
+  },
 };
 
 // Reviews helpers

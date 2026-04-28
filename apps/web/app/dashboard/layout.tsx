@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Building2, LayoutDashboard, BedDouble, CalendarDays, Users, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
-  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield, Languages, Lock
+  ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield, Languages, Lock, Eye, ArrowLeft,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { NextIntlClientProvider, useTranslations } from 'next-intl';
@@ -86,16 +86,20 @@ const SIDEBAR_PLAN_BADGE: Record<string, string> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const pathname   = usePathname();
+  const router     = useRouter();
+  const searchParams = useSearchParams();
+  const adminPreviewId = searchParams.get('admin_preview');
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser]               = useState<any>(null);
   const [propertyName, setPropertyName] = useState('My Property');
-  const [plan, setPlan] = useState('free');
+  const [plan, setPlan]               = useState('free');
   const [propertyType, setPropertyType] = useState<PropertyType>('hotel');
-  const [locale, setLocale] = useState('en');
-  const [messages, setMessages] = useState<any>(null);
+  const [locale, setLocale]           = useState('en');
+  const [messages, setMessages]       = useState<any>(null);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [previewTenant, setPreviewTenant] = useState<{ name: string; plan: string; propertyType: string } | null>(null);
 
   // Load messages when locale changes
   useEffect(() => {
@@ -107,11 +111,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (stored) {
       const u = JSON.parse(stored);
       setUser(u);
-      // Restore language preference from user profile
       if (u.preferredLanguage && u.preferredLanguage !== locale) {
         setLocale(u.preferredLanguage);
       }
     }
+
+    // Admin preview mode — fetch the target tenant and override sidebar context.
+    // The admin's own membership/plan is NOT changed; only this tab's display changes.
+    if (adminPreviewId) {
+      const token = localStorage.getItem('accessToken') || '';
+      fetch(`/api/v1/platform/tenants/${adminPreviewId}/detail`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.success && res.data) {
+            const t = res.data;
+            setPreviewTenant({ name: t.name, plan: t.plan, propertyType: t.propertyType });
+            setPropertyName(t.name);
+            setPlan(t.plan || 'free');
+            setPropertyType((t.propertyType as PropertyType) || 'hotel');
+          }
+        })
+        .catch(() => {/* non-critical */});
+      return; // skip membership read when in preview mode
+    }
+
     const memberships = localStorage.getItem('memberships');
     if (memberships) {
       try {
@@ -127,7 +152,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
       } catch { /* ignore */ }
     }
-  }, [router]);
+  }, [router, adminPreviewId]);
 
   async function handleLanguageChange(newLocale: string) {
     setLocale(newLocale);
@@ -166,7 +191,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages} getMessageFallback={({key}) => ''}>
-    <div className="min-h-screen bg-surface-50 flex">
+    <div className="min-h-screen bg-surface-50 flex flex-col">
+
+      {/* Admin Preview Banner */}
+      {previewTenant && (
+        <div className="sticky top-0 z-[60] flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500 text-amber-950">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Eye className="w-4 h-4 shrink-0" />
+            <span>Admin Preview: <strong>{previewTenant.name}</strong> &mdash; {SIDEBAR_PLAN_BADGE[previewTenant.plan] || previewTenant.plan} plan</span>
+          </div>
+          <a
+            href={`/admin/tenants/${adminPreviewId}`}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-950/20 hover:bg-amber-950/30 transition-colors shrink-0"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Exit Preview
+          </a>
+        </div>
+      )}
+
+      <div className="flex flex-1 min-h-0">
       {/* Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-surface-950 border-r border-surface-800
@@ -324,6 +368,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
           </PropertyTypeProvider>
         </main>
+      </div>
       </div>
     </div>
     </NextIntlClientProvider>

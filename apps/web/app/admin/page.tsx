@@ -136,7 +136,7 @@ export default function AdminOverviewPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
             Platform Overview
           </h1>
           <p className="text-surface-400 text-sm mt-1.5">
@@ -176,7 +176,7 @@ export default function AdminOverviewPage() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {cards.map((card) => (
           <button
             key={card.label}
@@ -209,7 +209,7 @@ export default function AdminOverviewPage() {
             </div>
 
             {/* Value */}
-            <p className="text-4xl font-display font-black text-white tracking-tight mb-1">
+            <p className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight mb-1">
               {card.value.toLocaleString('en-IN')}
             </p>
 
@@ -227,7 +227,7 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* Quick Nav Links */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         {[
           { label: 'Review Approvals', href: '/admin/registrations', color: 'hover:border-amber-500/40 hover:text-amber-300', icon: ClipboardCheck },
           { label: 'All Properties', href: '/admin/tenants', color: 'hover:border-blue-500/40 hover:text-blue-300', icon: Building2 },

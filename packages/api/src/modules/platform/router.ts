@@ -351,6 +351,80 @@ platformRouter.get('/tenants/:tenantId/detail', async (req: Request, res: Respon
   }
 });
 
+// PATCH /platform/tenants/:tenantId/plan — change a tenant's plan tier
+//
+// Validates the requested plan code against the saasPlan table so admins can't
+// drop arbitrary strings into tenant.plan. Mirrors the change onto the active
+// subscription row (if any) inside a transaction so the read-side stays consistent.
+platformRouter.patch('/tenants/:tenantId/plan', async (req: Request, res: Response) => {
+  try {
+    const rawPlan = req.body?.plan;
+    if (typeof rawPlan !== 'string' || !rawPlan.trim()) {
+      res.status(400).json({ success: false, error: 'plan is required' });
+      return;
+    }
+    const plan = rawPlan.trim().toLowerCase();
+
+    // Make sure the plan exists and is enabled before letting it propagate
+    await ensurePlansSeeded();
+    const planRecord = await prisma.saasPlan.findUnique({ where: { code: plan } });
+    if (!planRecord) {
+      res.status(400).json({ success: false, error: `Unknown plan code: ${plan}` });
+      return;
+    }
+    if (!planRecord.isActive) {
+      res.status(400).json({ success: false, error: `Plan ${plan} is not active` });
+      return;
+    }
+
+    const existing = await prisma.tenant.findUnique({
+      where: { id: req.params.tenantId },
+      select: { id: true, plan: true, name: true },
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Tenant not found' });
+      return;
+    }
+
+    if (existing.plan === plan) {
+      res.json({ success: true, data: existing, message: 'Plan unchanged' });
+      return;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.update({
+        where: { id: req.params.tenantId },
+        data: { plan },
+      });
+      // Keep the active subscription row in sync so the dashboard's subscription panel matches.
+      await tx.subscription.updateMany({
+        where: { tenantId: req.params.tenantId, status: 'active' },
+        data: { plan },
+      });
+      return tenant;
+    });
+
+    await logAudit(
+      updated.id,
+      req.userId,
+      'UPDATE_PLAN',
+      'tenant',
+      updated.id,
+      { previousPlan: existing.plan, newPlan: plan },
+      req.ip || undefined,
+    );
+
+    res.json({
+      success: true,
+      data: updated,
+      message: `Plan changed from ${existing.plan} to ${plan}`,
+    });
+  } catch (err) {
+    console.error('[TENANT PLAN UPDATE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to update plan' });
+  }
+});
+
 // GET /platform/tenants/:tenantId/custom-pricing — tenant-specific plan pricing overrides
 platformRouter.get('/tenants/:tenantId/custom-pricing', async (req: Request, res: Response) => {
   try {
@@ -359,7 +433,6 @@ platformRouter.get('/tenants/:tenantId/custom-pricing', async (req: Request, res
       select: { config: true },
     });
     if (!tenant) { res.status(404).json({ success: false, error: 'Tenant not found' }); return; }
-
     const config = (tenant.config as Record<string, any>) || {};
     res.json({ success: true, data: { customPlanPricing: config.customPlanPricing || null } });
   } catch (err) {
@@ -399,3 +472,181 @@ platformRouter.put('/tenants/:tenantId/custom-pricing', async (req: Request, res
   }
 });
 
+// ── Revenue / Subscriptions Dashboard ────────────────────────────────────────
+
+// GET /platform/revenue — all tenants with their latest subscription + payment info
+platformRouter.get('/revenue', async (req: Request, res: Response) => {
+  try {
+    const {
+      plan, billingCycle, paymentStatus, overdue, search,
+      page = '1', limit = '20',
+    } = req.query;
+
+    const pageNum  = Math.max(1, parseInt(page as string, 10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+    const now      = new Date();
+
+    // ── Tenant-level filter ───────────────────────────────────────────────────
+    const tenantWhere: any = { status: { not: 'suspended' } };
+
+    if (plan) tenantWhere.plan = plan;
+
+    if (search) {
+      tenantWhere.AND = [
+        ...(tenantWhere.AND || []),
+        {
+          OR: [
+            { name:         { contains: search as string, mode: 'insensitive' } },
+            { slug:         { contains: search as string, mode: 'insensitive' } },
+            { contactEmail: { contains: search as string, mode: 'insensitive' } },
+          ],
+        },
+      ];
+    }
+
+    // ── Subscription-level where (pushed to DB where possible) ───────────────
+    const subWhere: any = { status: { not: 'cancelled' } };
+    if (billingCycle) subWhere.billingCycle = billingCycle;
+    if (overdue === 'true') subWhere.currentPeriodEnd = { lt: now };
+
+    if (billingCycle || overdue === 'true') {
+      tenantWhere.subscriptions = { some: subWhere };
+    }
+
+    // paymentStatus — pushed to DB via Prisma EXISTS/NOT EXISTS (no raw SQL needed)
+    if (paymentStatus === 'paid') {
+      tenantWhere.platformPayments = { some: { status: 'completed' } };
+    } else if (paymentStatus === 'unpaid') {
+      tenantWhere.platformPayments = { none: { status: 'completed' } };
+    } else if (paymentStatus === 'pending') {
+      tenantWhere.platformPayments = { some: { status: 'pending' } };
+    }
+
+    await ensurePlansSeeded();
+    const [total, tenants, allPlans] = await Promise.all([
+      prisma.tenant.count({ where: tenantWhere }),
+      prisma.tenant.findMany({
+        where: tenantWhere,
+        include: {
+          owner: { select: { fullName: true, email: true } },
+          subscriptions: {
+            where:   subWhere,
+            orderBy: { createdAt: 'desc' },
+            take:    1,
+          },
+          platformPayments: {
+            orderBy: { createdAt: 'desc' },
+            take:    1,
+            select: { id: true, amount: true, status: true, createdAt: true, receiptNumber: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip:  (pageNum - 1) * limitNum,
+        take:  limitNum,
+      }),
+      prisma.saasPlan.findMany({ where: { isActive: true } }),
+    ]);
+
+    // Build a code → plan lookup so we can compute expected amounts without N+1 queries.
+    const planByCode = new Map<string, (typeof allPlans)[number]>(
+      allPlans.map((p) => [p.code, p]),
+    );
+
+    // ── Map tenants → revenue rows ────────────────────────────────────────────
+    let rows = tenants.map((t) => {
+      const sub     = t.subscriptions[0] ?? null;
+      const lastPay = t.platformPayments[0] ?? null;
+      const renewsAt = sub?.currentPeriodEnd ?? null;
+      const isOverdue = renewsAt ? renewsAt < now && sub?.status === 'active' : false;
+      const daysUntilRenewal = renewsAt
+        ? Math.ceil((renewsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+      const billingCycle = (sub?.billingCycle ?? 'monthly') as 'monthly' | 'yearly';
+
+      // Resolve effective plan price: per-tenant override → global SaaS plan → 0.
+      // discountedPrice / discountMonthly is the actively marketed monthly rate;
+      // yearlyPrice / discountYearly is the per-month rate when paying annually.
+      const tenantConfig = ((t.config as Record<string, any>) || {});
+      const customPlanPricing = (tenantConfig.customPlanPricing as Record<string, any>) || {};
+      const cp = customPlanPricing[t.plan];
+      const planRecord = planByCode.get(t.plan) ?? null;
+
+      const effectiveMonthly: number =
+        (typeof cp?.discountedPrice === 'number' ? cp.discountedPrice : undefined) ??
+        (typeof cp?.monthlyPrice    === 'number' ? cp.monthlyPrice    : undefined) ??
+        (planRecord?.discountMonthly ?? planRecord?.actualPrice ?? 0);
+
+      const effectiveYearlyPerMonth: number =
+        (typeof cp?.yearlyPrice === 'number' ? cp.yearlyPrice : undefined) ??
+        (planRecord?.discountYearly ?? 0);
+
+      const expectedAmount =
+        billingCycle === 'yearly'
+          ? Math.round(effectiveYearlyPerMonth * 12)
+          : Math.round(effectiveMonthly);
+
+      return {
+        subscriptionId:     sub?.id ?? null,
+        plan:               t.plan,
+        billingCycle,
+        status:             sub?.status ?? 'no_subscription',
+        currentPeriodStart: sub?.currentPeriodStart ?? null,
+        renewsAt,
+        isOverdue,
+        daysUntilRenewal,
+        // Effective billing for the current cycle, with override flag for the UI.
+        expectedAmount,
+        effectiveMonthly:        Math.round(effectiveMonthly),
+        effectiveYearlyPerMonth: Math.round(effectiveYearlyPerMonth),
+        isCustomPriced:          !!cp,
+        tenant: {
+          id:           t.id,
+          name:         t.name,
+          slug:         t.slug,
+          contactEmail: t.contactEmail,
+          city:         t.city,
+          state:        t.state,
+          plan:         t.plan,
+          tenantStatus: t.status,
+          owner:        t.owner,
+        },
+        lastPayment: lastPay
+          ? {
+              id:            lastPay.id,
+              amount:        lastPay.amount,
+              status:        lastPay.status,
+              paidAt:        lastPay.createdAt,
+              receiptNumber: lastPay.receiptNumber,
+            }
+          : null,
+      };
+    });
+
+    // ── Platform-wide summary ─────────────────────────────────────────────────
+    const [allPaymentsAgg, overdueCount, activeSubCount] = await Promise.all([
+      prisma.platformPayment.aggregate({ _sum: { amount: true }, where: { status: 'completed' } }),
+      prisma.subscription.count({ where: { status: { not: 'cancelled' }, currentPeriodEnd: { lt: now } } }),
+      prisma.subscription.count({ where: { status: 'active' } }),
+    ]);
+
+    res.json({
+      success: true,
+      data: rows,
+      pagination: {
+        page:       pageNum,
+        limit:      limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+      summary: {
+        totalRevenue:  allPaymentsAgg._sum.amount || 0,
+        activeCount:   activeSubCount,
+        overdueCount,
+        totalCount:    total,
+      },
+    });
+  } catch (err) {
+    console.error('[REVENUE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch revenue data' });
+  }
+});
