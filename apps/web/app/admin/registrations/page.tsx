@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   CheckCircle2, XCircle, Building2, MapPin, Phone, Mail,
-  Clock, Loader2, ExternalLink, ClipboardCheck,
+  Clock, Loader2, ExternalLink, ClipboardCheck, Tag, BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { platformApi } from '@/lib/api';
@@ -11,31 +11,39 @@ import { platformApi } from '@/lib/api';
 interface Tenant {
   id: string; name: string; slug: string; status: string;
   propertyType: string; address?: string; city?: string; state?: string;
-  contactPhone?: string; contactEmail?: string; gstNumber?: string; createdAt: string;
+  contactPhone?: string; contactEmail?: string; gstNumber?: string;
+  referenceCode?: string; createdAt: string;
   owner: { id: string; fullName: string; email: string; phone?: string };
+}
+
+interface RefStat {
+  code: string; total: number; active: number; pending: number; suspended: number;
+  lastRegistration: string | null;
 }
 
 const STATUS_STYLE: Record<string, string> = {
   pending_approval: 'bg-amber-500/15 text-amber-300 border border-amber-500/30',
-  active:           'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
-  suspended:        'bg-red-500/15 text-red-300 border border-red-500/30',
+  active: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
+  suspended: 'bg-red-500/15 text-red-300 border border-red-500/30',
 };
 
 const FILTER_TABS = [
-  { id: 'pending_approval', label: 'Pending', color: 'text-amber-400',  activeBg: 'bg-amber-500/10 border-amber-500/20' },
-  { id: 'active',           label: 'Active',  color: 'text-emerald-400', activeBg: 'bg-emerald-500/10 border-emerald-500/20' },
-  { id: 'suspended',        label: 'Suspended', color: 'text-red-400',  activeBg: 'bg-red-500/10 border-red-500/20' },
+  { id: 'pending_approval', label: 'Pending', color: 'text-amber-400', activeBg: 'bg-amber-500/10 border-amber-500/20' },
+  { id: 'active', label: 'Active', color: 'text-emerald-400', activeBg: 'bg-emerald-500/10 border-emerald-500/20' },
+  { id: 'suspended', label: 'Suspended', color: 'text-red-400', activeBg: 'bg-red-500/10 border-red-500/20' },
 ];
 
 export default function AdminRegistrationsPage() {
-  const [tenants, setTenants]         = useState<Tenant[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState('');
-  const [filter, setFilter]           = useState('pending_approval');
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('pending_approval');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<{ id: string; name: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [approvedUrl, setApprovedUrl] = useState<{ name: string; url: string } | null>(null);
+  const [refStats, setRefStats] = useState<RefStat[]>([]);
+  const [refLoading, setRefLoading] = useState(false);
 
   function fetchList() {
     setLoading(true);
@@ -45,7 +53,16 @@ export default function AdminRegistrationsPage() {
       .finally(() => setLoading(false));
   }
 
+  function fetchRefStats() {
+    setRefLoading(true);
+    platformApi.getReferenceStats()
+      .then((res: any) => setRefStats(res.data || []))
+      .catch(() => { }) // non-critical — silently ignore
+      .finally(() => setRefLoading(false));
+  }
+
   useEffect(() => { fetchList(); }, [filter]);
+  useEffect(() => { fetchRefStats(); }, []); // load once on mount
 
   async function handleApprove(id: string) {
     setActionLoading(id);
@@ -99,11 +116,10 @@ export default function AdminRegistrationsPage() {
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
-              className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all border ${
-                filter === tab.id
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all border ${filter === tab.id
                   ? `${tab.activeBg} ${tab.color} border-current/30`
                   : 'text-surface-500 hover:text-white border-transparent hover:bg-white/[0.04]'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -224,6 +240,14 @@ export default function AdminRegistrationsPage() {
                     {tenant.gstNumber && (
                       <p className="text-xs text-surface-600 font-mono">GST: {tenant.gstNumber}</p>
                     )}
+                    {tenant.referenceCode && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Tag className="w-3 h-3 text-violet-400 shrink-0" />
+                        <span className="text-xs font-mono font-semibold text-violet-300 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+                          {tenant.referenceCode}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -303,6 +327,88 @@ export default function AdminRegistrationsPage() {
           </div>
         </div>
       )}
+
+      {/* ── CAMPAIGN / REFERENCE CODE STATS ── */}
+      <div className="rounded-2xl border border-white/[0.08] bg-surface-900/60 backdrop-blur p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-violet-400" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white">Campaign Stats</h2>
+              <p className="text-xs text-surface-500">Registrations grouped by reference / promo code</p>
+            </div>
+          </div>
+          <button onClick={fetchRefStats} disabled={refLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-surface-400 hover:text-white border border-white/[0.06] hover:bg-white/[0.04] transition-all disabled:opacity-40">
+            {refLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '↻'} Refresh
+          </button>
+        </div>
+
+        {refLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="w-6 h-6 text-surface-600 animate-spin" />
+          </div>
+        ) : refStats.length === 0 ? (
+          <p className="text-center text-surface-600 text-sm py-8">
+            No reference codes used yet. Share your promo codes to start tracking!
+          </p>
+        ) : (
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                  <th className="text-left text-[11px] font-semibold text-surface-500 uppercase tracking-wider pb-3 pl-1">Code</th>
+                  <th className="text-right text-[11px] font-semibold text-surface-500 uppercase tracking-wider pb-3">Total</th>
+                  <th className="text-right text-[11px] font-semibold text-surface-500 uppercase tracking-wider pb-3 hidden sm:table-cell">Active</th>
+                  <th className="text-right text-[11px] font-semibold text-surface-500 uppercase tracking-wider pb-3 hidden sm:table-cell">Pending</th>
+                  <th className="text-left text-[11px] font-semibold text-surface-500 uppercase tracking-wider pb-3 pl-4 hidden md:table-cell">Share</th>
+                  <th className="text-right text-[11px] font-semibold text-surface-500 uppercase tracking-wider pb-3 hidden lg:table-cell">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {refStats.map((stat) => {
+                  const maxTotal = refStats[0]?.total || 1;
+                  const barPct = Math.round((stat.total / maxTotal) * 100);
+                  return (
+                    <tr key={stat.code} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3 pl-1">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-mono font-bold px-2.5 py-1 rounded-full ${stat.code === '(no code)'
+                            ? 'text-surface-500 bg-surface-800/60 border border-white/[0.06]'
+                            : 'text-violet-300 bg-violet-500/10 border border-violet-500/20'
+                          }`}>
+                          {stat.code !== '(no code)' && <Tag className="w-3 h-3" />}
+                          {stat.code}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right font-bold text-white tabular-nums">{stat.total}</td>
+                      <td className="py-3 text-right text-emerald-400 font-semibold tabular-nums hidden sm:table-cell">{stat.active}</td>
+                      <td className="py-3 text-right text-amber-400 tabular-nums hidden sm:table-cell">{stat.pending}</td>
+                      <td className="py-3 pl-4 hidden md:table-cell">
+                        <div className="flex items-center gap-2 min-w-[100px]">
+                          <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-700"
+                              style={{ width: `${barPct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-surface-500 tabular-nums w-8 text-right">{barPct}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right text-xs text-surface-500 hidden lg:table-cell">
+                        {stat.lastRegistration
+                          ? new Date(stat.lastRegistration).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

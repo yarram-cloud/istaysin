@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { BedDouble, CalendarDays, Users, ArrowRight, TrendingUp, ClipboardList, IndianRupee, PieChart, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { dashboardApi, analyticsApi } from '@/lib/api';
+import { analyticsApi } from '@/lib/api';
+import { useApi } from '@/lib/use-api';
 import { usePropertyType } from '@/lib/property-context';
 import { useTranslations } from 'next-intl';
 import SetupProgressWidget from './_components/setup-progress';
@@ -22,27 +23,25 @@ export default function DashboardOverview() {
   const router = useRouter();
   const { isLongStay } = usePropertyType();
   const t = useTranslations('Dashboard');
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
+  // SWR for the main /dashboard payload — that's the heavy one (rooms,
+  // bookings, housekeeping counts) and the one most navigation revisits.
+  // Cache-keyed by tenantId so multi-property switching doesn't poison it.
+  const dashRes = useApi<{ success: boolean; data: DashboardData }>('/dashboard');
+  const data = dashRes.data?.success ? dashRes.data.data : null;
+
+  // analyticsApi.getOverview() aggregates 3 endpoints and re-shapes them — keep
+  // it as an explicit call until we split it into 3 SWR slots in a later pass.
+  const [analytics, setAnalytics] = useState<any>(null);
   useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        const [dashRes, analyticsRes] = await Promise.all([
-          dashboardApi.get(),
-          analyticsApi.getOverview()
-        ]);
-        if (dashRes.success) setData(dashRes.data);
-        if (analyticsRes.success) setAnalytics(analyticsRes.data);
-      } catch (err) {
-        console.error('Dashboard fetch failed:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDashboard();
+    let alive = true;
+    analyticsApi.getOverview().then((res: any) => {
+      if (alive && res.success) setAnalytics(res.data);
+    }).catch(() => {});
+    return () => { alive = false; };
   }, []);
+
+  const loading = dashRes.isLoading;
 
   if (loading) {
     return (

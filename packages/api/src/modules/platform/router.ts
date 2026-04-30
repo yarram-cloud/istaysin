@@ -138,6 +138,65 @@ platformRouter.get('/analytics', async (req: Request, res: Response) => {
   }
 });
 
+// GET /platform/reference-stats — campaign code analytics
+// Returns all reference codes with registration counts and status breakdown
+platformRouter.get('/reference-stats', async (_req: Request, res: Response) => {
+  try {
+    // Query 1: count per (referenceCode, status) pair — O(1) round-trip regardless of code count
+    const statusGroups = await prisma.tenant.groupBy({
+      by: ['referenceCode', 'status'],
+      _count: { id: true },
+      orderBy: { referenceCode: 'asc' },
+    });
+
+    // Query 2: latest registration per referenceCode
+    // Using groupBy on createdAt max is not directly supported in Prisma groupBy,
+    // so we fetch just (referenceCode, createdAt) ordered desc and dedupe in JS
+    const latestRows = await prisma.tenant.findMany({
+      select: { referenceCode: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Build a map: referenceCode → latestCreatedAt (first occurrence wins since sorted desc)
+    const latestMap = new Map<string | null, Date>();
+    for (const row of latestRows) {
+      if (!latestMap.has(row.referenceCode)) {
+        latestMap.set(row.referenceCode, row.createdAt);
+      }
+    }
+
+    // Aggregate status breakdown per code in JS — single pass
+    type CodeAgg = { total: number; active: number; pending: number; suspended: number };
+    const codeMap = new Map<string | null, CodeAgg>();
+    for (const g of statusGroups) {
+      const key = g.referenceCode;
+      if (!codeMap.has(key)) codeMap.set(key, { total: 0, active: 0, pending: 0, suspended: 0 });
+      const agg = codeMap.get(key)!;
+      agg.total += g._count.id;
+      if (g.status === 'active')           agg.active    += g._count.id;
+      if (g.status === 'pending_approval') agg.pending   += g._count.id;
+      if (g.status === 'suspended')        agg.suspended += g._count.id;
+    }
+
+    // Build response sorted by total desc (highest performing code first)
+    const stats = [...codeMap.entries()]
+      .map(([code, agg]) => ({
+        code:             code || '(no code)',
+        total:            agg.total,
+        active:           agg.active,
+        pending:          agg.pending,
+        suspended:        agg.suspended,
+        lastRegistration: latestMap.get(code) ?? null,
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error('[REFERENCE STATS ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch reference stats' });
+  }
+});
+
 // ── GST Slabs Configuration ──────────────────────────────────────────────────
 
 /**

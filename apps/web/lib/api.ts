@@ -35,6 +35,53 @@ interface FetchOptions extends RequestInit {
   tenantId?: string;
 }
 
+/**
+ * Invalidate one or more SWR cache slots after a successful write.
+ * Helpers in this file call it so call sites cannot forget. Lazy-imports
+ * SWR so this module stays SSR-safe.
+ *
+ *   await invalidateAfterWrite('/tenants/123/settings');     // exact key
+ *   await invalidateAfterWrite('/platform/revenue', { prefix: true });  // all variants
+ */
+async function invalidateAfterWrite(
+  endpoint: string,
+  opts: { prefix?: boolean } = {},
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const mod = await import('./use-api');
+    if (opts.prefix) await mod.invalidateApiPrefix(endpoint);
+    else await mod.invalidateApiKey(endpoint);
+  } catch {
+    // SWR not loaded — fine, nothing was cached yet.
+  }
+}
+
+/**
+ * Clear every client-side auth artifact: localStorage tokens, the auth cookie,
+ * and (lazily) the SWR in-memory cache so PII does not survive a session
+ * boundary on a shared device. Safe no-op outside the browser.
+ *
+ * SWR is dynamically imported because `lib/api.ts` is also used from Server
+ * Components — pulling in SWR's React-only module statically would break SSR.
+ */
+export async function clearClientAuth(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('tenantId');
+  localStorage.removeItem('tenant_id');
+  localStorage.removeItem('memberships');
+  document.cookie = 'accessToken=; path=/; max-age=0';
+  try {
+    const { clearAllSwrCache } = await import('./use-api');
+    await clearAllSwrCache();
+  } catch {
+    // SWR not loaded yet (e.g. during the very first request on cold load) — fine.
+  }
+}
+
 export async function apiFetch<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { token, tenantId, ...fetchOptions } = options;
 
@@ -86,11 +133,7 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
     }
 
     // Refresh failed — clear auth and redirect to login
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tenantId');
-    document.cookie = 'accessToken=; path=/; max-age=0';
+    await clearClientAuth();
 
     if (!window.location.pathname.includes('/login')) {
       window.location.href = '/login?reason=timeout';
@@ -116,12 +159,7 @@ export async function apiFetch<T = any>(endpoint: string, options: FetchOptions 
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('tenantId');
-      document.cookie = 'accessToken=; path=/; max-age=0';
-      
+      await clearClientAuth();
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login?reason=timeout';
       }
@@ -197,9 +235,13 @@ export const tenantsApi = {
     return apiFetch(`/tenants/${id}/settings`);
   },
 
-  updateSettings: (body: any) => {
+  updateSettings: async (body: any) => {
     const id = getTenantId();
-    return apiFetch(`/tenants/${id}/settings`, { method: 'PATCH', body: JSON.stringify(body) });
+    const res = await apiFetch(`/tenants/${id}/settings`, { method: 'PATCH', body: JSON.stringify(body) });
+    // Auto-invalidate the SWR cache slot that backs the website builder /
+    // settings page. Done here so call sites cannot forget.
+    await invalidateAfterWrite(`/tenants/${id}/settings`);
+    return res;
   },
 
   getBranding: () => {
@@ -341,7 +383,7 @@ export const checkinApi = {
 };
 
 // Billing helpers
-// Backend routes: GET /:bookingId/folio, POST /charge, POST /payment, GET /invoices
+// Backend routes: GET /:bookingId/folio, POST /charge, DELETE /charge/:id, PATCH /charge/:id, POST /payment, GET /invoices
 export const billingApi = {
   getInvoices: (params?: Record<string, string>) => {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -351,6 +393,10 @@ export const billingApi = {
   getFolio: (bookingId: string) => apiFetch(`/billing/${bookingId}/folio`),
   addCharge: (body: any) =>
     apiFetch('/billing/charge', { method: 'POST', body: JSON.stringify(body) }),
+  deleteCharge: (chargeId: string) =>
+    apiFetch(`/billing/charge/${chargeId}`, { method: 'DELETE' }),
+  updateCharge: (chargeId: string, body: { description?: string; unitPrice?: number; quantity?: number; category?: string; chargeDate?: string }) =>
+    apiFetch(`/billing/charge/${chargeId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   recordPayment: (body: any) =>
     apiFetch('/billing/payment', { method: 'POST', body: JSON.stringify(body) }),
 };
@@ -389,7 +435,12 @@ export const analyticsApi = {
     return apiFetch(`/analytics/revenue${query}`);
   },
   getBookingSources: () => apiFetch('/analytics/booking-sources'),
-  // Convenience: fetch all three in parallel
+  // Enriched single-call endpoint (v2): all KPIs, today panel, top room types
+  getOverviewV2: (params?: { from?: string; to?: string }) => {
+    const query = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : '';
+    return apiFetch(`/analytics/overview-v2${query}`);
+  },
+  // Convenience: fetch all three in parallel (legacy — used by old analytics page)
   getOverview: async () => {
     try {
       const [occupancy, revenue, sources] = await Promise.allSettled([
@@ -443,6 +494,24 @@ export const pricingApi = {
   deleteRule: (id: string) => apiFetch(`/pricing/${id}`, { method: 'DELETE' }),
 };
 
+/**
+ * Server-side fetch for the property page. Used in Server Components only.
+ * `apiFetch` always sends `cache: 'no-store'` (because it carries auth tokens
+ * we never want shared), which would mark the consuming route as dynamic and
+ * defeat the page-level `revalidate`. This bypasses that, tags the fetch so
+ * the on-demand revalidate route can target it precisely, and still works
+ * fine because `/public/properties/:slug` requires no auth.
+ */
+async function publicFetchProperty(slug: string): Promise<any> {
+  const res = await fetch(`${API_URL}/public/properties/${slug}`, {
+    next: { revalidate: 60, tags: [`property:${slug}`] },
+  });
+  if (!res.ok) {
+    return { success: false, error: `API error: ${res.status}` };
+  }
+  return res.json();
+}
+
 // Public helpers (no auth needed)
 export const publicApi = {
   getPlans: () => apiFetch('/public/plans'),
@@ -450,9 +519,24 @@ export const publicApi = {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/public/properties${query}`);
   },
-  property: (slug: string) => apiFetch(`/public/properties/${slug}`),
+  property: (slug: string) => publicFetchProperty(slug),
   getAvailabilityHints: (slug: string) => apiFetch(`/public/properties/${slug}/availability-hints`),
-  getRateComparison: (slug: string) => apiFetch(`/public/properties/${slug}/rate-comparison`),
+  /**
+   * Server-side fetch with the same ISR-friendly options as `property` —
+   * tagged so the website-builder save can invalidate it alongside the
+   * property data without a separate code path.
+   */
+  getRateComparison: async (slug: string) => {
+    try {
+      const res = await fetch(`${API_URL}/public/properties/${slug}/rate-comparison`, {
+        next: { revalidate: 60, tags: [`property:${slug}`] },
+      });
+      if (!res.ok) return { success: false, data: null };
+      return res.json();
+    } catch {
+      return { success: false, data: null };
+    }
+  },
   search: (q: string) => apiFetch(`/public/search?q=${encodeURIComponent(q)}`),
   createBooking: (body: any) => apiFetch('/public/bookings', { method: 'POST', body: JSON.stringify(body) }),
   createRazorpayOrder: (body: { bookingId: string; amount: number }) => 
@@ -475,8 +559,15 @@ export const platformApi = {
     return apiFetch(`/platform/tenants${query}`);
   },
   getTenantDetail: (tenantId: string) => apiFetch(`/platform/tenants/${tenantId}/detail`),
-  updateTenantPlan: (tenantId: string, plan: string) =>
-    apiFetch(`/platform/tenants/${tenantId}/plan`, { method: 'PATCH', body: JSON.stringify({ plan }) }),
+  updateTenantPlan: async (tenantId: string, plan: string) => {
+    const res = await apiFetch(`/platform/tenants/${tenantId}/plan`, { method: 'PATCH', body: JSON.stringify({ plan }) });
+    // Detail page shows the plan badge; the tenants list shows it as a column;
+    // revenue rows are plan-derived. All three need a refresh.
+    await invalidateAfterWrite(`/platform/tenants/${tenantId}/detail`);
+    await invalidateAfterWrite('/platform/tenants', { prefix: true });
+    await invalidateAfterWrite('/platform/revenue', { prefix: true });
+    return res;
+  },
   // Plan Config
   getPlans: () => apiFetch('/platform/plans'),
   updatePlan: (id: string, data: any) =>
@@ -485,8 +576,13 @@ export const platformApi = {
     apiFetch('/platform/plans-bulk', { method: 'PUT', body: JSON.stringify({ plans }) }),
   // Per-tenant custom pricing
   getTenantCustomPricing: (tenantId: string) => apiFetch(`/platform/tenants/${tenantId}/custom-pricing`),
-  updateTenantCustomPricing: (tenantId: string, customPlanPricing: any) =>
-    apiFetch(`/platform/tenants/${tenantId}/custom-pricing`, { method: 'PUT', body: JSON.stringify({ customPlanPricing }) }),
+  updateTenantCustomPricing: async (tenantId: string, customPlanPricing: any) => {
+    const res = await apiFetch(`/platform/tenants/${tenantId}/custom-pricing`, { method: 'PUT', body: JSON.stringify({ customPlanPricing }) });
+    await invalidateAfterWrite(`/platform/tenants/${tenantId}/custom-pricing`);
+    await invalidateAfterWrite(`/platform/tenants/${tenantId}/detail`);
+    await invalidateAfterWrite('/platform/revenue', { prefix: true });
+    return res;
+  },
   // GST Slabs
   getGstSlabs: () => apiFetch('/platform/gst-slabs'),
   updateGstSlabs: (slabs: any[]) =>
@@ -498,6 +594,8 @@ export const platformApi = {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return apiFetch(`/platform/revenue${query}`);
   },
+  // Campaign reference code analytics
+  getReferenceStats: () => apiFetch('/platform/reference-stats'),
 };
 
 // Reviews helpers

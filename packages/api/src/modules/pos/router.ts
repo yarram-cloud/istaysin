@@ -134,6 +134,9 @@ async function getFnbGstRate(tenantId: string): Promise<number> {
   });
   const config = (tenant?.config as Record<string, any>) || {};
 
+  // Respect the master GST toggle — same guard used in billing/router.ts and pricing.ts
+  if (config.gstEnabled !== true) return 0;
+
   // If the tenant has explicitly configured their F&B GST rate, use it
   if (typeof config.fnbGstRate === 'number') {
     return config.fnbGstRate;

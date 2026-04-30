@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2, Edit2, Save, ChevronDown, ChevronRight, Mail, User, BedDouble, ArrowRight, Printer, MessageCircle, Percent, Tag, SprayCan } from 'lucide-react';
+import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2, Edit2, Save, ChevronDown, ChevronRight, Mail, User, BedDouble, ArrowRight, Printer, MessageCircle, Percent, Tag, SprayCan, IndianRupee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { bookingsApi, roomsApi, checkinApi, complianceApi, guestsApi } from '@/lib/api';
+import { bookingsApi, roomsApi, checkinApi, complianceApi, guestsApi, billingApi } from '@/lib/api';
 import { COUNTRY_CODES, NATIONALITIES } from '@/lib/constants';
 import { usePropertyType } from '@/lib/property-context';
 
@@ -1161,13 +1161,225 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   // Guests come from GET /bookings/:id (the list endpoint doesn't include them)
   const [loadedGuests, setLoadedGuests] = useState<any[]>(booking.bookingGuests || []);
 
+  // ── Folio Charges (live, no refresh required) ─────────────────────────────
+  const [folioCharges, setFolioCharges]     = useState<any[]>([]);
+  const [folioLoading, setFolioLoading]     = useState(false);
+  const [showAddCharge, setShowAddCharge]   = useState(false);
+  const [chargeCategory, setChargeCategory] = useState('food');
+  const [chargeDesc, setChargeDesc]         = useState('');
+  const [chargeAmount, setChargeAmount]     = useState('');
+  const [chargeQty, setChargeQty]           = useState('1');
+  // Default charge date = today in IST (YYYY-MM-DD)
+  // en-CA locale always returns YYYY-MM-DD format natively — safer than manual UTC+5:30 arithmetic
+  const todayIST = useCallback(
+    () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
+    []
+  );
+  const [chargeDate, setChargeDate]         = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));
+  const [submittingCharge, setSubmittingCharge] = useState(false);
+  // Edit
+  const [editingCharge, setEditingCharge]   = useState<string | null>(null);
+  const [editDesc, setEditDesc]             = useState('');
+  const [editAmount, setEditAmount]         = useState('');
+  const [editQty, setEditQty]               = useState('');
+  const [editCategory, setEditCategory]     = useState('');
+  const [editChargeDate, setEditChargeDate] = useState('');
+  const [savingEdit, setSavingEdit]         = useState(false);
+  // Delete
+  const [deletingCharge, setDeletingCharge] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Load folio charges from API — stable reference via useCallback
+  const loadFolioCharges = useCallback(() => {
+    setFolioLoading(true);
+    billingApi.getFolio(booking.id)
+      .then((res: any) => { if (res.success) setFolioCharges(res.data.charges || []); })
+      .catch(() => {})
+      .finally(() => setFolioLoading(false));
+  }, [booking.id]);
+
+  async function handleAddCharge(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(chargeAmount);
+    const qty = Math.max(1, parseInt(chargeQty) || 1);
+    if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
+    setSubmittingCharge(true);
+    try {
+      const res = await billingApi.addCharge({
+        bookingId: booking.id,
+        category: chargeCategory,
+        description: chargeDesc.trim() || chargeCategory.replace(/_/g, ' '),
+        unitPrice: amount,
+        quantity: qty,
+        chargeDate, // YYYY-MM-DD, editable by staff
+      });
+      // Optimistic: prepend the new charge to local state — no page refresh needed
+      if ((res as any).success && (res as any).data) {
+        setFolioCharges(prev => [(res as any).data, ...prev]);
+      } else {
+        // Fallback: reload from server if response shape unexpected
+        loadFolioCharges();
+      }
+      toast.success('Charge added to folio');
+      setShowAddCharge(false);
+      setChargeDesc('');
+      setChargeAmount('');
+      setChargeQty('1');
+      setChargeDate(todayIST()); // reset to today
+      setChargeCategory('food');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add charge');
+    } finally {
+      setSubmittingCharge(false);
+    }
+  }
+
+  async function handleDeleteCharge(chargeId: string) {
+    setDeletingCharge(chargeId);
+    try {
+      await billingApi.deleteCharge(chargeId);
+      setFolioCharges(prev => prev.filter(c => c.id !== chargeId));
+      setConfirmDeleteId(null);
+      toast.success('Charge removed');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove charge');
+    } finally {
+      setDeletingCharge(null);
+    }
+  }
+
+  function startEditCharge(charge: any) {
+    setEditingCharge(charge.id);
+    setEditDesc(charge.description || '');
+    setEditAmount(String(charge.unitPrice));
+    setEditQty(String(charge.quantity));
+    setEditCategory(charge.category);
+    // Pre-fill edit date from stored chargeDate (ISO → YYYY-MM-DD local)
+    const stored = charge.chargeDate ? new Date(charge.chargeDate).toISOString().split('T')[0] : todayIST();
+    setEditChargeDate(stored);
+  }
+
+  async function handleSaveEditCharge(chargeId: string) {
+    setSavingEdit(true);
+    try {
+      const res = await billingApi.updateCharge(chargeId, {
+        description: editDesc.trim() || undefined,
+        unitPrice:   parseFloat(editAmount) || undefined,
+        quantity:    parseInt(editQty) || undefined,
+        category:    editCategory || undefined,
+        chargeDate:  editChargeDate || undefined,
+      });
+      if ((res as any).success && (res as any).data) {
+        setFolioCharges(prev => prev.map(c => c.id === chargeId ? (res as any).data : c));
+      } else {
+        loadFolioCharges();
+      }
+      setEditingCharge(null);
+      toast.success('Charge updated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update charge');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  function handlePrintFolio() {
+    const propertyName = (() => {
+      try { const m = JSON.parse(localStorage.getItem('memberships') || '[]'); return m[0]?.tenant?.name || 'Property'; } catch { return 'Property'; }
+    })();
+    const rooms = (booking.bookingRooms || []).filter((br: any) => br.room)
+      .map((br: any) => `${br.room.roomNumber}${br.roomType?.name ? ' — ' + br.roomType.name : ''}`)
+      .join(', ') || 'N/A';
+    const checkIn  = new Date(booking.checkInDate).toLocaleDateString('en-IN',  { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+    const checkOut = new Date(booking.checkOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+    const chargeRows = folioCharges.map(c => {
+      const gross = c.totalPrice + c.cgst + c.sgst + c.igst;
+      const gstLabel = (c.cgst + c.sgst + c.igst) > 0
+        ? `+₹${(c.cgst + c.sgst + c.igst).toLocaleString('en-IN')} GST`
+        : '';
+      return `<tr>
+        <td style="padding:5px 0;font-size:12px">${c.category?.replace('_',' ') || ''}</td>
+        <td style="padding:5px 0;font-size:12px">${c.description || ''}</td>
+        <td style="padding:5px 0;font-size:12px;text-align:center">${c.quantity}</td>
+        <td style="padding:5px 0;font-size:12px;text-align:right">₹${c.unitPrice?.toLocaleString('en-IN')}</td>
+        <td style="padding:5px 0;font-size:12px;text-align:right;color:#555">${gstLabel}</td>
+        <td style="padding:5px 0;font-size:12px;text-align:right;font-weight:600">₹${gross.toLocaleString('en-IN')}</td>
+      </tr>`;
+    }).join('');
+    // extraTotal = sum of ALL folio lines (room tariff is already a line item — do NOT add booking.totalAmount again)
+    const extraTotal = folioCharges.reduce((s, c) => s + c.totalPrice + c.cgst + c.sgst + c.igst, 0);
+    const grandTotal = folioCharges.length > 0 ? extraTotal : booking.totalAmount;
+
+    const w = window.open('', '_blank', 'width=680,height=800');
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>Folio — ${booking.bookingNumber}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;padding:32px;color:#111;max-width:640px;margin:0 auto;font-size:13px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #166534;padding-bottom:14px;margin-bottom:18px}
+.property-name{font-size:18px;font-weight:700;color:#166534}
+.booking-ref{font-family:monospace;font-size:13px;color:#555;margin-top:4px}
+.badge{display:inline-block;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:20px;padding:2px 10px;font-size:10px;font-weight:700;letter-spacing:.5px;margin-top:6px;text-transform:uppercase}
+.meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;background:#f9fafb;border-radius:8px;padding:12px 14px}
+.meta-item label{font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:2px}
+.meta-item span{font-size:13px;font-weight:600;color:#111}
+table{width:100%;border-collapse:collapse;margin-bottom:14px}
+th{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;padding:6px 0;border-bottom:1px solid #e5e7eb;text-align:left}
+th.r{text-align:right}th.c{text-align:center}
+td.r{text-align:right}td.c{text-align:center}
+.section-label{font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}
+.totals-box{border-top:2px solid #111;padding-top:10px;margin-top:4px}
+.totals-row{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
+.totals-row.grand{font-size:16px;font-weight:700;border-top:1px solid #e5e7eb;padding-top:8px;margin-top:6px}
+.footer{text-align:center;font-size:10px;color:#aaa;margin-top:24px;border-top:1px dashed #ddd;padding-top:12px}
+button.print-btn{display:block;margin:20px auto;padding:10px 28px;background:#166534;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+@media print{button.print-btn{display:none!important}body{padding:16px}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="property-name">${propertyName}</div>
+    <div class="booking-ref">Booking: ${booking.bookingNumber}</div>
+    <span class="badge">Guest Folio</span>
+  </div>
+  <div style="text-align:right;font-size:12px;color:#555">
+    <div>Printed: ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Kolkata'})}</div>
+  </div>
+</div>
+
+<div class="meta">
+  <div class="meta-item"><label>Guest</label><span>${booking.guestName}</span></div>
+  <div class="meta-item"><label>Room(s)</label><span>${rooms}</span></div>
+  <div class="meta-item"><label>Stay</label><span>${checkIn} → ${checkOut}</span></div>
+</div>
+
+${folioCharges.length > 0 ? `
+<div class="section-label">All Charges</div>
+<table>
+  <tr><th>Category</th><th>Description</th><th class="c">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Total</th></tr>
+  ${chargeRows}
+</table>` : `<p style="color:#888;font-size:12px;margin-bottom:14px">No charges posted.</p>`}
+
+<div class="totals-box">
+  <div class="totals-row grand"><span>Total Amount Due</span><span>₹${grandTotal.toLocaleString('en-IN')}</span></div>
+</div>
+
+<div class="footer">Thank you for staying with us. This is a computer-generated folio.</div>
+<button class="print-btn" onclick="window.print()">🖨️ Print Folio</button>
+</body></html>`);
+    w.document.close();
+    setTimeout(() => w.print(), 400);
+  }
+
   useEffect(() => {
+    // Load guest details
     bookingsApi.get(booking.id).then(res => {
       if (res.success && res.data?.bookingGuests) {
         setLoadedGuests(res.data.bookingGuests);
       }
     }).catch(() => {});
-  }, [booking.id]);
+    // Load folio charges
+    loadFolioCharges();
+  }, [booking.id, loadFolioCharges]);
 
   const nights = Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / 86400000);
   const durationLabel = isLongStay && nights >= 28
@@ -1359,63 +1571,305 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
             )}
 
             {booking.status === 'checked_in' && (
-              <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
-                <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-amber-600" /> {isLongStay ? 'Complete Move-Out' : 'Complete Check-Out'}
-                </h4>
+              <div className="space-y-3">
 
-                {/* Discount CTA */}
-                {!showDiscount ? (
-                  <button onClick={() => setShowDiscount(true)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors mb-3">
-                    <Tag className="w-3.5 h-3.5" /> Apply Discount
-                  </button>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-lg bg-white border border-emerald-200">
-                    <div className="flex items-center rounded-lg border border-surface-200 overflow-hidden">
-                      <button onClick={() => setDiscountType('percent')}
-                        className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'percent' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
-                        <Percent className="w-3 h-3" />
+                {/* ── FOLIO CHARGES PANEL ── */}
+                <div className="rounded-xl border border-violet-200 bg-violet-50/40 overflow-hidden">
+                  {/* Panel header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-violet-100 bg-violet-50/60">
+                    <p className="text-sm font-bold text-violet-900 flex items-center gap-2">
+                      <IndianRupee className="w-4 h-4 text-violet-600" />
+                      Folio Charges
+                      {folioCharges.length > 0 && (
+                        <span className="text-xs font-semibold text-violet-500 bg-violet-100 px-2 py-0.5 rounded-full">
+                          {folioCharges.length}
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {/* Print Folio */}
+                      <button
+                        type="button"
+                        onClick={handlePrintFolio}
+                        title="Print Folio"
+                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-violet-200 bg-white text-violet-600 text-xs font-semibold hover:bg-violet-100 transition-colors"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> Print
                       </button>
-                      <button onClick={() => setDiscountType('flat')}
-                        className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'flat' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
-                        ₹ Flat
+                      {/* Add Charge toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCharge(v => !v)}
+                        className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                          showAddCharge
+                            ? 'bg-violet-600 text-white'
+                            : 'border border-violet-300 bg-white text-violet-700 hover:bg-violet-100'
+                        }`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Charge
                       </button>
                     </div>
-                    <input type="number" min="0" placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
-                      value={discountInput} onChange={e => setDiscountInput(e.target.value)}
-                      className="w-24 h-8 px-3 rounded-lg border border-surface-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/30" />
-                    {discountAmount > 0 && (
-                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">−₹{discountAmount.toLocaleString('en-IN')} → ₹{finalAmount.toLocaleString('en-IN')}</span>
-                    )}
-                    <button onClick={() => { setShowDiscount(false); setDiscountInput(''); }}
-                      className="text-xs text-surface-400 hover:text-surface-600 ml-auto">
-                      <X className="w-3.5 h-3.5" />
+                  </div>
+
+                   {/* Add Charge inline form */}
+                  {showAddCharge && (
+                    <form onSubmit={handleAddCharge} className="px-4 py-3 border-b border-violet-100 bg-white">
+                      <div className="grid grid-cols-1 sm:grid-cols-[1.2fr_2fr_1fr_0.6fr_auto] gap-2 items-end">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-violet-700 uppercase tracking-wider mb-1">Category</label>
+                          <select value={chargeCategory} onChange={e => setChargeCategory(e.target.value)}
+                            className="w-full h-9 px-2 rounded-lg border border-violet-200 bg-white text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-300">
+                            <option value="food">🍽️ Food</option>
+                            <option value="laundry">👕 Laundry</option>
+                            <option value="service">💆 Service</option>
+                            <option value="minibar">🍷 Minibar</option>
+                            <option value="other">📋 Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-violet-700 uppercase tracking-wider mb-1">Description</label>
+                          <input type="text" value={chargeDesc} onChange={e => setChargeDesc(e.target.value)}
+                            placeholder="e.g. Breakfast for 2"
+                            className="w-full h-9 px-3 rounded-lg border border-violet-200 bg-white text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-violet-700 uppercase tracking-wider mb-1">Amount (₹)</label>
+                          <input required type="number" min="1" step="0.01" inputMode="decimal"
+                            value={chargeAmount} onChange={e => setChargeAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full h-9 px-3 rounded-lg border border-violet-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-violet-700 uppercase tracking-wider mb-1">Qty</label>
+                          <input type="number" min="1" max="99" value={chargeQty} onChange={e => setChargeQty(e.target.value)}
+                            className="w-full h-9 px-3 rounded-lg border border-violet-200 bg-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                        </div>
+                        <button type="submit" disabled={submittingCharge || !chargeAmount}
+                          className="h-9 px-4 rounded-lg bg-violet-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-violet-500 transition-colors disabled:opacity-50 whitespace-nowrap shadow-md shadow-violet-500/20">
+                          {submittingCharge ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                          Post
+                        </button>
+                      </div>
+                      {/* Date row — full width below the grid */}
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-[10px] font-semibold text-violet-700 uppercase tracking-wider whitespace-nowrap">Charge Date</label>
+                          <input
+                            type="date"
+                            value={chargeDate}
+                            onChange={e => setChargeDate(e.target.value)}
+                            min={booking.checkInDate}
+                            max={todayIST()}
+                            className="h-8 px-2 rounded-lg border border-violet-200 bg-white text-sm text-surface-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
+                          />
+                        </div>
+                        {chargeAmount && parseFloat(chargeAmount) > 0 && (
+                          <p className="text-xs text-violet-600 font-medium">
+                            Subtotal: ₹{(parseFloat(chargeAmount) * Math.max(1, parseInt(chargeQty) || 1)).toLocaleString('en-IN')} + GST
+                          </p>
+                        )}
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Charges list */}
+                  {folioLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="w-5 h-5 text-violet-400 animate-spin" />
+                    </div>
+                  ) : folioCharges.length === 0 ? (
+                    <p className="text-xs text-surface-400 text-center py-5">No charges posted yet.</p>
+                  ) : (
+                    <div className="divide-y divide-violet-100">
+                      {folioCharges.map((charge) => {
+                        const gross = charge.totalPrice + charge.cgst + charge.sgst + charge.igst;
+                        const isEditing = editingCharge === charge.id;
+                        const isDeleting = deletingCharge === charge.id;
+                        const isConfirmDelete = confirmDeleteId === charge.id;
+                        const catEmoji: Record<string, string> = { food: '🍽️', laundry: '👕', service: '💆', minibar: '🍷', other: '📋' };
+
+                        if (isEditing) {
+                          return (
+                            <div key={charge.id} className="px-4 py-3 bg-amber-50 border-l-2 border-amber-400">
+                              <div className="grid grid-cols-1 sm:grid-cols-[1.2fr_2fr_1fr_0.6fr_auto] gap-2 items-end">
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">Category</label>
+                                  <select value={editCategory} onChange={e => setEditCategory(e.target.value)}
+                                    className="w-full h-8 px-2 rounded-lg border border-amber-200 bg-white text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-300">
+                                    <option value="food">🍽️ Food</option>
+                                    <option value="laundry">👕 Laundry</option>
+                                    <option value="service">💆 Service</option>
+                                    <option value="minibar">🍷 Minibar</option>
+                                    <option value="other">📋 Other</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">Description</label>
+                                  <input type="text" value={editDesc} onChange={e => setEditDesc(e.target.value)}
+                                    className="w-full h-8 px-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">Amount (₹)</label>
+                                  <input type="number" min="1" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)}
+                                    className="w-full h-8 px-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">Qty</label>
+                                  <input type="number" min="1" max="99" value={editQty} onChange={e => setEditQty(e.target.value)}
+                                    className="w-full h-8 px-3 rounded-lg border border-amber-200 bg-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <button onClick={() => handleSaveEditCharge(charge.id)} disabled={savingEdit}
+                                    className="h-8 px-3 rounded-lg bg-amber-600 text-white text-xs font-semibold flex items-center gap-1 hover:bg-amber-500 disabled:opacity-50">
+                                    {savingEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
+                                  </button>
+                                  <button onClick={() => setEditingCharge(null)} type="button"
+                                    className="h-8 w-8 rounded-lg border border-surface-200 flex items-center justify-center text-surface-400 hover:bg-surface-100">
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                              {/* Date row below the grid */}
+                              <div className="flex items-center gap-2 mt-2">
+                                <label className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider whitespace-nowrap">Charge Date</label>
+                                <input
+                                  type="date"
+                                  value={editChargeDate}
+                                  onChange={e => setEditChargeDate(e.target.value)}
+                                  min={booking.checkInDate}
+                                  max={todayIST()}
+                                  className="h-7 px-2 rounded-lg border border-amber-200 bg-white text-sm text-surface-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={charge.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-violet-50/60 transition-colors group">
+                            <span className="text-base shrink-0">{catEmoji[charge.category] || '📋'}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-surface-800 truncate">{charge.description}</p>
+                              <p className="text-[11px] text-surface-400">
+                                {charge.quantity > 1 ? `${charge.quantity} × ₹${charge.unitPrice?.toLocaleString('en-IN')}` : `₹${charge.unitPrice?.toLocaleString('en-IN')}`}
+                                {(charge.cgst + charge.sgst + charge.igst) > 0 && (
+                                  <span className="ml-1 text-surface-300">+GST ₹{(charge.cgst + charge.sgst + charge.igst).toLocaleString('en-IN')}</span>
+                                )}
+                                <span className="ml-1.5 text-[10px] text-surface-300 capitalize">{charge.category}</span>
+                                {charge.chargeDate && (
+                                  <span className="ml-1.5 text-[10px] text-surface-300">
+                                    · {new Date(charge.chargeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-surface-900 shrink-0">₹{gross.toLocaleString('en-IN')}</span>
+
+                            {/* Delete confirm inline / Always visible on mobile (hover-reveal on sm+) */}
+                            {isConfirmDelete ? (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-xs text-red-600 font-medium hidden sm:block">Delete?</span>
+                                <button onClick={() => handleDeleteCharge(charge.id)} disabled={isDeleting}
+                                  className="h-7 px-2.5 rounded-lg bg-red-600 text-white text-xs font-semibold flex items-center gap-1 hover:bg-red-500 disabled:opacity-50">
+                                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : null} Yes
+                                </button>
+                                <button onClick={() => setConfirmDeleteId(null)} type="button"
+                                  className="h-7 px-2 rounded-lg border border-surface-200 text-xs text-surface-500 hover:bg-surface-100">No</button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => startEditCharge(charge)} title="Edit charge" type="button"
+                                  className="h-7 w-7 rounded-lg border border-surface-200 bg-white flex items-center justify-center text-surface-400 hover:text-amber-600 hover:border-amber-200 transition-colors">
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => setConfirmDeleteId(charge.id)} title="Delete charge" type="button"
+                                  className="h-7 w-7 rounded-lg border border-surface-200 bg-white flex items-center justify-center text-surface-400 hover:text-red-500 hover:border-red-200 transition-colors">
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Charges total footer — folio lines already include room tariff, so sum them directly */}
+                      {(() => {
+                        const folioTotal = folioCharges.reduce((s, c) => s + c.totalPrice + c.cgst + c.sgst + c.igst, 0);
+                        const displayTotal = folioCharges.length > 0 ? folioTotal : booking.totalAmount;
+                        return (
+                          <div className="px-4 py-3 bg-violet-50 border-t border-violet-200 flex items-center justify-between">
+                            <p className="text-xs text-surface-400">{folioCharges.length} charge{folioCharges.length !== 1 ? 's' : ''} posted</p>
+                            <div className="text-right">
+                              <p className="text-[10px] text-surface-400 uppercase tracking-wider mb-0.5">Total Due</p>
+                              <p className="text-lg font-bold text-surface-900">₹{displayTotal.toLocaleString('en-IN')}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
+                  <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
+                    <Building2 className="w-4 h-4 text-amber-600" /> {isLongStay ? 'Complete Move-Out' : 'Complete Check-Out'}
+                  </h4>
+
+                  {/* Discount CTA */}
+                  {!showDiscount ? (
+                    <button onClick={() => setShowDiscount(true)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors mb-3">
+                      <Tag className="w-3.5 h-3.5" /> Apply Discount
+                    </button>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-lg bg-white border border-emerald-200">
+                      <div className="flex items-center rounded-lg border border-surface-200 overflow-hidden">
+                        <button onClick={() => setDiscountType('percent')}
+                          className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'percent' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
+                          <Percent className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => setDiscountType('flat')}
+                          className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'flat' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
+                          ₹ Flat
+                        </button>
+                      </div>
+                      <input type="number" min="0" placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
+                        value={discountInput} onChange={e => setDiscountInput(e.target.value)}
+                        className="w-24 h-8 px-3 rounded-lg border border-surface-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/30" />
+                      {discountAmount > 0 && (
+                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">−₹{discountAmount.toLocaleString('en-IN')} → ₹{finalAmount.toLocaleString('en-IN')}</span>
+                      )}
+                      <button onClick={() => { setShowDiscount(false); setDiscountInput(''); }}
+                        className="text-xs text-surface-400 hover:text-surface-600 ml-auto">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium pointer-events-none">₹</span>
+                      <input type="number" placeholder={discountAmount > 0 ? finalAmount.toLocaleString('en-IN') : 'Balance Due'}
+                        value={coBalance} onChange={e => setCoBalance(e.target.value)}
+                        className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30" />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {['cash', 'card', 'upi'].map(mode => (
+                        <label key={mode} className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer capitalize">
+                          <input type="radio" name={`co-pay-${booking.id}`} value={mode} checked={coPayMode === mode} onChange={() => setCoPayMode(mode)} className="accent-amber-600" /> {mode}
+                        </label>
+                      ))}
+                    </div>
+                    <button onClick={handleCheckOut} disabled={saving}
+                      className="h-10 px-6 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-60 shadow-md shadow-amber-500/20">
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Move Out' : 'Check Out'}
                     </button>
                   </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium pointer-events-none">₹</span>
-                    <input type="number" placeholder={discountAmount > 0 ? finalAmount.toLocaleString('en-IN') : 'Balance Due'}
-                      value={coBalance} onChange={e => setCoBalance(e.target.value)}
-                      className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30" />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {['cash', 'card', 'upi'].map(mode => (
-                      <label key={mode} className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer capitalize">
-                        <input type="radio" name={`co-pay-${booking.id}`} value={mode} checked={coPayMode === mode} onChange={() => setCoPayMode(mode)} className="accent-amber-600" /> {mode}
-                      </label>
-                    ))}
-                  </div>
-                  <button onClick={handleCheckOut} disabled={saving}
-                    className="h-10 px-6 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-60 shadow-md shadow-amber-500/20">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Move Out' : 'Check Out'}
-                  </button>
                 </div>
               </div>
             )}
+
 
             {/* ── POST-CHECKOUT ACTIONS ── */}
             {booking.status === 'checked_out' && (

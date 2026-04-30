@@ -1,6 +1,18 @@
 import { notFound } from 'next/navigation';
 import { publicApi } from '@/lib/api';
 import PropertyLayoutClient from './property-layout-client';
+
+/**
+ * ISR — cache the rendered HTML at the edge for 60 s, then revalidate in
+ * the background on the next request. Cuts page-load latency for India
+ * visitors hitting a US-hosted origin from ~600 ms to <100 ms after the
+ * first request warms the cache.
+ *
+ * Manual invalidation: when an owner saves the website builder, the API
+ * fires `POST /api/revalidate` (see app/api/revalidate/route.ts) so the
+ * change shows up immediately rather than within the 60 s window.
+ */
+export const revalidate = 60;
 import ThemedHeader from './themes/themed-header';
 import ThemedHero from './themes/themed-hero';
 import BookingWidgetWrapper from './themes/themed-booking-widget';

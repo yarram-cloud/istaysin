@@ -49,6 +49,12 @@ export const propertyRegistrationSchema = z.object({
     .or(z.literal('')),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  referenceCode: z
+    .string()
+    .max(50, 'Reference code must be 50 characters or less')
+    .regex(/^[A-Za-z0-9_-]*$/, 'Reference code may only contain letters, numbers, hyphens and underscores')
+    .optional()
+    .or(z.literal('')),
 });
 
 // ============================================================

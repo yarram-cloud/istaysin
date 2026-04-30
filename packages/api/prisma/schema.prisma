@@ -94,6 +94,7 @@ model Tenant {
   state                     String?
   pincode                   String?
   gstNumber                 String?  @map("gst_number")
+  referenceCode             String?  @map("reference_code") @db.VarChar(50)
   contactPhone              String?  @map("contact_phone")
   contactEmail              String?  @map("contact_email")
   latitude                  Float?

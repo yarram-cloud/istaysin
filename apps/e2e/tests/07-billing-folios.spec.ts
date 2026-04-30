@@ -119,4 +119,198 @@ test.describe('Billing & Folios Operations', () => {
     const buffer = await pdfRes.body();
     expect(buffer.length).toBeGreaterThan(1000); // A generated PDF should definitely be > 1KB
   });
+
+  test('GSTR1-01: GSTR-1 export requires authentication', async ({ request }) => {
+    const res = await request.get('/api/v1/billing/gstr1?month=2026-04');
+    expect(res.status()).toBe(401);
+  });
+
+  test('GSTR1-02: GSTR-1 export returns valid CSV for current month', async ({ page, request }) => {
+    const tokenRes = await page.evaluate(() => localStorage.getItem('accessToken'));
+
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const res = await request.get(`/api/v1/billing/gstr1?month=${currentMonth}`, {
+      headers: { 'Authorization': `Bearer ${tokenRes}` }
+    });
+
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type']).toContain('text/csv');
+    expect(res.headers()['content-disposition']).toContain(`GSTR1_`);
+    expect(res.headers()['content-disposition']).toContain(currentMonth);
+
+    const body = await res.text();
+    // Must contain the 18-column header
+    expect(body).toContain('Invoice No,Invoice Date,Booking No,Guest Name,Guest Phone');
+    expect(body).toContain('CGST (Rs),SGST (Rs),IGST (Rs),Total (Rs),Supply Type');
+    // Must contain the property metadata block
+    expect(body).toContain('GSTIN:');
+    expect(body).toContain('Report Period:');
+    // Must contain the period summary row
+    expect(body).toContain('PERIOD SUMMARY');
+    expect(body).toContain(currentMonth);
+  });
+
+  test('GSTR1-03: GSTR-1 export rejects invalid month format', async ({ page, request }) => {
+    const tokenRes = await page.evaluate(() => localStorage.getItem('accessToken'));
+
+    const res = await request.get('/api/v1/billing/gstr1?month=April-2026', {
+      headers: { 'Authorization': `Bearer ${tokenRes}` }
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error).toContain('YYYY-MM');
+  });
+
+  test('CHG-01: Add Charge button visible for checked-in booking', async ({ page }) => {
+    await page.goto('http://localhost:3100/dashboard/bookings');
+    await page.waitForLoadState('networkidle');
+    const bookingEl = page.getByText(testBookingNumber).first();
+    await bookingEl.click();
+    // Button text changed to "Add Charge" in the folio panel header
+    await expect(page.getByRole('button', { name: /Add Charge/i }).first()).toBeVisible({ timeout: 6000 });
+  });
+
+  test('CHG-02: Add Charge API - valid food charge creates folio entry', async ({ page, request }) => {
+    const tokenRes = await page.evaluate(() => localStorage.getItem('accessToken'));
+    const chargeRes = await request.post('/api/v1/billing/charge', {
+      headers: { 'Authorization': `Bearer ${tokenRes}` },
+      data: {
+        bookingId: testBookingId,
+        chargeDate: new Date().toISOString().split('T')[0],
+        category: 'food',
+        description: 'Breakfast x 2',
+        unitPrice: 350,
+        quantity: 2,
+      }
+    });
+    expect(chargeRes.status()).toBe(201);
+    const chargeBody = await chargeRes.json();
+    expect(chargeBody.success).toBe(true);
+    expect(chargeBody.data.category).toBe('food');
+    expect(chargeBody.data.totalPrice).toBe(700);
+  });
+
+  test('CHG-03: Add Charge API - invalid category returns 400', async ({ page, request }) => {
+    const tokenRes = await page.evaluate(() => localStorage.getItem('accessToken'));
+    const chargeRes = await request.post('/api/v1/billing/charge', {
+      headers: { 'Authorization': `Bearer ${tokenRes}` },
+      data: {
+        bookingId: testBookingId,
+        chargeDate: new Date().toISOString().split('T')[0],
+        category: 'food_beverage',
+        description: 'Test',
+        unitPrice: 100,
+        quantity: 1,
+      }
+    });
+    expect(chargeRes.status()).toBe(400);
+    const body = await chargeRes.json();
+    expect(body.success).toBe(false);
+  });
+
+  test('CHG-04: DELETE charge reverses booking balance', async ({ page, request }) => {
+    const tokenRes = await page.evaluate(() => localStorage.getItem('accessToken'));
+
+    // Create a charge
+    const chargeRes = await request.post('/api/v1/billing/charge', {
+      headers: { 'Authorization': `Bearer ${tokenRes}` },
+      data: {
+        bookingId: testBookingId,
+        chargeDate: new Date().toISOString().split('T')[0],
+        category: 'laundry',
+        description: 'E2E Laundry',
+        unitPrice: 150,
+        quantity: 1,
+      }
+    });
+    expect(chargeRes.status()).toBe(201);
+    const chargeId = (await chargeRes.json()).data.id;
+
+    // Get balance before delete
+    const beforeRes = await request.get(`/api/v1/bookings/${testBookingId}`, {
+      headers: { 'Authorization': `Bearer ${tokenRes}` }
+    });
+    const balanceBefore = (await beforeRes.json()).data.balanceDue;
+
+    // Delete the charge
+    const delRes = await request.delete(`/api/v1/billing/charge/${chargeId}`, {
+      headers: { 'Authorization': `Bearer ${tokenRes}` }
+    });
+    expect(delRes.status()).toBe(200);
+    const delBody = await delRes.json();
+    expect(delBody.success).toBe(true);
+    expect(delBody.data.deleted).toBe(true);
+
+    // Verify balance decreased by charge gross amount
+    const afterRes = await request.get(`/api/v1/bookings/${testBookingId}`, {
+      headers: { 'Authorization': `Bearer ${tokenRes}` }
+    });
+    const balanceAfter = (await afterRes.json()).data.balanceDue;
+    // 150 laundry + GST (if enabled) removed; at minimum balance should be lower
+    expect(balanceAfter).toBeLessThan(balanceBefore);
+  });
+
+  test('CHG-05: PATCH charge updates description and chargeDate', async ({ page, request }) => {
+    const tokenRes = await page.evaluate(() => localStorage.getItem('accessToken'));
+
+    // Create a charge to edit
+    const chargeRes = await request.post('/api/v1/billing/charge', {
+      headers: { 'Authorization': `Bearer ${tokenRes}` },
+      data: {
+        bookingId: testBookingId,
+        chargeDate: new Date().toISOString().split('T')[0],
+        category: 'minibar',
+        description: 'Original Description',
+        unitPrice: 500,
+        quantity: 1,
+      }
+    });
+    expect(chargeRes.status()).toBe(201);
+    const chargeId = (await chargeRes.json()).data.id;
+
+    // Patch description only
+    const patchRes = await request.patch(`/api/v1/billing/charge/${chargeId}`, {
+      headers: { 'Authorization': `Bearer ${tokenRes}` },
+      data: { description: 'Updated Description' }
+    });
+    expect(patchRes.status()).toBe(200);
+    const patchBody = await patchRes.json();
+    expect(patchBody.success).toBe(true);
+    expect(patchBody.data.description).toBe('Updated Description');
+    expect(patchBody.data.unitPrice).toBe(500); // unchanged
+  });
+
+  test('CHG-06: DELETE charge returns 401 without auth', async ({ request }) => {
+    const delRes = await request.delete('/api/v1/billing/charge/nonexistent-id');
+    expect(delRes.status()).toBe(401);
+  });
+
+  test('CHG-07: PATCH charge with invalid chargeDate returns 400', async ({ page, request }) => {
+    const tokenRes = await page.evaluate(() => localStorage.getItem('accessToken'));
+
+    // Create a charge first
+    const chargeRes = await request.post('/api/v1/billing/charge', {
+      headers: { 'Authorization': `Bearer ${tokenRes}` },
+      data: {
+        bookingId: testBookingId,
+        chargeDate: new Date().toISOString().split('T')[0],
+        category: 'other',
+        description: 'Date Validation Test',
+        unitPrice: 100,
+        quantity: 1,
+      }
+    });
+    const chargeId = (await chargeRes.json()).data?.id;
+    if (!chargeId) return; // Guard in case prior test cleaned up
+
+    const patchRes = await request.patch(`/api/v1/billing/charge/${chargeId}`, {
+      headers: { 'Authorization': `Bearer ${tokenRes}` },
+      data: { chargeDate: 'April-30-2026' } // invalid format
+    });
+    expect(patchRes.status()).toBe(400);
+    const body = await patchRes.json();
+    expect(body.success).toBe(false);
+    expect(body.error).toContain('YYYY-MM-DD');
+  });
 });

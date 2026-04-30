@@ -82,4 +82,24 @@ const nextConfig = {
 
 const withNextIntl = require('next-intl/plugin')();
 
-module.exports = withPWA(withNextIntl(nextConfig));
+const baseConfig = withPWA(withNextIntl(nextConfig));
+
+// Sentry wrapper. Source-map upload only happens when SENTRY_AUTH_TOKEN is
+// set (typically in CI), so local dev/CI without the token stays quiet.
+// `silent` suppresses Sentry's build chatter; `widenClientFileUpload` makes
+// frame names from chunk-split files resolve cleanly in the Sentry UI.
+const { withSentryConfig } = require('@sentry/nextjs');
+
+const sentryWebpackPluginOptions = {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  // Skip uploading source maps in environments without auth.
+  dryRun: !process.env.SENTRY_AUTH_TOKEN,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+};
+
+module.exports = withSentryConfig(baseConfig, sentryWebpackPluginOptions);

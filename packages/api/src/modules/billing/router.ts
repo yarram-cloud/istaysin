@@ -4,6 +4,7 @@ import { authenticate } from '../../middleware/auth';
 import { resolveTenant, requireTenant } from '../../middleware/tenant-resolver';
 import { authorize } from '../../middleware/rbac';
 import { folioChargeSchema, paymentSchema } from '@istays/shared';
+import { logAudit } from '../../middleware/audit-log';
 
 export const billingRouter = Router();
 billingRouter.use(authenticate, resolveTenant, requireTenant);
@@ -109,12 +110,13 @@ billingRouter.post('/charge', authorize('property_owner', 'general_manager', 'fr
     const gst = await calculateGst(data.unitPrice, data.category);
 
     const result = await withTenant(req.tenantId!, async () => {
+      // Read state from top-level tenant column (not config JSON) — fixes inter-state IGST split
       const tenant = await prisma.tenant.findUnique({
         where: { id: req.tenantId! },
-        select: { config: true },
+        select: { config: true, state: true },
       });
       const tenantConfig = (tenant?.config as Record<string, any>) || {};
-      const propertyState = tenantConfig.state?.toLowerCase() || '';
+      const propertyState = (tenant?.state ?? '').toLowerCase();
 
       // Verify booking exists and belongs to this tenant
       const booking = await prisma.booking.findUnique({
@@ -178,6 +180,144 @@ billingRouter.post('/charge', authorize('property_owner', 'general_manager', 'fr
   } catch (err) {
     console.error('[BILLING CHARGE ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to add charge' });
+  }
+});
+
+// DELETE /billing/charge/:chargeId — remove a mistaken folio charge
+billingRouter.delete('/charge/:chargeId', authorize('property_owner', 'general_manager', 'front_desk', 'accountant'), async (req: Request, res: Response) => {
+  try {
+    const result = await withTenant(req.tenantId!, async () => {
+      const charge = await prisma.folioCharge.findUnique({
+        where: { id: req.params.chargeId },
+        include: { booking: { select: { id: true, status: true, tenantId: true } } },
+      });
+
+      if (!charge) return { error: 'Charge not found', status: 404 };
+      if (charge.tenantId !== req.tenantId) return { error: 'Not authorised', status: 403 };
+      // Allow deletion on checked_in bookings; also allow for checked_out if user is owner/manager
+      // (accountants may need to void charges after checkout for invoice corrections)
+      const allowedStatuses = ['checked_in', 'confirmed'];
+      const isOwnerOrManager = ['property_owner', 'general_manager', 'accountant'].includes(req.user?.role || '');
+      if (!allowedStatuses.includes(charge.booking.status) && !isOwnerOrManager) {
+        return { error: 'Cannot delete charge on a checked-out or cancelled booking', status: 400 };
+      }
+
+      const chargeTotal = charge.totalPrice + charge.cgst + charge.sgst + charge.igst;
+
+      await prisma.$transaction([
+        prisma.folioCharge.delete({ where: { id: req.params.chargeId } }),
+        prisma.booking.update({
+          where: { id: charge.bookingId },
+          data: {
+            totalAmount: { decrement: chargeTotal },
+            balanceDue:  { decrement: chargeTotal },
+          },
+        }),
+      ]);
+
+      return { data: { deleted: true } };
+    });
+
+    if ('error' in result) {
+      res.status(result.status || 400).json({ success: false, error: result.error });
+      return;
+    }
+    res.json({ success: true, data: result.data });
+  } catch (err) {
+    console.error('[BILLING DELETE CHARGE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete charge' });
+  }
+});
+
+// PATCH /billing/charge/:chargeId — edit description, amount, quantity, category, or chargeDate
+billingRouter.patch('/charge/:chargeId', authorize('property_owner', 'general_manager', 'front_desk', 'accountant'), async (req: Request, res: Response) => {
+  try {
+    const { description, unitPrice, quantity, category, chargeDate } = req.body;
+
+    // Validate chargeDate if provided
+    if (chargeDate && !/^\d{4}-\d{2}-\d{2}$/.test(chargeDate)) {
+      res.status(400).json({ success: false, error: 'chargeDate must be YYYY-MM-DD format' });
+      return;
+    }
+
+    // At least one editable field required
+    if (!description && unitPrice === undefined && quantity === undefined && !category && !chargeDate) {
+      res.status(400).json({ success: false, error: 'No editable fields provided' });
+      return;
+    }
+
+    const result = await withTenant(req.tenantId!, async () => {
+      const charge = await prisma.folioCharge.findUnique({
+        where: { id: req.params.chargeId },
+        include: { booking: { select: { id: true, status: true, tenantId: true } } },
+      });
+
+      if (!charge) return { error: 'Charge not found', status: 404 };
+      if (charge.tenantId !== req.tenantId) return { error: 'Not authorised', status: 403 };
+
+      const newUnitPrice  = typeof unitPrice === 'number' && unitPrice > 0  ? unitPrice  : charge.unitPrice;
+      const newQty        = typeof quantity  === 'number' && quantity  >= 1  ? Math.floor(quantity) : charge.quantity;
+      const newCategory   = category || charge.category;
+      const newDesc       = description?.trim() || charge.description;
+      const newTotalPrice = newUnitPrice * newQty;
+
+      // Recalculate GST for new values
+      const gst = await calculateGst(newUnitPrice, newCategory);
+      const tenant = await prisma.tenant.findUnique({ where: { id: req.tenantId! }, select: { config: true } });
+      const tenantConfig = (tenant?.config as Record<string, any>) || {};
+      let cgst = 0, sgst = 0, igst = 0, rate = 0;
+      if (tenantConfig.gstEnabled) {
+        rate = gst.rate;
+        // Reuse existing inter-state flag from original charge
+        if (charge.igst > 0 && charge.cgst === 0) {
+          igst = (gst.cgst + gst.sgst) * newQty;
+        } else {
+          cgst = gst.cgst * newQty;
+          sgst = gst.sgst * newQty;
+        }
+      }
+
+      const oldTotal = charge.totalPrice + charge.cgst + charge.sgst + charge.igst;
+      const newTotal = newTotalPrice + cgst + sgst + igst;
+      const balanceDelta = newTotal - oldTotal;
+
+      const [updated] = await prisma.$transaction([
+        prisma.folioCharge.update({
+          where: { id: req.params.chargeId },
+          data: {
+            description: newDesc,
+            category:    newCategory,
+            unitPrice:   newUnitPrice,
+            quantity:    newQty,
+            totalPrice:  newTotalPrice,
+            gstRate:     rate,
+            cgst,
+            sgst,
+            igst,
+            // Only update chargeDate if a valid value was provided
+            ...(chargeDate ? { chargeDate: new Date(chargeDate) } : {}),
+          },
+        }),
+        prisma.booking.update({
+          where: { id: charge.bookingId },
+          data: {
+            totalAmount: { increment: balanceDelta },
+            balanceDue:  { increment: balanceDelta },
+          },
+        }),
+      ]);
+
+      return { data: updated };
+    });
+
+    if ('error' in result) {
+      res.status(result.status || 400).json({ success: false, error: result.error });
+      return;
+    }
+    res.json({ success: true, data: result.data });
+  } catch (err) {
+    console.error('[BILLING PATCH CHARGE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to update charge' });
   }
 });
 
@@ -297,5 +437,205 @@ billingRouter.get('/invoices/:id/pdf', authorize('property_owner', 'general_mana
   } catch (err) {
     console.error('PDF Generation Error:', err);
     res.status(500).json({ success: false, error: 'Failed to generate PDF' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /billing/gstr1?month=YYYY-MM
+// Returns a GSTR-1 B2C summary CSV for the given month.
+//
+// Each row = one folio charge line with SAC code, taxable value, CGST/SGST/IGST.
+// Accountants upload this directly to the GST portal or import into Tally/Excel.
+//
+// Date boundaries are computed in IST (Asia/Kolkata UTC+5:30) to avoid
+// truncating the first 5.5 hours of data on UTC-hosted servers.
+// ─────────────────────────────────────────────────────────────────────────────
+billingRouter.get('/gstr1', authorize('property_owner', 'general_manager', 'accountant'), async (req: Request, res: Response) => {
+  try {
+    // month param: YYYY-MM (defaults to current IST calendar month)
+    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+    const nowIst = new Date(Date.now() + IST_OFFSET_MS);
+    const defaultMonth = nowIst.toISOString().slice(0, 7); // "YYYY-MM"
+    const monthParam = (req.query.month as string) || defaultMonth;
+
+    // Strict format validation: must be YYYY-MM
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam)) {
+      res.status(400).json({ success: false, error: 'Invalid month param. Use YYYY-MM format (e.g. 2026-04).' });
+      return;
+    }
+
+    const [year, month] = monthParam.split('-').map(Number);
+
+    // IST-aware date boundaries:
+    // from = 1st of month at 00:00 IST  → subtract IST offset to get UTC
+    // to   = last day of month at 23:59:59 IST
+    const fromIst = new Date(Date.UTC(year, month - 1, 1) - IST_OFFSET_MS);
+    const toIst   = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999) - IST_OFFSET_MS);
+
+    await withTenant(req.tenantId!, async () => {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.tenantId! },
+        select: { name: true, gstNumber: true, state: true },
+      });
+
+      // Pull all folio charges for the period with their booking context.
+      // Discount/reversal lines (totalPrice <= 0) are excluded from GST report.
+      const charges = await prisma.folioCharge.findMany({
+        where: {
+          tenantId: req.tenantId!,
+          chargeDate: { gte: fromIst, lte: toIst },
+          totalPrice: { gt: 0 },
+        },
+        include: {
+          booking: {
+            select: {
+              bookingNumber: true,
+              guestName: true,
+              guestPhone: true,
+              // Primary guest state used for CGST/SGST vs IGST classification
+              bookingGuests: {
+                select: { guestState: true },
+                take: 1,
+                orderBy: { createdAt: 'asc' },
+              },
+              invoices: {
+                select: { invoiceNumber: true, createdAt: true },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
+            },
+          },
+        },
+        orderBy: [{ chargeDate: 'asc' }, { createdAt: 'asc' }],
+      }) as any[];
+
+      // ── CSV Header (18 columns) ────────────────────────────────────────────
+      const HEADERS = [
+        'Invoice No',          // 1
+        'Invoice Date',        // 2
+        'Booking No',          // 3
+        'Guest Name',          // 4
+        'Guest Phone',         // 5
+        'Place of Supply',     // 6
+        'SAC Code',            // 7
+        'Category',            // 8
+        'Description',         // 9
+        'Qty',                 // 10
+        'Unit Price (Rs)',      // 11
+        'Taxable Value (Rs)',   // 12
+        'GST Rate (%)',         // 13
+        'CGST (Rs)',            // 14
+        'SGST (Rs)',            // 15
+        'IGST (Rs)',            // 16
+        'Total (Rs)',           // 17
+        'Supply Type',         // 18
+      ];
+
+      // RFC 4180-compliant CSV escape: wrap in quotes, double inner quotes
+      const esc = (s: string | null | undefined): string =>
+        `"${(s ?? '').toString().replace(/"/g, '""')}"`;
+
+      const csvLines: string[] = [HEADERS.join(',')];
+
+      // ── Aggregate totals ───────────────────────────────────────────────────
+      let sumTaxable = 0, sumCgst = 0, sumSgst = 0, sumIgst = 0, sumTotal = 0;
+
+      for (const charge of charges) {
+        const invoice       = charge.booking?.invoices?.[0];
+        const invoiceNo     = invoice?.invoiceNumber ?? '';
+        // Use IST-formatted date for all date columns (consistent for Indian accountants)
+        const invoiceDate   = new Date(
+          invoice?.createdAt ? invoice.createdAt : charge.chargeDate
+        ).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
+        const chargeDate    = new Date(charge.chargeDate)
+          .toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        const placeOfSupply = charge.booking?.bookingGuests?.[0]?.guestState ?? '';
+        const supplyType    = charge.igst > 0 ? 'Inter-State' : 'Intra-State';
+        const lineTotal     = charge.totalPrice + charge.cgst + charge.sgst + charge.igst;
+
+        sumTaxable += charge.totalPrice;
+        sumCgst    += charge.cgst;
+        sumSgst    += charge.sgst;
+        sumIgst    += charge.igst;
+        sumTotal   += lineTotal;
+
+        csvLines.push([
+          esc(invoiceNo),                           // 1
+          invoiceDate,                              // 2
+          esc(charge.booking?.bookingNumber),       // 3
+          esc(charge.booking?.guestName),           // 4
+          esc(charge.booking?.guestPhone),          // 5
+          esc(placeOfSupply),                       // 6
+          charge.sacCode ?? '',                     // 7
+          charge.category,                          // 8
+          esc(charge.description),                  // 9
+          charge.quantity,                          // 10
+          charge.unitPrice.toFixed(2),              // 11
+          charge.totalPrice.toFixed(2),             // 12
+          (charge.gstRate ?? 0).toFixed(0),         // 13
+          charge.cgst.toFixed(2),                   // 14
+          charge.sgst.toFixed(2),                   // 15
+          charge.igst.toFixed(2),                   // 16
+          lineTotal.toFixed(2),                     // 17
+          supplyType,                               // 18
+        ].join(','));
+      }
+
+      // ── Summary row (same 18 columns, blanks where N/A) ───────────────────
+      csvLines.push('');  // blank separator row
+      csvLines.push([
+        esc('PERIOD SUMMARY'),  // 1
+        monthParam,             // 2
+        '',                     // 3
+        '',                     // 4
+        '',                     // 5
+        '',                     // 6
+        '',                     // 7
+        '',                     // 8
+        esc(`${charges.length} charge lines`), // 9
+        '',                     // 10
+        '',                     // 11
+        sumTaxable.toFixed(2),  // 12 Taxable Value total
+        '',                     // 13
+        sumCgst.toFixed(2),     // 14 CGST total
+        sumSgst.toFixed(2),     // 15 SGST total
+        sumIgst.toFixed(2),     // 16 IGST total
+        sumTotal.toFixed(2),    // 17 Grand total
+        '',                     // 18
+      ].join(','));
+
+      // Property info header block prepended before data
+      const metaBlock = [
+        `"GSTIN: ${tenant?.gstNumber ?? 'Not Set'}"`,
+        `"Property: ${tenant?.name ?? ''}"`,
+        `"State: ${tenant?.state ?? ''}"`,
+        `"Report Period: ${monthParam}"`,
+        '',
+      ].join('\r\n');
+
+      const safeName = (tenant?.name ?? 'Property').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `GSTR1_${safeName}_${monthParam}.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      // BOM required for Excel to correctly detect UTF-8
+      res.send('\uFEFF' + metaBlock + '\r\n' + csvLines.join('\r\n'));
+
+      // Audit log after response — guarded so it never breaks the response
+      try {
+        await logAudit(
+          req.tenantId!, req.userId,
+          'EXPORT_GSTR1', 'billing', req.tenantId!,
+          { month: monthParam, rows: charges.length },
+          req.ip || undefined
+        );
+      } catch (auditErr) {
+        console.error('[GSTR1 AUDIT LOG FAILED]', auditErr);
+      }
+    });
+  } catch (err) {
+    console.error('[GSTR1 EXPORT ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to generate GSTR-1 export' });
   }
 });

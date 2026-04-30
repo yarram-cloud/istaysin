@@ -11,6 +11,34 @@ import { getSubdomainUrl, getRootDomain } from '../../services/cloudflare';
 import { invalidateMembership } from '../../middleware/tenant-cache';
 import { getPlanFeatures } from '../../config/plan-features';
 
+/**
+ * Fire-and-forget revalidation of the public property page after a settings
+ * save. Best-effort: a failure here is non-blocking — worst case the owner
+ * waits the 60 s ISR window for their changes to appear. Centralised so any
+ * future write that affects public-page rendering can call it.
+ */
+async function triggerPublicRevalidate(slug: string): Promise<void> {
+  const secret = process.env.REVALIDATE_SECRET;
+  const webUrl = process.env.WEB_URL || process.env.CORS_ORIGIN;
+  if (!secret || !webUrl) return; // Feature is opt-in via env
+
+  try {
+    await fetch(`${webUrl}/api/revalidate`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-revalidate-secret': secret,
+      },
+      body: JSON.stringify({ slug }),
+      signal: AbortSignal.timeout(2_000),
+    });
+  } catch (err) {
+    // Don't surface to the user — the save already succeeded. ISR will
+    // catch up on the next 60 s window.
+    console.warn('[revalidate] trigger failed for', slug, err instanceof Error ? err.message : err);
+  }
+}
+
 export const tenantsRouter = Router();
 
 // POST /tenants/register-property
@@ -49,6 +77,7 @@ tenantsRouter.post('/register-property', authenticate, async (req: Request, res:
         contactPhone: data.contactPhone,
         contactEmail: data.contactEmail,
         gstNumber: data.gstNumber || null,
+        referenceCode: data.referenceCode?.toUpperCase() || null, // normalise to uppercase
         latitude: data.latitude,
         longitude: data.longitude,
         ownerId: req.userId!,
@@ -367,6 +396,10 @@ tenantsRouter.patch(
       });
 
       await logAudit(req.tenantId!, req.userId, 'UPDATE', 'tenant', tenant.id, updateData, req.ip || undefined);
+
+      // Fire-and-forget; do not await — the response should not block on
+      // the Next.js round trip. Failures are logged but don't surface.
+      void triggerPublicRevalidate(tenant.slug);
 
       res.json({ success: true, data: tenant });
     } catch (err) {

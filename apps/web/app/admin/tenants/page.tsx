@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Building2, MapPin, Users, CalendarDays, Search,
   ChevronRight, BedDouble, SlidersHorizontal,
 } from 'lucide-react';
-import { platformApi } from '@/lib/api';
+import { useApi } from '@/lib/use-api';
 
 interface Tenant {
   id: string; name: string; slug: string; status: string; plan: string;
@@ -30,34 +30,35 @@ const PLAN_STYLE: Record<string, string> = {
 
 export default function AdminTenantsPage() {
   const router = useRouter();
-  const [tenants, setTenants]         = useState<Tenant[]>([]);
-  const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState('');
+  const [committedSearch, setCommittedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage]               = useState(1);
-  const [totalPages, setTotalPages]   = useState(1);
 
-  function fetchTenants() {
-    setLoading(true);
-    const params: Record<string, string> = { page: String(page), limit: '15' };
-    if (search)       params.search = search;
-    if (statusFilter) params.status = statusFilter;
+  // Build the endpoint string deterministically — same inputs => same SWR key,
+  // so navigating away and back hits the cache instead of refetching.
+  const endpoint = useMemo(() => {
+    const params = new URLSearchParams({ page: String(page), limit: '15' });
+    if (committedSearch) params.set('search', committedSearch);
+    if (statusFilter) params.set('status', statusFilter);
+    return `/platform/tenants?${params.toString()}`;
+  }, [page, committedSearch, statusFilter]);
 
-    platformApi.getTenants(params)
-      .then((res: any) => {
-        setTenants(res.data || []);
-        setTotalPages(res.pagination?.totalPages || 1);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }
+  // `keepPreviousData` keeps the old page on screen while paginating —
+  // no flash of empty state between filter / page switches.
+  const { data, isLoading } = useApi<{
+    data: Tenant[];
+    pagination?: { totalPages: number };
+  }>(endpoint, { keepPreviousData: true });
 
-  useEffect(() => { fetchTenants(); }, [page, statusFilter]);
+  const tenants = data?.data || [];
+  const totalPages = data?.pagination?.totalPages || 1;
+  const loading = isLoading;
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setPage(1);
-    fetchTenants();
+    setCommittedSearch(search);
   }
 
   return (

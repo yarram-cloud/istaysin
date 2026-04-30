@@ -52,14 +52,9 @@ export default function PendingApprovalPage() {
     setChecking(false);
   }
 
-  function handleLogout() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tenantId');
-    localStorage.removeItem('tenant_id');
-    localStorage.removeItem('memberships');
-    document.cookie = 'accessToken=; path=/; max-age=0';
+  async function handleLogout() {
+    const { clearClientAuth } = await import('@/lib/api');
+    await clearClientAuth();
     router.push('/login');
   }
 

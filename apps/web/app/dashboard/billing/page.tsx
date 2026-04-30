@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { CreditCard, Search, IndianRupee, FileText, Printer, Download, Clock } from 'lucide-react';
+import { CreditCard, Search, IndianRupee, FileText, Printer, Download, Clock, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { billingApi } from '@/lib/api';
@@ -28,6 +28,31 @@ export default function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [gstr1Month, setGstr1Month] = useState(() => new Date().toISOString().slice(0, 7));
+  const [exportingGstr1, setExportingGstr1] = useState(false);
+
+  const downloadGstr1 = useCallback(async () => {
+    setExportingGstr1(true);
+    try {
+      const token = localStorage.getItem('istays_token');
+      const res = await fetch(`${API_BASE_URL}/billing/gstr1?month=${gstr1Month}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GSTR1_${gstr1Month}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`GSTR-1 exported for ${gstr1Month}`);
+    } catch (err) {
+      toast.error('Failed to export GSTR-1');
+    } finally {
+      setExportingGstr1(false);
+    }
+  }, [gstr1Month]);
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -69,17 +94,38 @@ export default function BillingPage() {
         <p className="text-sm font-serif text-black">{t('folioSummary')}</p>
       </div>
 
-      <div className="flex items-center justify-between flex-wrap gap-4 print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-display font-bold mb-1">{t('billing')}</h1>
           <p className="text-surface-400">{t('billingSub')}</p>
         </div>
-        <button 
-          onClick={() => window.print()}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <Printer className="w-4 h-4" /> {t('printReports')}
-        </button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <Printer className="w-4 h-4" /> {t('printReports')}
+          </button>
+
+          {/* GSTR-1 Export — month picker + download */}
+          <input
+            type="month"
+            value={gstr1Month}
+            onChange={e => setGstr1Month(e.target.value)}
+            className="input-field py-2 text-sm max-w-[160px]"
+            aria-label="Select month for GSTR-1 export"
+          />
+          <button
+            onClick={downloadGstr1}
+            disabled={exportingGstr1}
+            aria-label="Download GSTR-1 CSV"
+            className="btn-secondary flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
+          >
+            <FileDown className="w-4 h-4" />
+            {exportingGstr1 ? 'Exporting…' : 'GSTR-1'}
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}

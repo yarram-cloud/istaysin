@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import {
   IndianRupee, TrendingUp, AlertTriangle, CheckCircle2,
   XCircle, Clock, Search, SlidersHorizontal, RefreshCw,
   ChevronRight, Calendar, CreditCard, Building2, ArrowUpRight,
 } from 'lucide-react';
-import { platformApi } from '@/lib/api';
+import { useApi, useApiMutate } from '@/lib/use-api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -130,16 +130,11 @@ function RenewalBadge({ row }: { row: RevenueRow }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AdminRevenuePage() {
-  const [rows, setRows]           = useState<RevenueRow[]>([]);
-  const [summary, setSummary]     = useState<Summary | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage]           = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal]         = useState(0);
 
   // Filters
   const [search, setSearch]             = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [plan, setPlan]                 = useState('');
   const [billingCycle, setBillingCycle] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
@@ -147,49 +142,45 @@ export default function AdminRevenuePage() {
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchData = useCallback(async (params: Record<string, string>, isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
-    try {
-      const res: any = await platformApi.getRevenue(params);
-      if (res.success) {
-        setRows(res.data);
-        setSummary(res.summary);
-        setTotal(res.pagination.total);
-        setTotalPages(res.pagination.totalPages);
-      }
-    } catch { /* handled by API layer */ }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
+  // Build a stable cache key from the current filters. Same key = SWR cache hit.
+  const endpoint = useMemo(() => {
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (plan)            params.set('plan', plan);
+    if (billingCycle)    params.set('billingCycle', billingCycle);
+    if (paymentStatus)   params.set('paymentStatus', paymentStatus);
+    if (overdueOnly)     params.set('overdue', 'true');
+    return `/platform/revenue?${params.toString()}`;
+  }, [page, debouncedSearch, plan, billingCycle, paymentStatus, overdueOnly]);
 
-  // Rebuild query whenever filters change
-  useEffect(() => {
-    const params: Record<string, string> = { page: String(page), limit: '20' };
-    if (search)        params.search        = search;
-    if (plan)          params.plan          = plan;
-    if (billingCycle)  params.billingCycle  = billingCycle;
-    if (paymentStatus) params.paymentStatus = paymentStatus;
-    if (overdueOnly)   params.overdue       = 'true';
-    fetchData(params);
-  }, [page, plan, billingCycle, paymentStatus, overdueOnly, fetchData]);
+  const { data, isLoading, isValidating, mutate: revalidate } = useApi<{
+    data: RevenueRow[];
+    summary?: Summary;
+    pagination: { total: number; totalPages: number };
+  }>(endpoint, { keepPreviousData: true });
 
-  // Debounced search
+  const rows = data?.data || [];
+  const summary = data?.summary || null;
+  const totalPages = data?.pagination?.totalPages || 1;
+  const total = data?.pagination?.total || 0;
+  const loading = isLoading;
+  const refreshing = isValidating && !isLoading;
+
+  // Debounced search input — wait 400ms after the last keystroke before
+  // committing to a new SWR key (otherwise every keystroke fires a request).
   function handleSearchChange(v: string) {
     setSearch(v);
-    setPage(1);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
-      const params: Record<string, string> = { page: '1', limit: '20' };
-      if (v)             params.search        = v;
-      if (plan)          params.plan          = plan;
-      if (billingCycle)  params.billingCycle  = billingCycle;
-      if (paymentStatus) params.paymentStatus = paymentStatus;
-      if (overdueOnly)   params.overdue       = 'true';
-      fetchData(params);
+      setPage(1);
+      setDebouncedSearch(v);
     }, 400);
   }
 
   function resetFilters() {
-    setSearch(''); setPlan(''); setBillingCycle(''); setPaymentStatus(''); setOverdueOnly(false); setPage(1);
+    setSearch(''); setDebouncedSearch('');
+    setPlan(''); setBillingCycle(''); setPaymentStatus(''); setOverdueOnly(false);
+    setPage(1);
   }
 
   const hasFilter = !!(search || plan || billingCycle || paymentStatus || overdueOnly);
@@ -207,12 +198,7 @@ export default function AdminRevenuePage() {
           </p>
         </div>
         <button
-          onClick={() => {
-            const params: Record<string, string> = { page: String(page), limit: '20' };
-            if (search) params.search = search;
-            if (plan) params.plan = plan;
-            fetchData(params, true);
-          }}
+          onClick={() => revalidate()}
           disabled={refreshing}
           className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.08] text-surface-400 hover:text-white hover:bg-white/[0.05] text-sm transition-all"
         >

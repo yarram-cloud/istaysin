@@ -165,6 +165,11 @@ publicRouter.get('/properties/:slug', optionalAuth, async (req: Request, res: Re
       featureFlags: features,
     };
 
+    // Edge cache the JSON for 60 s; serve stale up to 5 minutes while the
+    // CDN refreshes in the background. Public route, no per-user variation,
+    // so it is safe to cache shared. The website-builder save flow triggers
+    // an immediate revalidate so owners do not wait the full TTL.
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     res.json({ success: true, data });
   } catch (err) {
     console.error('[PUBLIC PROPERTY DETAIL ERROR]', err);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Building2, Users, BedDouble, CalendarDays,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { platformApi } from '@/lib/api';
+import { useApi } from '@/lib/use-api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,16 +48,41 @@ const PLAN_COLORS: Record<string, string> = {
 export default function TenantDetailPage({ params }: { params: { id: string } }) {
   const { id: tenantId } = params;
   const router = useRouter();
-  const [tenant, setTenant] = useState<TenantDetail | null>(null);
-  const [plans, setPlans] = useState<SaasPlan[]>([]);
+
+  // Three independent SWR keys. Plans are static-ish (admin rarely changes
+  // global plan rows during a session) so longer dedupe; the other two are
+  // tied to the active tenant and revalidate aggressively after writes.
+  const detailRes = useApi<{ data: TenantDetail }>(`/platform/tenants/${tenantId}/detail`);
+  const plansRes = useApi<{ data: SaasPlan[] }>(`/platform/plans`, { staticish: true });
+  const pricingRes = useApi<{ data: { customPlanPricing: CustomPricing | null } }>(
+    `/platform/tenants/${tenantId}/custom-pricing`,
+  );
+
+  const tenant = detailRes.data?.data ?? null;
+  const plans = plansRes.data?.data ?? [];
+  const loading = detailRes.isLoading || plansRes.isLoading;
+
   const [customPricing, setCustomPricing] = useState<CustomPricing | null>(null);
   const [customEnabled, setCustomEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'pricing'>('overview');
   const [planDraft, setPlanDraft] = useState<string>('');
   const [changingPlan, setChangingPlan] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
+
+  // Hydrate the local edit state from the SWR-loaded data once it arrives.
+  // We can't use SWR's data directly because the user mutates it via inputs.
+  useEffect(() => {
+    if (tenant && planDraft === '') setPlanDraft(tenant.plan || '');
+  }, [tenant, planDraft]);
+
+  useEffect(() => {
+    const cp = pricingRes.data?.data?.customPlanPricing;
+    if (cp) {
+      setCustomPricing(cp);
+      setCustomEnabled(true);
+    }
+  }, [pricingRes.data]);
 
   function viewAsTenant() {
     if (!tenant) return;
@@ -65,28 +91,8 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
     window.open(`/dashboard?admin_preview=${tenant.id}`, '_blank');
   }
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [tenantRes, plansRes, pricingRes] = await Promise.all([
-        platformApi.getTenantDetail(tenantId),
-        platformApi.getPlans(),
-        platformApi.getTenantCustomPricing(tenantId),
-      ]);
-
-      if (tenantRes.success) {
-        setTenant(tenantRes.data);
-        setPlanDraft(tenantRes.data.plan || '');
-      }
-      if (plansRes.success) setPlans(plansRes.data);
-      if (pricingRes.success && pricingRes.data.customPlanPricing) {
-        setCustomPricing(pricingRes.data.customPlanPricing);
-        setCustomEnabled(true);
-      }
-    } catch { toast.error('Failed to load tenant details'); }
-    finally { setLoading(false); }
-  }, [tenantId]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // SWR drives the data. The save handlers below call mutate() to invalidate
+  // any cached slot affected by their write — replaces the old `fetchData()`.
 
   function updateCustomPrice(planCode: string, field: string, value: number) {
     setCustomPricing((prev) => ({
@@ -99,6 +105,8 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
     setSaving(true);
     try {
       const payload = customEnabled ? customPricing : null;
+      // platformApi.updateTenantCustomPricing already invalidates the relevant
+      // SWR slots (custom-pricing, detail, revenue) — no manual mutate needed.
       const res = await platformApi.updateTenantCustomPricing(tenantId, payload);
       if (res.success) {
         toast.success(customEnabled ? 'Custom pricing saved!' : 'Custom pricing cleared');
@@ -111,10 +119,10 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
     if (!tenant) return;
     setChangingPlan(true);
     try {
+      // platformApi.updateTenantPlan auto-invalidates detail + tenants + revenue.
       const res = await platformApi.updateTenantPlan(tenantId, nextPlan);
       if (res.success) {
         toast.success(res.message || `Plan changed to ${nextPlan}`);
-        await fetchData();
       } else {
         toast.error(res.error || 'Failed to change plan');
         setPlanDraft(tenant.plan);

@@ -57,6 +57,7 @@ export default function RegisterPage() {
   const [state, setState] = useState('');
   const [pincode, setPincode] = useState('');
   const [gstNumber, setGstNumber] = useState('');
+  const [referenceCode, setReferenceCode] = useState('');
   const [latitude, setLatitude] = useState<number | undefined>(20.5937);
   const [longitude, setLongitude] = useState<number | undefined>(78.9629);
 
@@ -143,6 +144,7 @@ export default function RegisterPage() {
         contactPhone: propertyCountryCode + contactPhone.replace(/\D/g, ''),
         contactEmail: contactEmail || email || `${phone}@hotel.local`,
         gstNumber: gstNumber || undefined,
+        referenceCode: referenceCode || undefined,
         latitude,
         longitude,
       });
@@ -384,6 +386,28 @@ export default function RegisterPage() {
               </label>
               <input id="gstNumber" type="text" value={gstNumber} onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
                 placeholder="22AAAAA0000A1Z5" className="input-field" />
+            </div>
+
+            {/* Reference / Promo Code — optional, for campaign tracking */}
+            <div>
+              <label className="block text-sm font-medium text-surface-700 mb-1">
+                Reference / Promo Code
+                <span className="text-surface-400 font-normal"> (optional — enter if you were referred by a partner or campaign)</span>
+              </label>
+              <input
+                id="referenceCode"
+                type="text"
+                value={referenceCode}
+                onChange={(e) => setReferenceCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 50))}
+                placeholder="e.g. PARTNER2024 or YOUTUBE50"
+                className="input-field font-mono tracking-wider"
+                autoComplete="off"
+              />
+              {referenceCode && (
+                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                  <span>✓</span> Code <strong>{referenceCode}</strong> will be applied to your registration
+                </p>
+              )}
             </div>
           </div>
         </div>

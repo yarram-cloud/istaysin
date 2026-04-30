@@ -172,13 +172,12 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
     } catch { /* non-critical */ }
   }
 
-  function handleLogout() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tenantId');
-    localStorage.removeItem('memberships');
-    document.cookie = 'accessToken=; path=/; max-age=0';
+  async function handleLogout() {
+    // Centralised in lib/api so SWR's in-memory cache is flushed too —
+    // PII (booking details, owner emails) does not survive a session boundary
+    // on a shared device just because localStorage was wiped.
+    const { clearClientAuth } = await import('@/lib/api');
+    await clearClientAuth();
     router.push('/login');
   }
 

@@ -38,12 +38,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [router]);
 
-  function handleLogout() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tenantId');
-    document.cookie = 'accessToken=; path=/; max-age=0';
+  async function handleLogout() {
+    const { clearClientAuth } = await import('@/lib/api');
+    await clearClientAuth();
     router.push('/login');
   }
 
