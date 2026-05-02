@@ -6,10 +6,14 @@ import { useTranslations } from 'next-intl';
 
 export default function ThemedFaq({ config, themeTokens }: { config: any, themeTokens: ThemeStyleMap }) {
   const t = useTranslations('PropertySite');
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
   if (!config?.enabled) return null;
   const faqs = config.questions || config.faqs || [];
   if (faqs.length === 0) return null;
+
+  const toggle = (i: number) => {
+    setOpenIndex(prev => prev === i ? null : i);
+  };
 
   // --- VIBRANT ARCHETYPE ---
   if (themeTokens.archetype === 'VIBRANT') {
@@ -23,16 +27,18 @@ export default function ThemedFaq({ config, themeTokens }: { config: any, themeT
               {faqs.map((faq: any, i: number) => {
                 const isOpen = openIndex === i;
                 return (
-                  <div key={i} className={`border-2 ${isOpen ? 'border-[color:var(--brand-color,#000)] bg-surface-50' : 'border-surface-100 bg-white'} ${themeTokens.radiusClass} overflow-hidden transition-all duration-300`}>
-                    <button onClick={() => setOpenIndex(isOpen ? null : i)} className="w-full px-6 py-6 flex items-center justify-between text-left focus:outline-none group">
+                  <div key={i} className={`border-2 ${isOpen ? 'border-[color:var(--brand-color,#000)] bg-surface-50' : 'border-surface-100 bg-white'} ${themeTokens.radiusClass} overflow-hidden transition-colors duration-300`}>
+                    <button type="button" onClick={() => toggle(i)} className="w-full px-6 py-6 flex items-center justify-between text-left focus:outline-none group cursor-pointer">
                       <span className={`font-bold text-surface-900 text-lg pr-8 ${themeTokens.fontHeadingClass}`}>{faq.question || faq.q}</span>
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${isOpen ? themeTokens.primaryBg + ' text-white rotate-45' : 'bg-surface-100 text-surface-500 group-hover:bg-surface-200'}`}>
                         <Plus className="w-5 h-5" />
                       </div>
                     </button>
-                    <div className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 py-6 border-t-2 border-surface-100 opacity-100' : 'max-h-0 py-0 opacity-0'}`}>
-                      <p className={`text-surface-600 leading-relaxed font-medium ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
-                    </div>
+                    {isOpen && (
+                      <div className="px-6 py-6 border-t-2 border-surface-100">
+                        <p className={`text-surface-600 leading-relaxed font-medium ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -54,13 +60,15 @@ export default function ThemedFaq({ config, themeTokens }: { config: any, themeT
               const isOpen = openIndex === i;
               return (
                 <div key={i} className="border-b border-surface-200 overflow-hidden">
-                  <button onClick={() => setOpenIndex(isOpen ? null : i)} className={`w-full py-8 flex items-start justify-between text-left focus:outline-none group`}>
+                  <button type="button" onClick={() => toggle(i)} className="w-full py-8 flex items-start justify-between text-left focus:outline-none group cursor-pointer">
                     <span className={`font-normal text-surface-900 text-xl pr-8 group-hover:text-black transition-colors ${themeTokens.fontHeadingClass}`}>{faq.question || faq.q}</span>
                     <Plus className={`w-6 h-6 shrink-0 transition-transform duration-500 text-surface-400 group-hover:text-black ${isOpen ? 'rotate-45' : ''}`} />
                   </button>
-                  <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-96 pb-8 opacity-100' : 'max-h-0 pb-0 opacity-0'}`}>
-                    <p className={`text-surface-500 leading-relaxed font-light ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
-                  </div>
+                  {isOpen && (
+                    <div className="pb-8">
+                      <p className={`text-surface-500 leading-relaxed font-light ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -85,13 +93,15 @@ export default function ThemedFaq({ config, themeTokens }: { config: any, themeT
                 const isOpen = openIndex === i;
                 return (
                   <div key={i} className="border border-surface-800 bg-surface-900/50 backdrop-blur-sm overflow-hidden">
-                    <button onClick={() => setOpenIndex(isOpen ? null : i)} className="w-full px-8 py-6 flex items-center justify-between text-left focus:outline-none hover:bg-black transition-colors">
+                    <button type="button" onClick={() => toggle(i)} className="w-full px-8 py-6 flex items-center justify-between text-left focus:outline-none hover:bg-black transition-colors cursor-pointer">
                       <span className={`text-surface-100 text-lg pr-8 tracking-wide ${themeTokens.fontHeadingClass}`}>{faq.question || faq.q}</span>
                       <ChevronDown className={`w-5 h-5 text-surface-500 transition-transform duration-300 ${isOpen ? 'rotate-180 text-white' : ''}`} />
                     </button>
-                    <div className={`px-8 border-t border-surface-800 overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 py-6 opacity-100' : 'max-h-0 py-0 border-transparent opacity-0'}`}>
-                      <p className={`text-surface-400 leading-relaxed ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
-                    </div>
+                    {isOpen && (
+                      <div className="px-8 py-6 border-t border-surface-800">
+                        <p className={`text-surface-400 leading-relaxed ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -112,21 +122,22 @@ export default function ThemedFaq({ config, themeTokens }: { config: any, themeT
           {faqs.map((faq: any, i: number) => {
             const isOpen = openIndex === i;
             return (
-              <div key={i} className={`border border-surface-200 overflow-hidden shadow-sm transition-all duration-300 ${themeTokens.radiusClass}`}>
+              <div key={i} className={`border border-surface-200 overflow-hidden shadow-sm ${themeTokens.radiusClass} bg-white`}>
                 <button
-                  onClick={() => setOpenIndex(isOpen ? null : i)}
-                  className={`w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none transition-colors ${isOpen ? 'bg-surface-100/50' : 'bg-white hover:bg-surface-50'}`}
+                  type="button"
+                  onClick={() => toggle(i)}
+                  className={`w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none transition-colors cursor-pointer ${isOpen ? 'bg-surface-100/50' : 'hover:bg-surface-50'}`}
                 >
                   <span className={`font-semibold text-surface-900 text-lg pr-8 ${themeTokens.fontHeadingClass}`}>{faq.question || faq.q}</span>
                   <div className={`w-8 h-8 flex items-center justify-center shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
                     <ChevronDown className="w-5 h-5 text-surface-600" />
                   </div>
                 </button>
-                <div
-                  className={`px-6 overflow-hidden transition-all duration-300 ease-in-out bg-white ${isOpen ? 'max-h-96 py-5 opacity-100' : 'max-h-0 py-0 opacity-0'}`}
-                >
-                  <p className={`text-surface-600 leading-relaxed ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
-                </div>
+                {isOpen && (
+                  <div className="px-6 py-5 border-t border-surface-200">
+                    <p className={`text-surface-600 leading-relaxed ${themeTokens.fontBodyClass}`}>{faq.answer || faq.a}</p>
+                  </div>
+                )}
               </div>
             );
           })}

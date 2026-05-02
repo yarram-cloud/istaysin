@@ -298,6 +298,26 @@ export const PLAN_TIERS = {
 
 export type PlanTier = (typeof PLAN_TIERS)[keyof typeof PLAN_TIERS];
 
+// Payment categorisation for GuestPayment.category
+export const PAYMENT_CATEGORIES = {
+  PAYMENT: 'payment',
+  ADVANCE: 'advance',
+  SECURITY_DEPOSIT: 'security_deposit',
+  REFUND: 'refund',
+  SECURITY_REFUND: 'security_refund',
+} as const;
+export type PaymentCategory = (typeof PAYMENT_CATEGORIES)[keyof typeof PAYMENT_CATEGORIES];
+
+// Security deposit lifecycle on a BookingRoom
+export const SECURITY_DEPOSIT_STATUSES = {
+  NONE: 'none',
+  HELD: 'held',
+  REFUNDED: 'refunded',
+  FORFEITED: 'forfeited',
+  PARTIAL: 'partial',
+} as const;
+export type SecurityDepositStatus = (typeof SECURITY_DEPOSIT_STATUSES)[keyof typeof SECURITY_DEPOSIT_STATUSES];
+
 // ============================================================
 // Interfaces
 // ============================================================

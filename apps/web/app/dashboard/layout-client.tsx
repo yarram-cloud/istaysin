@@ -7,6 +7,7 @@ import {
   Building2, LayoutDashboard, BedDouble, CalendarDays, Users, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, Bell, ChevronDown, Sparkles,
   ClipboardList, TrendingUp, Star, Globe, Clock, Network, Tag, Shield, Languages, Lock, Eye, ArrowLeft,
+  IndianRupee,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { NextIntlClientProvider, useTranslations } from 'next-intl';
@@ -57,6 +58,7 @@ const sidebarGroups = [
       { href: '/dashboard/housekeeping',      icon: Sparkles,       label: 'Housekeeping',  i18nKey: 'housekeeping',  requiredPlan: 'free' as PlanCode },
       { href: '/dashboard/reviews',           icon: Star,           label: 'Reviews',       i18nKey: 'reviews',       requiredPlan: 'basic' as PlanCode },
       { href: '/dashboard/billing',           icon: CreditCard,     label: 'Billing',       i18nKey: 'billing',       requiredPlan: 'basic' as PlanCode },
+      { href: '/dashboard/rent-roll',         icon: IndianRupee,    label: 'Rent Roll',     i18nKey: 'rentRoll',      requiredPlan: 'free' as PlanCode, propertyTypes: ['pg', 'hostel'] as PropertyType[] },
       { href: '/dashboard/compliance/register', icon: Shield,       label: 'Compliance',    i18nKey: 'compliance',    requiredPlan: 'basic' as PlanCode },
     ]
   },
@@ -252,7 +254,9 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
                   {messages?.Dashboard?.sidebar?.[group.i18nKey] || group.category}
                 </h3>
                 <div className="space-y-1">
-                  {group.links.map((link) => {
+                  {group.links
+                    .filter((link) => !('propertyTypes' in link) || (link as any).propertyTypes?.includes(propertyType))
+                    .map((link) => {
                     const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href));
                     const locked = !hasAccess(plan, link.requiredPlan);
                     const requiredLabel = PLAN_LABELS[link.requiredPlan];

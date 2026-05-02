@@ -469,6 +469,103 @@ export default function ThemedFooter({
         </footer>
       );
 
+    case 'scandinavian-frost':
+      return (
+        <footer className="bg-[#F8FAFC] text-slate-600 py-24 px-8 border-t border-slate-200">
+          <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-16">
+            <div><h4 className={`text-3xl font-light text-slate-800 mb-6 ${themeTokens.fontHeadingClass}`}>{property.name}</h4><address className={`not-italic text-slate-400 font-light space-y-2 ${themeTokens.fontBodyClass}`}><p>{address}</p><p>{property.city}</p>{email && <a href={`mailto:${email}`} className="block hover:text-slate-800 transition-colors mt-4">{email}</a>}</address></div>
+            <div><h5 className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-6">Navigate</h5><ul className="space-y-3">{quickLinks.map(link => <li key={link.href}><a href={link.href} className="text-slate-400 hover:text-slate-800 transition-colors font-light">{link.label}</a></li>)}</ul></div>
+            <div className="text-right"><p className="text-xs text-slate-400">{copyrightText}</p></div>
+          </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
+    case 'art-deco-glam':
+      return (
+        <footer className="bg-[#0D0D0D] text-gray-500 py-32 px-8 relative">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent" />
+          <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-16">
+            <div className="md:col-span-5"><h4 className={`text-5xl text-[#D4AF37] mb-8 font-bold ${themeTokens.fontHeadingClass}`}>{property.name}</h4><address className={`not-italic text-gray-500 font-light space-y-3 ${themeTokens.fontBodyClass}`}><p>{address}, {property.city}</p>{email && <a href={`mailto:${email}`} className="block text-[#D4AF37] hover:text-white transition-colors mt-4">{email}</a>}</address></div>
+            <div className="md:col-span-3"><h5 className="text-[#D4AF37] tracking-[0.3em] uppercase text-xs font-bold mb-8">Explore</h5><ul className="space-y-4">{quickLinks.map(link => <li key={link.href}><a href={link.href} className="text-gray-500 hover:text-[#D4AF37] transition-colors text-sm tracking-widest uppercase">{link.label}</a></li>)}</ul></div>
+            <div className="md:col-span-4 text-right"><p className="text-[10px] tracking-[0.3em] uppercase text-gray-600">{copyrightText}</p></div>
+          </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
+    case 'japanese-zen':
+      return (
+        <footer className="bg-[#F5F0EB] text-[#8B7355] py-24 px-8 border-t border-[#D4C8BA]">
+          <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-16">
+            <div><h4 className={`text-3xl font-extralight text-[#3D3028] mb-6 ${themeTokens.fontHeadingClass}`}>{property.name}</h4><address className={`not-italic font-light space-y-2 ${themeTokens.fontBodyClass}`}><p>{address}</p><p>{property.city}</p></address></div>
+            <div><ul className="space-y-4">{quickLinks.map(link => <li key={link.href}><a href={link.href} className="hover:text-[#3D3028] transition-colors font-light">{link.label}</a></li>)}</ul></div>
+            <div className="text-right"><p className="text-xs text-[#8B7355]/50">{copyrightText}</p></div>
+          </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
+    case 'mediterranean-sun':
+      return (
+        <footer className="bg-[#431407] text-orange-200 py-24 px-8">
+          <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-16">
+            <div><h4 className={`text-4xl font-bold text-white mb-6 ${themeTokens.fontHeadingClass}`}>{property.name}</h4><address className={`not-italic font-light space-y-2 text-orange-200/60 ${themeTokens.fontBodyClass}`}><p>{address}, {property.city}</p>{email && <a href={`mailto:${email}`} className="block hover:text-white transition-colors mt-4">{email}</a>}</address></div>
+            <div><h5 className="text-xs uppercase tracking-widest text-orange-300 font-bold mb-6">Explore</h5><ul className="space-y-3">{quickLinks.map(link => <li key={link.href}><a href={link.href} className="text-orange-200/60 hover:text-white transition-colors">{link.label}</a></li>)}</ul></div>
+            <div className="text-right"><p className="text-xs text-orange-200/40">{copyrightText}</p></div>
+          </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
+    case 'industrial-loft':
+      return (
+        <footer className="bg-[#0C0A09] text-stone-500 py-24 px-8 border-t border-stone-800">
+          <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-16">
+            <div><h4 className={`text-4xl font-black uppercase tracking-tighter text-white mb-6 ${themeTokens.fontHeadingClass}`}>{property.name}</h4><address className={`not-italic font-mono text-xs tracking-wider space-y-2 ${themeTokens.fontBodyClass}`}><p>{address}</p><p>{property.city}</p>{email && <a href={`mailto:${email}`} className="block text-[#F97316] hover:text-white transition-colors mt-4">{email}</a>}</address></div>
+            <div><h5 className="text-stone-600 font-mono text-xs tracking-widest uppercase mb-6">Navigate</h5><ul className="space-y-3 font-mono text-xs uppercase tracking-widest">{quickLinks.map(link => <li key={link.href}><a href={link.href} className="hover:text-[#F97316] transition-colors">{link.label}</a></li>)}</ul></div>
+            <div className="text-right"><p className="text-xs font-mono text-stone-700">{copyrightText}</p></div>
+          </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
+    case 'royal-palace':
+      return (
+        <footer className="bg-[#050010] text-purple-300/50 py-32 px-8 border-t border-purple-500/10">
+          <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-16">
+            <div className="md:col-span-5"><h4 className={`text-5xl font-light text-white mb-8 ${themeTokens.fontHeadingClass}`}>{property.name}</h4><address className={`not-italic font-light space-y-3 ${themeTokens.fontBodyClass}`}><p>{address}, {property.city}</p>{email && <a href={`mailto:${email}`} className="block text-purple-400 hover:text-white transition-colors mt-4">{email}</a>}</address></div>
+            <div className="md:col-span-3"><h5 className="text-purple-400/60 tracking-[0.3em] uppercase text-xs font-bold mb-8">Explore</h5><ul className="space-y-4">{quickLinks.map(link => <li key={link.href}><a href={link.href} className="hover:text-white transition-colors text-sm">{link.label}</a></li>)}</ul></div>
+            <div className="md:col-span-4 text-right"><p className="text-xs text-purple-500/30">{copyrightText}</p></div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
+    case 'coastal-breeze':
+      return (
+        <footer className="bg-slate-900 text-slate-400 py-24 px-8 rounded-t-[3rem]">
+          <div className="max-w-[1300px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-16">
+            <div><h4 className={`text-4xl font-bold text-white mb-6 ${themeTokens.fontHeadingClass}`}>{property.name}</h4><address className={`not-italic font-light space-y-2 ${themeTokens.fontBodyClass}`}><p>{address}, {property.city}</p>{email && <a href={`mailto:${email}`} className="block text-sky-400 hover:text-white transition-colors mt-4">{email}</a>}</address></div>
+            <div><h5 className="text-sky-400 text-xs font-bold uppercase tracking-widest mb-6">Navigate</h5><ul className="space-y-3">{quickLinks.map(link => <li key={link.href}><a href={link.href} className="hover:text-white transition-colors">{link.label}</a></li>)}</ul></div>
+            <div className="text-right"><p className="text-xs text-slate-600">{copyrightText}</p></div>
+          </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
+    case 'neo-brutalist':
+      return (
+        <footer className="bg-black text-white py-24 px-6 border-t-[6px] border-[#F97316]">
+          <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-16">
+            <div className="bg-[#F97316] border-[6px] border-white p-10 shadow-[8px_8px_0px_#FFF]"><h4 className={`text-5xl font-black uppercase text-black mb-6 ${themeTokens.fontHeadingClass}`}>{property.name}</h4><nav className="flex flex-col gap-3 font-black uppercase text-lg text-black">{quickLinks.map(link => <a key={link.href} href={link.href} className="hover:text-white transition-colors border-b-4 border-black pb-1">{link.label}</a>)}</nav></div>
+            <div className="bg-white border-[6px] border-white text-black p-10 shadow-[8px_8px_0px_#F97316]"><h5 className="text-xl font-black uppercase mb-6 border-b-4 border-black pb-3">Contact</h5><address className={`not-italic font-bold text-lg space-y-4 ${themeTokens.fontBodyClass}`}><p>{address}, {property.city}</p>{email && <a href={`mailto:${email}`} className="block hover:text-[#F97316] transition-colors">{email}</a>}{phone && <p>{phone}</p>}</address><p className="text-xs font-black mt-8 text-black/50 uppercase">{copyrightText}</p></div>
+          </div>
+          <div className="max-w-[1400px] mx-auto px-8"><SocialBar /></div>
+        </footer>
+      );
+
     default: // Fallback generic
       return (
         <footer className="bg-surface-950 text-surface-400 py-24 px-8 border-t-[12px] border-brand">

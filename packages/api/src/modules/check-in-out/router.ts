@@ -95,10 +95,70 @@ checkInOutRouter.post('/:bookingId/check-in', authorize('property_owner', 'gener
         }
       }
 
+      // Record advance & security deposit collected at check-in (per BookingRoom)
+      let advanceCollected = 0;
+      if (parsed.data.payments && parsed.data.payments.length > 0) {
+        for (const p of parsed.data.payments) {
+          // Verify the bookingRoom belongs to this booking & tenant
+          const br = booking.bookingRooms.find((b) => b.id === p.bookingRoomId);
+          if (!br) {
+            throw new Error(`Invalid bookingRoomId: ${p.bookingRoomId}`);
+          }
+
+          await prisma.bookingRoom.update({
+            where: { id: p.bookingRoomId },
+            data: {
+              advanceAmount: { increment: p.advanceAmount },
+              securityDeposit: { increment: p.securityDeposit },
+              securityDepositStatus: p.securityDeposit > 0 ? 'held' : br.securityDepositStatus,
+            },
+          });
+
+          // Create GuestPayment records — one per category, only if amount > 0
+          if (p.advanceAmount > 0) {
+            await prisma.guestPayment.create({
+              data: {
+                tenantId: req.tenantId!,
+                bookingId: booking.id,
+                amount: p.advanceAmount,
+                method: p.paymentMethod || 'cash',
+                category: 'advance',
+                status: 'completed',
+                notes: p.notes || null,
+              },
+            });
+            advanceCollected += p.advanceAmount;
+          }
+          if (p.securityDeposit > 0) {
+            await prisma.guestPayment.create({
+              data: {
+                tenantId: req.tenantId!,
+                bookingId: booking.id,
+                amount: p.securityDeposit,
+                method: p.paymentMethod || 'cash',
+                category: 'security_deposit',
+                status: 'completed',
+                notes: p.notes || null,
+              },
+            });
+          }
+        }
+      }
+
+      // Recalculate Booking.advancePaid (advance only — deposit never reduces balance)
+      // and Booking.balanceDue
+      const newAdvancePaid = booking.advancePaid + advanceCollected;
+      const newBalanceDue = Math.max(0, booking.totalAmount - newAdvancePaid);
+
       // Update booking status
       const updatedBooking = await prisma.booking.update({
         where: { id: booking.id },
-        data: { status: 'checked_in', checkedInAt: new Date() },
+        data: {
+          status: 'checked_in',
+          checkedInAt: new Date(),
+          advancePaid: newAdvancePaid,
+          balanceDue: newBalanceDue,
+        },
         include: { bookingRooms: { include: { room: true, roomType: true } }, bookingGuests: true },
       });
 
@@ -157,9 +217,60 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
             bookingId: booking.id,
             amount: parsed.data.settledAmount,
             method: parsed.data.paymentMethod,
+            category: 'payment',
             status: 'completed',
           },
         });
+      }
+
+      // Process security deposit settlements (per BookingRoom)
+      if (parsed.data.depositSettlements && parsed.data.depositSettlements.length > 0) {
+        for (const settlement of parsed.data.depositSettlements) {
+          const br = booking.bookingRooms.find((b) => b.id === settlement.bookingRoomId);
+          if (!br) {
+            throw new Error(`Invalid bookingRoomId in deposit settlement: ${settlement.bookingRoomId}`);
+          }
+          if (br.securityDeposit <= 0) continue;
+
+          let refunded = 0;
+          let newStatus: 'refunded' | 'forfeited' | 'partial' = 'forfeited';
+          if (settlement.action === 'refund') {
+            refunded = br.securityDeposit;
+            newStatus = 'refunded';
+          } else if (settlement.action === 'partial') {
+            const requested = Math.max(0, settlement.refundedAmount || 0);
+            refunded = Math.min(requested, br.securityDeposit);
+            newStatus = refunded === br.securityDeposit ? 'refunded'
+              : refunded === 0 ? 'forfeited'
+              : 'partial';
+          } else {
+            refunded = 0;
+            newStatus = 'forfeited';
+          }
+
+          await prisma.bookingRoom.update({
+            where: { id: br.id },
+            data: {
+              securityDepositRefunded: refunded,
+              securityDepositStatus: newStatus,
+              securityDepositNotes: settlement.notes || null,
+            },
+          });
+
+          if (refunded > 0) {
+            await prisma.guestPayment.create({
+              data: {
+                tenantId: req.tenantId!,
+                bookingId: booking.id,
+                amount: -refunded,
+                method: parsed.data.paymentMethod || 'cash',
+                category: 'security_refund',
+                status: 'completed',
+                notes: settlement.notes || null,
+              },
+            });
+          }
+        }
       }
 
       // Release rooms — mark as available but dirty for housekeeping
@@ -198,8 +309,11 @@ checkInOutRouter.post('/:bookingId/check-out', authorize('property_owner', 'gene
       const discountAmt = parsed.data.discountAmount || 0;
       const adjustedTotal = Math.max(0, booking.totalAmount - discountAmt);
 
-      // Update booking
-      const totalPaid = booking.guestPayments.reduce((sum, p) => sum + p.amount, 0) + (parsed.data.settledAmount || 0);
+      // Update booking — exclude security_deposit and security_refund from "paid against bill"
+      const billPayments = booking.guestPayments.filter(
+        (p) => p.category === 'payment' || p.category === 'advance' || p.category === 'refund'
+      );
+      const totalPaid = billPayments.reduce((sum, p) => sum + p.amount, 0) + (parsed.data.settledAmount || 0);
       const updatedBooking = await prisma.booking.update({
         where: { id: booking.id },
         data: {

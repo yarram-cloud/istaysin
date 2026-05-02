@@ -11,21 +11,21 @@ export default function ThemedStats({ config, themeTokens }: { config: any, them
     return (
       <section className="py-24 bg-surface-50 relative overflow-hidden">
         <div className="max-w-[1400px] mx-auto px-8">
-          <div className={`p-12 md:p-20 ${themeTokens.primaryBg} rounded-[4rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] relative overflow-hidden transform rotate-1`}>
+          <div className={`p-12 md:p-20 bg-gradient-to-br from-brand/10 via-brand/5 to-surface-50 rounded-[4rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] relative overflow-hidden`}>
             {/* Playful background blobs inside the module */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 mix-blend-overlay pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-black opacity-10 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-brand opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand opacity-5 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
             
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-16 relative z-10">
               {stats.map((stat: any, i: number) => {
                 // Stagger rotation
                 const rotate = i % 2 === 0 ? '-rotate-3' : 'rotate-3';
                 return (
-                  <div key={i} className={`flex flex-col items-center justify-center bg-white/10 backdrop-blur-md rounded-[2.5rem] p-10 shadow-lg ${rotate} hover:rotate-0 hover:scale-105 transition-all duration-300 border border-white/20`}>
-                    <span className={`text-6xl lg:text-8xl font-black mb-4 text-white drop-shadow-xl ${themeTokens.fontHeadingClass} tracking-tighter`}>
+                  <div key={i} className={`flex flex-col items-center justify-center bg-white/80 backdrop-blur-md rounded-[2.5rem] p-10 shadow-lg ${rotate} hover:rotate-0 hover:scale-105 transition-all duration-300 border border-surface-200`}>
+                    <span className={`text-6xl lg:text-8xl font-black mb-4 text-surface-900 ${themeTokens.fontHeadingClass} tracking-tighter`}>
                       {stat.value}
                     </span>
-                    <span className={`text-white/90 font-bold tracking-widest text-sm uppercase ${themeTokens.fontBodyClass}`}>
+                    <span className={`text-surface-500 font-bold tracking-widest text-sm uppercase ${themeTokens.fontBodyClass}`}>
                       {stat.label}
                     </span>
                   </div>

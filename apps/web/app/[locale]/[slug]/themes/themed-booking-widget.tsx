@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Users, ChevronDown, CheckCircle2, ArrowRight } from 'lucide-react';
 import { ThemeStyleMap } from './theme-tokens';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { publicApi } from '@/lib/api';
 
@@ -40,22 +39,22 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
     return (
       <div data-testid="urgency-triggers" className={`flex ${isVertical ? 'flex-col items-start' : 'items-center'} gap-2 ${isVertical ? 'mt-4' : 'mt-2'} px-1`}>
         {hints.roomsLeftToday <= 3 && hints.roomsLeftToday > 0 && (
-          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+          <div
             className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-full text-[10px] font-bold border border-red-100 uppercase tracking-tight">
             {t('urgencyRoomsLeft', { count: hints.roomsLeftToday })}
-          </motion.div>
+          </div>
         )}
         {hints.recentBookings > 0 && (
-          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          <div
             className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold border border-blue-100 uppercase tracking-tight">
             {t('urgencyRecentBookings', { count: hints.recentBookings })}
-          </motion.div>
+          </div>
         )}
         {hints.dynamicPricingActive && (
-          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          <div
             className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold border border-amber-100 uppercase tracking-tight">
             {t('urgencyPriceWarning')}
-          </motion.div>
+          </div>
         )}
       </div>
     );
@@ -77,7 +76,7 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
   // Modern Horizontal Bar (Used across modern, playful, eco themes)
   const renderHorizontalBar = () => (
     <div className="fixed bottom-0 md:bottom-8 left-0 right-0 z-50 flex justify-center px-4 md:px-0 pointer-events-none">
-       <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5, type: 'spring' }} 
+       <div 
          className={`pointer-events-auto w-full md:w-auto p-3 md:p-2 rounded-t-3xl md:rounded-[2rem] shadow-2xl flex flex-col md:flex-row items-center gap-3 backdrop-blur-xl bg-white/90 border border-white/50`}>
           <form onSubmit={handleBooking} className="flex flex-col md:flex-row items-center w-full gap-2 md:gap-4 px-2">
             
@@ -109,7 +108,7 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
           <div className="md:hidden w-full px-2">
             {renderUrgencyPills(true)}
           </div>
-       </motion.div>
+       </div>
     </div>
   );
 
@@ -117,17 +116,17 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
   const renderFloatingSidebar = () => (
     <>
       <div className="fixed bottom-6 right-6 md:bottom-12 md:right-12 z-50">
-         <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileHover={{ scale: 1.05 }} onClick={() => setIsExpanded(true)}
+         <button onClick={() => setIsExpanded(true)}
            style={{ backgroundColor: 'var(--brand-color)' }} className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center shadow-2xl text-white`}>
             <span className="text-xs uppercase font-bold tracking-widest leading-none text-center">Book<br/>Now</span>
-         </motion.button>
+         </button>
       </div>
 
-      <AnimatePresence>
+      <>
         {isExpanded && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex justify-end">
+          <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex justify-end">
              <div className="absolute inset-0" onClick={() => setIsExpanded(false)} />
-             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+             <div
                className="relative w-full max-w-md bg-white h-full shadow-[0_0_80px_rgba(0,0,0,0.2)] flex flex-col pt-12 p-8">
                
                <button onClick={() => setIsExpanded(false)} className="absolute top-6 right-6 p-2 rounded-full bg-gray-100 hover:bg-gray-200">
@@ -165,10 +164,10 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
                     </button>
                   </div>
                </form>
-             </motion.div>
-          </motion.div>
+             </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </>
   );
 
@@ -230,6 +229,9 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
     case 'playful-vibrant':
     case 'nature-eco':
     case 'resort-tropical':
+    case 'scandinavian-frost':
+    case 'coastal-breeze':
+    case 'mediterranean-sun':
       return renderHorizontalBar();
       
     case 'luxury-gold':
@@ -238,6 +240,11 @@ export default function BookingWidgetWrapper({ propertySlug, locale, config, the
     case 'classic-heritage':
     case 'retro-vintage':
     case 'abstract-art':
+    case 'art-deco-glam':
+    case 'royal-palace':
+    case 'japanese-zen':
+    case 'industrial-loft':
+    case 'neo-brutalist':
       return renderFloatingSidebar();
 
     case 'corporate-trust':

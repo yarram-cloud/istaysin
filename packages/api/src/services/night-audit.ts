@@ -66,11 +66,15 @@ export async function runNightAudit(tenantId: string, auditDate: Date) {
         
         for (const br of booking.bookingRooms) {
           if (!br.roomTypeId) continue;
-          
+
           // If we already have auto-generated room charges matching the number of rooms, skip!
           if (roomsChargedAlready >= booking.bookingRooms.length) {
             continue;
           }
+
+          // Skip monthly-billed room types — their folio charges are created upfront, one per month
+          const rt = await prisma.roomType.findUnique({ where: { id: br.roomTypeId }, select: { pricingUnit: true } });
+          if (rt?.pricingUnit === 'monthly') continue;
 
           const nextDay = new Date(auditDate);
           nextDay.setDate(nextDay.getDate() + 1);

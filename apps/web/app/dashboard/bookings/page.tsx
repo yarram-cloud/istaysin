@@ -21,7 +21,8 @@ const statusLabels: Record<string, { label: string; class: string }> = {
 interface Booking {
   id: string; bookingNumber: string; guestName: string; guestPhone: string; guestEmail: string;
   checkInDate: string; checkOutDate: string; numRooms: number; numAdults: number; numChildren: number;
-  totalAmount: number; discountAmount?: number; status: string; source: string; notes?: string;
+  totalAmount: number; advancePaid?: number; balanceDue?: number; discountAmount?: number;
+  status: string; source: string; notes?: string;
   bookingRooms?: any[]; bookingGuests?: any[];
 }
 
@@ -37,15 +38,16 @@ export default function BookingsPage() {
 
   // Walk-in State
   const [showWalkInCard, setShowWalkInCard] = useState(false);
-  const [walkInForm, setWalkInForm] = useState({ 
-    guestName: '', 
+  const [walkInForm, setWalkInForm] = useState({
+    guestName: '',
     countryCode: '+91',
-    guestPhone: '', 
-    roomId: '', 
-    durationValue: 1, 
-    durationUnit: (isLongStay ? 'months' : 'days') as 'days' | 'months', 
+    guestPhone: '',
+    roomId: '',
+    durationValue: 1,
+    durationUnit: (isLongStay ? 'months' : 'days') as 'days' | 'months',
     paymentMode: 'cash',
-    deposit: 0,
+    advanceAmount: 0,
+    securityDeposit: 0,
   });
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [roomSearch, setRoomSearch] = useState('');
@@ -85,7 +87,7 @@ export default function BookingsPage() {
       await bookingsApi.walkIn(formattedPayload);
       toast.success(t('walkInSuccess') || 'Walk-in booking created and checked in successfully!');
       setShowWalkInCard(false);
-      setWalkInForm({ guestName: '', countryCode: '+91', guestPhone: '', roomId: '', durationValue: 1, durationUnit: 'days', paymentMode: 'cash', deposit: 0 });
+      setWalkInForm({ guestName: '', countryCode: '+91', guestPhone: '', roomId: '', durationValue: 1, durationUnit: 'days', paymentMode: 'cash', advanceAmount: 0, securityDeposit: 0 });
       setRoomSearch('');
       fetchBookings();
       setAvailableRooms([]);
@@ -310,17 +312,25 @@ export default function BookingsPage() {
                     </select>
                   </div>
 
-                  {isLongStay && (
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">Deposit (₹)</label>
-                      <input type="number" min="0" inputMode="numeric"
-                        className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all"
-                        placeholder="e.g. 5000"
-                        value={walkInForm.deposit || ''}
-                        onChange={e => setWalkInForm({...walkInForm, deposit: parseInt(e.target.value) || 0})}
-                      />
-                    </div>
-                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">Advance (₹)</label>
+                    <input type="number" min="0" inputMode="numeric"
+                      className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all"
+                      placeholder={isLongStay ? 'First month' : 'Optional'}
+                      value={walkInForm.advanceAmount || ''}
+                      onChange={e => setWalkInForm({...walkInForm, advanceAmount: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider block">Security Deposit (₹)</label>
+                    <input type="number" min="0" inputMode="numeric"
+                      className="w-full h-11 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all"
+                      placeholder={isLongStay ? 'e.g. 5000' : 'Optional'}
+                      value={walkInForm.securityDeposit || ''}
+                      onChange={e => setWalkInForm({...walkInForm, securityDeposit: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
                   
                   <div className="flex items-end">
                     <button type="submit" disabled={submittingWalkIn || !walkInForm.roomId} 
@@ -704,6 +714,10 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
   });
   const [source, setSource] = useState('walkin');
   const [notes, setNotes] = useState('');
+  // Advance + Security Deposit collected at booking creation
+  const [advanceAmount, setAdvanceAmount] = useState('');
+  const [securityDeposit, setSecurityDeposit] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'card' | 'bank_transfer'>('cash');
   
   const [roomSelections, setRoomSelections] = useState<{ roomTypeId: string; quantity: number; extraBeds: number }[]>([]);
   const [activeRoomTypeId, setActiveRoomTypeId] = useState('');
@@ -829,6 +843,8 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
     });
 
     try {
+      const adv = parseFloat(advanceAmount) || 0;
+      const dep = parseFloat(securityDeposit) || 0;
       await bookingsApi.create({
         guestProfileId: linkedGuest?.id,
         guestName: guestName.trim(),
@@ -842,6 +858,9 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
         roomSelections: expandedSelections,
         source,
         notes: notes.trim() || undefined,
+        ...(adv > 0 ? { advanceAmount: adv } : {}),
+        ...(dep > 0 ? { securityDeposit: dep } : {}),
+        ...((adv > 0 || dep > 0) ? { paymentMethod } : {}),
       });
       onCreated();
       toast.success(t('bookingCreated') || 'Booking created successfully');
@@ -1101,6 +1120,47 @@ function NewBookingInline({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
         </div>
 
+        {/* Advance & Security Deposit */}
+        <div>
+          <h4 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <IndianRupee className="w-3.5 h-3.5" /> 4. Advance & Security Deposit (optional)
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs text-surface-500 mb-1">Advance (₹)</label>
+              <input type="number" min="0" step="0.01" inputMode="decimal"
+                value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)}
+                placeholder={isLongStay ? 'First month rent' : '0'}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+            </div>
+            <div>
+              <label className="block text-xs text-surface-500 mb-1">Security Deposit (₹)</label>
+              <input type="number" min="0" step="0.01" inputMode="decimal"
+                value={securityDeposit} onChange={(e) => setSecurityDeposit(e.target.value)}
+                placeholder={isLongStay ? 'Refundable' : '0'}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all" />
+            </div>
+            <div>
+              <label className="block text-xs text-surface-500 mb-1">Payment Method</label>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as any)}
+                className="w-full h-10 px-3 rounded-xl border border-surface-200 bg-surface-50 text-sm text-surface-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="card">Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
+              </select>
+            </div>
+          </div>
+          {((parseFloat(advanceAmount) || 0) > 0 || (parseFloat(securityDeposit) || 0) > 0) && (
+            <p className="mt-2 text-xs text-surface-500">
+              Total collected now: ₹{((parseFloat(advanceAmount) || 0) + (parseFloat(securityDeposit) || 0)).toLocaleString('en-IN')}
+              {(parseFloat(securityDeposit) || 0) > 0 && (
+                <span className="text-amber-600"> · deposit refundable at check-out</span>
+              )}
+            </p>
+          )}
+        </div>
+
         {/* Notes */}
         <div>
           <label className="block text-xs text-surface-500 mb-1">Special Requests & Notes</label>
@@ -1145,8 +1205,20 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   const [ciArrivingFrom, setCiArrivingFrom] = useState('');
   const [ciGoingTo, setCiGoingTo] = useState('');
   const [ciPurpose, setCiPurpose] = useState('leisure');
+  // Per-BookingRoom advance & security deposit collected at check-in
+  const [ciPayments, setCiPayments] = useState<Record<string, { advance: string; deposit: string }>>({});
+  const [ciPayMethod, setCiPayMethod] = useState<'cash' | 'upi' | 'card' | 'bank_transfer'>('cash');
+  // Per-BookingRoom deposit settlement decisions at check-out
+  const [coDepositActions, setCoDepositActions] = useState<Record<string, { action: 'refund' | 'partial' | 'forfeit'; refundedAmount: string; notes: string }>>({});
   const [coBalance, setCoBalance] = useState('');
   const [coPayMode, setCoPayMode] = useState('cash');
+  // Record Payment (mid-stay, e.g. monthly PG/Hostel rent)
+  const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [recPayAmount, setRecPayAmount] = useState('');
+  const [recPayMethod, setRecPayMethod] = useState<'cash' | 'upi' | 'card' | 'bank_transfer'>('cash');
+  const [recPayNotes, setRecPayNotes] = useState('');
+  const [recPayChargeId, setRecPayChargeId] = useState<string>(''); // '' = auto-allocate FIFO
+  const [recordingPayment, setRecordingPayment] = useState(false);
   // Discount
   const [showDiscount, setShowDiscount] = useState(false);
   const [discountType, setDiscountType] = useState<'percent' | 'flat'>('percent');
@@ -1423,9 +1495,32 @@ ${folioCharges.length > 0 ? `
   async function handleCheckIn() {
     setSaving(true);
     try {
+      const payments = (booking.bookingRooms || [])
+        .map((br: any) => {
+          const p = ciPayments[br.id];
+          if (!p) return null;
+          const advance = parseFloat(p.advance) || 0;
+          const deposit = parseFloat(p.deposit) || 0;
+          if (advance <= 0 && deposit <= 0) return null;
+          return { bookingRoomId: br.id, advanceAmount: advance, securityDeposit: deposit, paymentMethod: ciPayMethod };
+        })
+        .filter(Boolean);
+
+      const guestDetails = ciIdNumber.trim()
+        ? [{
+            fullName: booking.guestName,
+            idProofType: ciIdType,
+            idProofNumber: ciIdNumber,
+            nationality: 'Indian',
+            arrivingFrom: ciArrivingFrom || undefined,
+            goingTo: ciGoingTo || undefined,
+            purposeOfVisit: ciPurpose || undefined,
+          }]
+        : undefined;
+
       await checkinApi.checkIn(booking.id, {
-        idProofType: ciIdType, idProofNumber: ciIdNumber,
-        arrivingFrom: ciArrivingFrom, goingTo: ciGoingTo, purposeOfVisit: ciPurpose,
+        ...(guestDetails ? { guestDetails } : {}),
+        ...(payments.length > 0 ? { payments } : {}),
       });
       toast.success('Successfully Checked In');
       onRefresh();
@@ -1436,15 +1531,60 @@ ${folioCharges.length > 0 ? `
   async function handleCheckOut() {
     setSaving(true);
     try {
+      // Build deposit settlements for any bookingRoom with a held security deposit
+      const depositSettlements = (booking.bookingRooms || [])
+        .filter((br: any) => (br.securityDeposit || 0) > 0 && br.securityDepositStatus === 'held')
+        .map((br: any) => {
+          const decision = coDepositActions[br.id];
+          if (!decision) return null;
+          const payload: any = { bookingRoomId: br.id, action: decision.action };
+          if (decision.action === 'partial') {
+            payload.refundedAmount = parseFloat(decision.refundedAmount) || 0;
+          }
+          if (decision.notes) payload.notes = decision.notes;
+          return payload;
+        })
+        .filter(Boolean);
+
       await checkinApi.checkOut(booking.id, {
         settledAmount: parseFloat(coBalance) || 0,
         paymentMethod: coPayMode,
         discountAmount: discountAmount > 0 ? discountAmount : undefined,
+        ...(depositSettlements.length > 0 ? { depositSettlements } : {}),
       });
       toast.success('Successfully Checked Out');
       onRefresh();
     } catch (err: any) { toast.error(err.message || 'Check-out failed'); }
     finally { setSaving(false); }
+  }
+
+  async function handleRecordPayment(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(recPayAmount);
+    if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
+    setRecordingPayment(true);
+    try {
+      await billingApi.recordPayment({
+        bookingId: booking.id,
+        amount: amt,
+        method: recPayMethod,
+        ...(recPayNotes.trim() ? { notes: recPayNotes.trim() } : {}),
+        // Explicit allocation if user picked a specific charge; else backend auto-allocates FIFO
+        ...(recPayChargeId ? { chargeAllocations: [{ chargeId: recPayChargeId, amount: amt }] } : {}),
+      });
+      toast.success(`Payment of ₹${amt.toLocaleString('en-IN')} recorded`);
+      setShowRecordPayment(false);
+      setRecPayAmount('');
+      setRecPayNotes('');
+      setRecPayChargeId('');
+      onRefresh();
+      // Refresh folio charges in the panel since paidAmount likely changed
+      loadFolioCharges();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to record payment');
+    } finally {
+      setRecordingPayment(false);
+    }
   }
 
   async function handleChangeRoom(bookingRoomId: string, newRoomId: string) {
@@ -1562,8 +1702,101 @@ ${folioCharges.length > 0 ? `
                     <option value="transit">Transit</option>
                     <option value="medical">Medical</option>
                   </select>
+                </div>
+
+                {/* ── Advance & Security Deposit (per room) ── */}
+                {(booking.bookingRooms && booking.bookingRooms.length > 0) && (
+                  <div className="mt-4 pt-4 border-t border-indigo-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <IndianRupee className="w-3.5 h-3.5 text-indigo-600" />
+                        Advance & Security Deposit
+                      </p>
+                      <div className="flex items-center gap-3 text-[11px] text-indigo-800">
+                        <span className="font-semibold">Method:</span>
+                        {(['cash', 'upi', 'card', 'bank_transfer'] as const).map((m) => (
+                          <label key={m} className="flex items-center gap-1 cursor-pointer capitalize">
+                            <input
+                              type="radio"
+                              name={`ci-pay-method-${booking.id}`}
+                              value={m}
+                              checked={ciPayMethod === m}
+                              onChange={() => setCiPayMethod(m)}
+                              className="accent-indigo-600"
+                            />
+                            {m === 'bank_transfer' ? 'Bank' : m}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {booking.bookingRooms.map((br: any) => {
+                        const roomLabel = br.room?.roomNumber
+                          ? `Room ${br.room.roomNumber}${br.roomType?.name ? ` · ${br.roomType.name}` : ''}`
+                          : br.roomType?.name || 'Unassigned room';
+                        const cur = ciPayments[br.id] || { advance: '', deposit: '' };
+                        const setField = (field: 'advance' | 'deposit', val: string) =>
+                          setCiPayments((prev) => ({ ...prev, [br.id]: { ...(prev[br.id] || { advance: '', deposit: '' }), [field]: val } }));
+                        return (
+                          <div key={br.id} className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_1fr] gap-2 items-center bg-white rounded-lg border border-indigo-100 px-3 py-2">
+                            <p className="text-xs font-semibold text-surface-700 truncate">{roomLabel}</p>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-indigo-700 mb-0.5 uppercase tracking-wider">Advance (₹)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                inputMode="decimal"
+                                value={cur.advance}
+                                onChange={(e) => setField('advance', e.target.value)}
+                                placeholder="0"
+                                className="w-full h-9 px-2.5 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-indigo-700 mb-0.5 uppercase tracking-wider">Security Deposit (₹)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                inputMode="decimal"
+                                value={cur.deposit}
+                                onChange={(e) => setField('deposit', e.target.value)}
+                                placeholder="0"
+                                className="w-full h-9 px-2.5 rounded-lg border border-indigo-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(() => {
+                        const totals = booking.bookingRooms!.reduce(
+                          (acc: { adv: number; dep: number }, br: any) => {
+                            const p = ciPayments[br.id];
+                            acc.adv += parseFloat(p?.advance || '0') || 0;
+                            acc.dep += parseFloat(p?.deposit || '0') || 0;
+                            return acc;
+                          },
+                          { adv: 0, dep: 0 }
+                        );
+                        if (totals.adv === 0 && totals.dep === 0) return null;
+                        return (
+                          <div className="flex flex-wrap gap-3 text-[11px] font-semibold text-indigo-800 px-3 pt-1">
+                            <span>Advance: ₹{totals.adv.toLocaleString('en-IN')}</span>
+                            <span>·</span>
+                            <span>Deposit: ₹{totals.dep.toLocaleString('en-IN')}</span>
+                            <span>·</span>
+                            <span>Total: ₹{(totals.adv + totals.dep).toLocaleString('en-IN')}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-2 mt-4">
                   <button onClick={handleCheckIn} disabled={saving}
-                    className="flex-1 sm:flex-none sm:px-8 h-10 rounded-lg bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors disabled:opacity-60 shadow-md shadow-indigo-500/20">
+                    className="flex-1 h-11 rounded-lg bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors disabled:opacity-60 shadow-md shadow-indigo-500/20">
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Complete Move-In' : 'Complete Check-In'}
                   </button>
                 </div>
@@ -1811,6 +2044,112 @@ ${folioCharges.length > 0 ? `
                   )}
                 </div>
 
+                {/* ── RECORD PAYMENT (mid-stay; primary for PG/Hostel monthly rent) ── */}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-100 bg-emerald-50/60">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <IndianRupee className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <p className="text-sm font-bold text-emerald-900">Record Payment</p>
+                      <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        Balance ₹{(booking.balanceDue ?? Math.max(0, (booking.totalAmount || 0) - (booking.advancePaid || 0))).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowRecordPayment(v => !v)}
+                      className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                        showRecordPayment ? 'bg-emerald-600 text-white' : 'border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> {isLongStay ? 'Record Rent' : 'Record Payment'}
+                    </button>
+                  </div>
+
+                  {showRecordPayment && (() => {
+                    // Unpaid / partially-paid folio charges, oldest first
+                    const unpaidCharges = folioCharges
+                      .filter((c: any) => (c.totalPrice - (c.paidAmount || 0)) > 0.001)
+                      .slice()
+                      .sort((a: any, b: any) => new Date(a.chargeDate).getTime() - new Date(b.chargeDate).getTime());
+                    return (
+                      <form onSubmit={handleRecordPayment} className="px-4 py-3 bg-white space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2 items-end">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-1">Amount (₹)</label>
+                            <input
+                              required
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              inputMode="decimal"
+                              value={recPayAmount}
+                              onChange={(e) => setRecPayAmount(e.target.value)}
+                              placeholder="0.00"
+                              className="w-full h-9 px-3 rounded-lg border border-emerald-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-1">Method</label>
+                            <div className="flex items-center gap-3 h-9 text-xs text-emerald-900">
+                              {(['cash', 'upi', 'card', 'bank_transfer'] as const).map((m) => (
+                                <label key={m} className="flex items-center gap-1 cursor-pointer capitalize">
+                                  <input
+                                    type="radio"
+                                    name={`rec-pay-method-${booking.id}`}
+                                    value={m}
+                                    checked={recPayMethod === m}
+                                    onChange={() => setRecPayMethod(m)}
+                                    className="accent-emerald-600"
+                                  />
+                                  {m === 'bank_transfer' ? 'Bank' : m}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={recordingPayment || !recPayAmount}
+                            className="h-9 px-4 rounded-lg bg-emerald-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-emerald-500 transition-colors disabled:opacity-50 whitespace-nowrap shadow-md shadow-emerald-500/20"
+                          >
+                            {recordingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                            Record
+                          </button>
+                        </div>
+
+                        {unpaidCharges.length > 0 && (
+                          <div>
+                            <label className="block text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-1">Apply to</label>
+                            <select
+                              value={recPayChargeId}
+                              onChange={(e) => setRecPayChargeId(e.target.value)}
+                              className="w-full h-9 px-3 rounded-lg border border-emerald-200 bg-white text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                            >
+                              <option value="">Auto — pay oldest unpaid first (FIFO)</option>
+                              {unpaidCharges.map((c: any) => {
+                                const remaining = c.totalPrice - (c.paidAmount || 0);
+                                const dt = new Date(c.chargeDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                                return (
+                                  <option key={c.id} value={c.id}>
+                                    {dt} · {c.description} · ₹{remaining.toLocaleString('en-IN')} owed
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+                        )}
+
+                        <input
+                          type="text"
+                          value={recPayNotes}
+                          onChange={(e) => setRecPayNotes(e.target.value)}
+                          placeholder={isLongStay ? 'e.g. April rent — UPI ref 123456' : 'Notes (optional)'}
+                          className="w-full h-9 px-3 rounded-lg border border-emerald-200 bg-white text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                        />
+                      </form>
+                    );
+                  })()}
+                </div>
+
                 <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
                   <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
                     <Building2 className="w-4 h-4 text-amber-600" /> {isLongStay ? 'Complete Move-Out' : 'Complete Check-Out'}
@@ -1866,6 +2205,79 @@ ${folioCharges.length > 0 ? `
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Move Out' : 'Check Out'}
                     </button>
                   </div>
+
+                  {/* ── Security Deposit Settlement (per room with held deposit) ── */}
+                  {(() => {
+                    const heldRooms = (booking.bookingRooms || []).filter(
+                      (br: any) => (br.securityDeposit || 0) > 0 && br.securityDepositStatus === 'held'
+                    );
+                    if (heldRooms.length === 0) return null;
+                    return (
+                      <div className="mt-4 pt-4 border-t border-amber-200 space-y-2">
+                        <p className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <IndianRupee className="w-3.5 h-3.5 text-amber-600" /> Security Deposit Settlement
+                        </p>
+                        {heldRooms.map((br: any) => {
+                          const decision = coDepositActions[br.id] || { action: 'refund' as const, refundedAmount: '', notes: '' };
+                          const setField = (k: 'action' | 'refundedAmount' | 'notes', v: any) =>
+                            setCoDepositActions((prev) => {
+                              const existing = prev[br.id] || { action: 'refund' as const, refundedAmount: '', notes: '' };
+                              return { ...prev, [br.id]: { ...existing, [k]: v } };
+                            });
+                          const roomLabel = br.room?.roomNumber
+                            ? `Room ${br.room.roomNumber}`
+                            : (br.roomType?.name || 'Room');
+                          return (
+                            <div key={br.id} className="bg-white border border-amber-100 rounded-lg p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className="text-xs font-semibold text-surface-700">{roomLabel} — held: ₹{(br.securityDeposit || 0).toLocaleString('en-IN')}</span>
+                                <div className="flex items-center gap-3 text-[11px] text-amber-900">
+                                  {(['refund', 'partial', 'forfeit'] as const).map((a) => (
+                                    <label key={a} className="flex items-center gap-1 cursor-pointer capitalize">
+                                      <input
+                                        type="radio"
+                                        name={`co-dep-${br.id}`}
+                                        value={a}
+                                        checked={decision.action === a}
+                                        onChange={() => setField('action', a)}
+                                        className="accent-amber-600"
+                                      />
+                                      {a === 'refund' ? 'Full refund' : a}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                              {decision.action === 'partial' && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-semibold text-amber-800">Refund ₹</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={br.securityDeposit}
+                                    step="0.01"
+                                    inputMode="decimal"
+                                    value={decision.refundedAmount}
+                                    onChange={(e) => setField('refundedAmount', e.target.value)}
+                                    placeholder="0"
+                                    className="h-8 px-2 rounded-lg border border-amber-200 bg-white text-sm w-32 focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+                                  />
+                                </div>
+                              )}
+                              {(decision.action === 'forfeit' || decision.action === 'partial') && (
+                                <input
+                                  type="text"
+                                  value={decision.notes}
+                                  onChange={(e) => setField('notes', e.target.value)}
+                                  placeholder="Reason (e.g. damages to property)"
+                                  className="w-full h-8 px-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

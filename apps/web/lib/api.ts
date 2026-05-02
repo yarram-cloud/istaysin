@@ -399,6 +399,7 @@ export const billingApi = {
     apiFetch(`/billing/charge/${chargeId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   recordPayment: (body: any) =>
     apiFetch('/billing/payment', { method: 'POST', body: JSON.stringify(body) }),
+  getRentRoll: () => apiFetch('/billing/rent-roll'),
 };
 
 // Payment gateway helpers

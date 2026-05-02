@@ -4,6 +4,10 @@ export interface PricingResult {
   totalAmount: number; // Base rate without tax (includes extra beds)
   totalGst: number;    // Tax amount
   grandTotal: number;  // Base + Tax
+  // 'nightly' = one entry per night; 'monthly' = one entry per billing month
+  pricingUnit: 'nightly' | 'monthly';
+  // For nightly bookings each entry is one night; for monthly bookings each entry is one billing period.
+  // The shape is preserved across both modes so downstream folio generation is uniform.
   nightlyRates: {
     date: string;
     rate: number;
@@ -73,6 +77,7 @@ export async function calculatePricing(
 
   const baseRate = roomType.baseRate;
   const extraBedCharge = (roomType.extraBedCharge || 0) * extraBeds;
+  const pricingUnit: 'nightly' | 'monthly' = roomType.pricingUnit === 'monthly' ? 'monthly' : 'nightly';
 
   // Retrieve all active pricing rules for this tenant that could apply
   const rules = await prisma.pricingRule.findMany({
@@ -88,6 +93,71 @@ export async function calculatePricing(
   let totalAmount = 0;
   let totalGst = 0;
 
+  // ── Monthly billing path ──────────────────────────────────────
+  // PG / Hostel / long-stay rooms: charge once per calendar month, not per night.
+  if (pricingUnit === 'monthly') {
+    // Calendar-month math handles common cases (Jan 1 → Feb 1 = 1 month) more reliably
+    // than days/30 division, which over-bills 31-day months.
+    const start = new Date(checkIn); start.setHours(0, 0, 0, 0);
+    const end = new Date(checkOut); end.setHours(0, 0, 0, 0);
+    const calendarMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+      + (end.getDate() >= start.getDate() ? 0 : -1);
+    const numMonths = Math.max(1, calendarMonths || 1);
+
+    const cursor = new Date(start);
+
+    for (let i = 0; i < numMonths; i++) {
+      // Pricing rules currently target nightly slots; for monthly we apply them to the period start date
+      let appliedRate = baseRate;
+      let appliedRuleName: string | undefined;
+      for (const rule of rules) {
+        let matchesDate = true;
+        if (rule.startDate && rule.endDate) {
+          const rStart = new Date(rule.startDate); rStart.setHours(0, 0, 0, 0);
+          const rEnd = new Date(rule.endDate); rEnd.setHours(23, 59, 59, 999);
+          matchesDate = cursor >= rStart && cursor <= rEnd;
+        }
+        if (matchesDate) {
+          appliedRuleName = rule.name;
+          if (rule.adjustmentType === 'percentage') appliedRate = baseRate * (1 + rule.adjustmentValue / 100);
+          else if (rule.adjustmentType === 'fixed_addition') appliedRate = baseRate + rule.adjustmentValue;
+          else if (rule.adjustmentType === 'fixed_override') appliedRate = rule.adjustmentValue;
+          break;
+        }
+      }
+
+      const finalMonthRate = Math.round(appliedRate + extraBedCharge);
+      let gstPercent = 0;
+      let gstAmount = 0;
+      if (gstEnabled && gstSlabs.length > 0) {
+        gstPercent = getGstPercent(finalMonthRate, gstSlabs);
+        gstAmount = Math.round(finalMonthRate * (gstPercent / 100));
+      }
+
+      nightlyRates.push({
+        date: cursor.toISOString().split('T')[0],
+        rate: finalMonthRate,
+        gstAmount,
+        gstPercent,
+        ruleApplied: appliedRuleName,
+      });
+
+      totalAmount += finalMonthRate;
+      totalGst += gstAmount;
+
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return {
+      totalAmount,
+      totalGst,
+      grandTotal: totalAmount + totalGst,
+      pricingUnit,
+      nightlyRates,
+    };
+  }
+
+  // ── Nightly billing path (default) ────────────────────────────
   // Iterate over each night
   const current = new Date(checkIn);
   current.setHours(0, 0, 0, 0);
@@ -161,11 +231,12 @@ export async function calculatePricing(
     current.setDate(current.getDate() + 1);
   }
 
-  return { 
-    totalAmount, 
-    totalGst, 
-    grandTotal: totalAmount + totalGst, 
-    nightlyRates 
+  return {
+    totalAmount,
+    totalGst,
+    grandTotal: totalAmount + totalGst,
+    pricingUnit,
+    nightlyRates,
   };
 }
 

@@ -6,7 +6,8 @@ import { useTranslations } from 'next-intl';
 export default function ThemedGallery({ config, themeTokens }: { config: any, themeTokens: ThemeStyleMap }) {
   const t = useTranslations('PropertySite');
   if (!config?.enabled) return null;
-  const images = config.images || config.gallery || [];
+  // Filter out empty/null/undefined image URLs to prevent gray placeholder boxes
+  const images = (config.images || config.gallery || []).filter((img: any) => typeof img === 'string' && img.trim().length > 0);
   if (images.length === 0) return null;
 
   // --- VIBRANT ARCHETYPE (Masonry-style staggering, huge rounded shapes) ---

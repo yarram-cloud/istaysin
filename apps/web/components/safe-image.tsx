@@ -1,7 +1,7 @@
 'use client';
 
 import Image, { ImageProps } from 'next/image';
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface SafeNextImageProps extends Omit<ImageProps, 'src'> {
   src?: string | null;
@@ -20,9 +20,42 @@ export default function SafeNextImage({
 }: SafeNextImageProps) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  // Resolve relative /uploads/ paths to the full API URL.
+  // In dev, images live at http://localhost:4100/uploads/... but the frontend
+  // is on port 3100. In production both share the same origin.
+  const resolvedSrc = (() => {
+    if (!src) return src;
+    if (src.startsWith('/uploads/')) {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+      // Strip /api/v1 suffix if present to get the origin
+      const origin = apiBase.replace(/\/api\/v1\/?$/, '') || '';
+      return origin ? `${origin}${src}` : src;
+    }
+    return src;
+  })();
+
+  // Handle the race condition where Next.js Image fires onLoad before React
+  // attaches the listener (common with cached/SSR images). Check on mount if
+  // the underlying <img> is already loaded.
+  const handleRef = useCallback((node: HTMLImageElement | null) => {
+    imgRef.current = node;
+    if (node?.complete && node.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, []);
+
+  // Safety net: if the image is still not marked as loaded after mount,
+  // re-check once. This catches edge cases with hydration timing.
+  useEffect(() => {
+    if (!loaded && imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, [loaded]);
 
   // If no source is provided at all, render a fallback container
-  if (!src && !fallbackSrc) {
+  if (!resolvedSrc && !fallbackSrc) {
     return (
       <div className={`w-full h-full bg-surface-100 flex items-center justify-center text-surface-400 ${containerClassName}`}>
         <span className="text-sm border border-surface-200 px-3 py-1 rounded">No Image</span>
@@ -31,7 +64,7 @@ export default function SafeNextImage({
   }
 
   // If there was a loading error, show fallback UI instead of trying to load placeholder-image.jpg
-  if (error || !src) {
+  if (error || !resolvedSrc) {
     return (
       <div className={`w-full h-full bg-surface-100 flex items-center justify-center text-surface-400 ${containerClassName}`}>
          <div className="flex flex-col items-center gap-2">
@@ -46,14 +79,16 @@ export default function SafeNextImage({
 
   return (
     <div className={`relative overflow-hidden ${containerClassName}`}>
+      {/* Loading shimmer shown behind the image; disappears once loaded */}
       {(!loaded) && (
         <div className="absolute inset-0 bg-surface-200 animate-pulse z-0" />
       )}
       <Image
-        src={src}
+        ref={handleRef}
+        src={resolvedSrc}
         alt={alt || 'Image'}
         fill={fill}
-        className={`object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'} ${className}`}
+        className={`object-cover z-[1] ${className}`}
         onLoad={() => setLoaded(true)}
         onError={() => {
           setError(true);
@@ -66,3 +101,4 @@ export default function SafeNextImage({
     </div>
   );
 }
+

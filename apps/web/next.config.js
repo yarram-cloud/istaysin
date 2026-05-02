@@ -14,6 +14,7 @@ const nextConfig = {
     // Property owners can upload assets to Firebase Storage, AWS S3, Cloudinary, etc.
     remotePatterns: [
       { protocol: 'https', hostname: '**' }, // wildcard — covers all property CDN hosts
+      { protocol: 'http', hostname: 'localhost' }, // dev: API images from port 4100
     ],
     // Reasonable quality/size defaults for hotel photography
     deviceSizes: [375, 640, 768, 1024, 1280, 1920],

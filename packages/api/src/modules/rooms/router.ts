@@ -228,10 +228,43 @@ roomsRouter.get('/', async (req: Request, res: Response) => {
         include: {
           floor: { select: { id: true, name: true } },
           roomType: { select: { id: true, name: true, baseRate: true, amenities: true } },
+          // Active checked-in booking room — used to expose advance & security deposit
+          bookingRooms: {
+            where: { booking: { status: 'checked_in' } },
+            select: {
+              id: true,
+              advanceAmount: true,
+              securityDeposit: true,
+              securityDepositStatus: true,
+              booking: {
+                select: { id: true, bookingNumber: true, guestName: true, checkInDate: true, checkOutDate: true },
+              },
+            },
+            take: 1,
+          },
         },
         orderBy: [{ floor: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
       });
-      res.json({ success: true, data: rooms });
+
+      // Flatten the active occupancy into a stable shape on each room
+      const data = rooms.map((r) => {
+        const active = r.bookingRooms[0];
+        const { bookingRooms, ...rest } = r as any;
+        return {
+          ...rest,
+          currentOccupancy: active
+            ? {
+                bookingRoomId: active.id,
+                advanceAmount: active.advanceAmount,
+                securityDeposit: active.securityDeposit,
+                securityDepositStatus: active.securityDepositStatus,
+                booking: active.booking,
+              }
+            : null,
+        };
+      });
+
+      res.json({ success: true, data });
     });
   } catch (err) {
     console.error('[ROOMS LIST ERROR]', err);

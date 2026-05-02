@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { getThemeTokens } from './themes/theme-tokens';
+import { getThemeTokens, DEFAULT_BRAND_COLORS } from './themes/theme-tokens';
 import ThemedFooter from './themes/themed-footer';
 
 function hexToRgb(hex: string) {
@@ -16,15 +16,18 @@ function hexToRgb(hex: string) {
 }
 
 export default function PropertyLayoutClient({ config, children, property }: { config: any, children: ReactNode, property: any }) {
-  const themeTokens = getThemeTokens(config.theme || 'default', property.primaryColor || '#2563eb', config);
+  const templateId = (config.theme || 'default').toLowerCase();
+  const themeTokens = getThemeTokens(templateId, property.primaryColor || '#2563eb', config);
   const components = config.components || {};
-  const brandColor = property.primaryColor || '#2563eb';
+
+  // Use the template's curated default brand color when the owner hasn't saved one
+  const brandColor = property.primaryColor || DEFAULT_BRAND_COLORS[templateId] || '#2563eb';
   const brandColorRgb = hexToRgb(brandColor);
   const secondaryColor = property.secondaryColor || '#38bdf8';
   const secondaryColorRgb = hexToRgb(secondaryColor);
 
   return (
-    <div className="min-h-screen bg-surface-50 flex flex-col font-sans relative selection:bg-black/10">
+    <div className="min-h-screen bg-surface-50 flex flex-col font-sans relative selection:bg-black/10 overflow-x-hidden">
       {/* Dynamic CSS Custom Properties injected at root to cascade to all component variants */}
       <style dangerouslySetInnerHTML={{
         __html: `

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type ElementType } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ShieldCheck, Clock, Gift, Star, Headphones, TrendingDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ThemeStyleMap } from './theme-tokens';
@@ -90,21 +89,21 @@ export default function ThemedRateComparison({ rateData, roomTypes, themeTokens 
             className="w-full flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow min-h-[44px]"
           >
             <span className="font-semibold text-gray-800">{t('whyBookDirect')}</span>
-            <motion.div
-              animate={{ rotate: whyOpen ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
+            <div
+             
+             
             >
               <ChevronDown className="w-5 h-5 text-gray-400" aria-hidden="true" />
-            </motion.div>
+            </div>
           </button>
 
-          <AnimatePresence>
+          <>
             {whyOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25 }}
+              <div
+               
+               
+               
+               
                 className="overflow-hidden"
               >
                 <div className="bg-white border border-t-0 border-gray-200 rounded-b-2xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -115,9 +114,9 @@ export default function ThemedRateComparison({ rateData, roomTypes, themeTokens 
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </>
         </div>
 
         {/* Disclaimer */}
@@ -143,11 +142,8 @@ function RateComparisonCard({ roomType, platforms, savings, themeTokens, animati
   const t = useTranslations('PropertySite');
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4, delay: animationDelay }}
+    <div
+     
       className="bg-white rounded-2xl border border-gray-200 shadow-sm"
     >
       <div className="p-4 sm:p-6">
@@ -179,18 +175,15 @@ function RateComparisonCard({ roomType, platforms, savings, themeTokens, animati
               </div>
             )}
             <span className="text-xs font-bold text-emerald-700 mb-1.5">{t('bookDirectLabel')}</span>
-            <motion.span
-              initial={{ opacity: 0, scale: 0.7 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ type: 'spring', bounce: 0.45, delay: animationDelay + 0.1 }}
+            <span
+             
               className="text-2xl font-extrabold text-emerald-700"
             >
               ₹{roomType.baseRate.toLocaleString('en-IN')}
-            </motion.span>
+            </span>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

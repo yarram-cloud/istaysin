@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { ThemeStyleMap } from './theme-tokens';
 import LocaleSwitcher from '@/components/locale-switcher';
 import SafeNextImage from '../../../../components/safe-image';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ThemedHeader({ config, property, themeTokens, locale }: { config: any, property: any, themeTokens: ThemeStyleMap, locale: string }) {
   const [scrolled, setScrolled] = useState(false);
@@ -143,7 +142,7 @@ export default function ThemedHeader({ config, property, themeTokens, locale }: 
               ))}
             </nav>
             <div className="flex items-center gap-4">
-              <a href={bookBtnHref} className={`px-8 py-3.5 rounded-[1.5rem] font-bold text-[14px] text-white bg-brand shadow-[0_8px_20px_var(--brand-color-rgb)] hover:-translate-y-1 transition-transform`}>{config.buttonText || 'Book Stay'}</a>
+              <a href={bookBtnHref} className={`px-8 py-3.5 rounded-[1.5rem] font-bold text-[14px] text-white bg-brand shadow-[0_8px_20px_rgba(var(--brand-color-rgb),0.4)] hover:-translate-y-1 transition-transform`}>{config.buttonText || 'Book Stay'}</a>
               <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
             </div>
           </div>
@@ -264,6 +263,152 @@ export default function ThemedHeader({ config, property, themeTokens, locale }: 
                <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
              </div>
            </div>
+        </header>
+      );
+
+    case 'scandinavian-frost':
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${scrolled ? 'bg-[#F8FAFC]/95 backdrop-blur-xl border-slate-200 py-4 shadow-sm' : 'bg-transparent border-transparent py-8'}`}>
+          <div className="max-w-[1400px] mx-auto px-8 md:px-16 flex items-center justify-between">
+            <div className={`text-slate-800 ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden md:flex gap-10">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-sm font-light text-slate-400 hover:text-slate-800 transition-colors tracking-wide ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-6">
+              <a href={bookBtnHref} className={`px-7 py-2.5 bg-slate-800 text-white text-sm font-medium ${themeTokens.radiusClass} hover:bg-slate-700 transition-colors shadow-lg shadow-slate-800/15`}>{config.buttonText || 'Book Now'}</a>
+              <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
+            </div>
+          </div>
+        </header>
+      );
+
+    case 'art-deco-glam':
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'bg-[#0D0D0D]/95 backdrop-blur-xl py-4 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-gradient-to-b from-black/80 to-transparent py-8'}`}>
+          <div className="max-w-[1400px] mx-auto px-8 flex items-center justify-between">
+            <div className={`text-[#D4AF37] ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden lg:flex gap-12">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-[11px] tracking-[0.3em] font-medium uppercase text-gray-500 hover:text-[#D4AF37] transition-colors ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-8">
+              <a href={bookBtnHref} className="px-8 py-3 border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black text-[10px] uppercase tracking-[0.3em] font-bold transition-all">{config.buttonText || 'Reserve'}</a>
+              <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
+            </div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent" />
+        </header>
+      );
+
+    case 'japanese-zen':
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 border-b ${scrolled ? 'bg-[#F5F0EB]/95 backdrop-blur-xl border-[#D4C8BA] py-4' : 'bg-transparent border-transparent py-8'}`}>
+          <div className="max-w-[1400px] mx-auto px-8 lg:px-16 flex items-center justify-between">
+            <div className={`text-[#3D3028] ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden md:flex gap-12">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-sm font-light text-[#8B7355] hover:text-[#3D3028] transition-colors tracking-wider ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-6">
+              <a href={bookBtnHref} className={`px-8 py-2.5 bg-[#3D3028] text-[#F5F0EB] text-sm font-light tracking-widest uppercase hover:bg-[#8B7355] transition-colors ${themeTokens.radiusClass}`}>{config.buttonText || 'Book'}</a>
+              <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
+            </div>
+          </div>
+        </header>
+      );
+
+    case 'mediterranean-sun':
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${scrolled ? 'bg-[#FFF7ED]/95 backdrop-blur-xl border-orange-200 py-4 shadow-sm' : 'bg-transparent border-transparent py-8'}`}>
+          <div className="max-w-[1400px] mx-auto px-8 flex items-center justify-between">
+            <div className={`text-[#431407] ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden md:flex gap-10">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-sm font-semibold text-[#9A3412]/60 hover:text-[#C2410C] transition-colors ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-6">
+              <a href={bookBtnHref} className={`px-8 py-3 bg-[#C2410C] text-white text-sm font-bold ${themeTokens.radiusClass} hover:bg-[#9A3412] transition-colors shadow-md`}>{config.buttonText || 'Book Now'}</a>
+              <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
+            </div>
+          </div>
+        </header>
+      );
+
+    case 'industrial-loft':
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b ${scrolled ? 'bg-[#1C1917]/95 backdrop-blur-lg border-stone-700 py-3' : 'bg-transparent border-transparent py-6'}`}>
+          <div className="max-w-[1400px] mx-auto px-8 flex items-center justify-between">
+            <div className={`text-white font-mono ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden md:flex gap-10">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-xs font-mono uppercase tracking-[0.2em] text-stone-500 hover:text-[#F97316] transition-colors ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-6">
+              <a href={bookBtnHref} className="px-8 py-3 border-2 border-[#F97316] text-[#F97316] hover:bg-[#F97316] hover:text-black text-xs font-bold uppercase tracking-widest transition-all">{config.buttonText || 'Reserve'}</a>
+              <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
+            </div>
+          </div>
+        </header>
+      );
+
+    case 'royal-palace':
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'bg-[#0A0118]/95 backdrop-blur-xl py-4 shadow-[0_4px_30px_rgba(0,0,0,0.6)]' : 'bg-gradient-to-b from-[#0A0118]/90 to-transparent py-8'}`}>
+          <div className="max-w-[1400px] mx-auto px-8 flex items-center justify-between">
+            <div className={`text-white ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden lg:flex gap-12">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-[11px] tracking-[0.3em] font-medium uppercase text-purple-300/60 hover:text-white transition-colors ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-8">
+              <a href={bookBtnHref} className="px-10 py-3 bg-[#7E22CE] text-white text-[11px] uppercase tracking-[0.2em] font-semibold hover:bg-purple-500 transition-colors shadow-xl shadow-purple-900/40">{config.buttonText || 'Reserve Suite'}</a>
+              <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
+            </div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+        </header>
+      );
+
+    case 'coastal-breeze':
+      return (
+        <header className={`fixed top-4 left-4 right-4 z-50 transition-all duration-500 max-w-[1300px] mx-auto rounded-2xl ${scrolled ? 'bg-white/90 backdrop-blur-2xl shadow-xl shadow-sky-900/5 py-3 px-8 border border-sky-100' : 'bg-white/70 backdrop-blur-md shadow-lg py-5 px-10 border border-white/60'}`}>
+          <div className="flex items-center justify-between">
+            <div className={`text-slate-800 ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden md:flex gap-8">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-sm font-semibold text-slate-500 hover:text-sky-600 transition-colors ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-5">
+              <a href={bookBtnHref} className={`px-8 py-3 bg-sky-600 text-white text-sm font-bold ${themeTokens.radiusClass} hover:bg-sky-500 transition-colors shadow-md shadow-sky-600/20`}>{config.buttonText || 'Book Stay'}</a>
+              <LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} />
+            </div>
+          </div>
+        </header>
+      );
+
+    case 'neo-brutalist':
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b-[6px] border-black ${scrolled ? 'bg-[#FFFBEB] py-2' : 'bg-[#FFFBEB] py-4'}`}>
+          <div className="max-w-[1400px] mx-auto px-6 flex items-center justify-between">
+            <div className={`text-black bg-[#F97316] border-4 border-black px-4 py-2 shadow-[4px_4px_0px_#000] ${themeTokens.fontHeadingClass}`}>{logoEl}</div>
+            <nav className="hidden md:flex gap-6">
+              {navLinks.map(link => (
+                <a key={link.href} href={link.href} className={`text-lg font-black uppercase text-black hover:bg-black hover:text-[#F97316] px-3 py-1 transition-colors ${themeTokens.fontBodyClass}`}>{link.label}</a>
+              ))}
+            </nav>
+            <div className="flex items-center gap-4">
+              <a href={bookBtnHref} className="px-6 py-3 bg-black text-[#F97316] border-4 border-black text-lg font-black uppercase shadow-[6px_6px_0px_#F97316] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_#F97316] transition-all">{config.buttonText || 'Book Room'}</a>
+              <div className="bg-white border-2 border-black p-1 shadow-[4px_4px_0px_#000]"><LocaleSwitcher currentLocale={locale} enabledLocales={['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn', 'gu', 'ml']} /></div>
+            </div>
+          </div>
         </header>
       );
 

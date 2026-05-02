@@ -28,7 +28,14 @@
       "Bash(npm install *)",
       "Bash(echo \"BUILD=$?\")",
       "Bash(echo \"BUILD_EXIT=$?\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(xargs grep *)",
+      "PowerShell(Get-Process *)",
+      "Bash(npm run *)",
+      "Bash(git *)",
+      "Bash(curl *)",
+      "Bash(python -c 'import sys, json; d = json.load\\(sys.stdin\\); print\\('\\\\''success:'\\\\'', d['\\\\''success'\\\\'']\\); print\\('\\\\''graceDays:'\\\\'', d['\\\\''data'\\\\'']['\\\\''graceDays'\\\\'']\\); print\\('\\\\''propertyType:'\\\\'', d['\\\\''data'\\\\''].get\\('\\\\''propertyType'\\\\''\\)\\); print\\('\\\\''residents:'\\\\'', len\\(d['\\\\''data'\\\\'']['\\\\''residents'\\\\'']\\)\\); *)",
+      "Bash(python -c ' *)"
     ]
   }
 }

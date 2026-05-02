@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import SetupNextStepBanner from '@/app/dashboard/_components/setup-next-step-banner';
 import PlanGate from '@/app/dashboard/_components/plan-gate';
+import { DEFAULT_BRAND_COLORS } from '@/app/[locale]/[slug]/themes/theme-tokens';
 
 // Curated hospitality icons for the visual picker
 const HOSPITALITY_ICONS: { id: string; label: string; icon: any }[] = [
@@ -55,18 +56,27 @@ const HOSPITALITY_ICONS: { id: string; label: string; icon: any }[] = [
 ];
 
 const THEMES = [
-  { id: 'luxury-gold', name: 'Luxury Gold' },
-  { id: 'modern-minimal', name: 'Modern Minimal' },
-  { id: 'corporate-trust', name: 'Corporate Trust' },
-  { id: 'boutique-chic', name: 'Boutique Chic' },
-  { id: 'dark-elegance', name: 'Dark Elegance' },
-  { id: 'classic-heritage', name: 'Classic Heritage' },
-  { id: 'resort-tropical', name: 'Resort Tropical' },
-  { id: 'playful-vibrant', name: 'Playful Vibrant' },
-  { id: 'compact-urban', name: 'Compact Urban' },
-  { id: 'retro-vintage', name: 'Retro Vintage' },
-  { id: 'nature-eco', name: 'Nature Eco' },
-  { id: 'abstract-art', name: 'Abstract Art' }
+  { id: 'luxury-gold', name: 'Luxury Gold', color: '#C6A55A' },
+  { id: 'modern-minimal', name: 'Modern Minimal', color: '#111111' },
+  { id: 'corporate-trust', name: 'Corporate Trust', color: '#1E40AF' },
+  { id: 'boutique-chic', name: 'Boutique Chic', color: '#B4637A' },
+  { id: 'dark-elegance', name: 'Dark Elegance', color: '#FFFFFF' },
+  { id: 'classic-heritage', name: 'Classic Heritage', color: '#8B6914' },
+  { id: 'resort-tropical', name: 'Resort Tropical', color: '#0D9488' },
+  { id: 'playful-vibrant', name: 'Playful Vibrant', color: '#E11D48' },
+  { id: 'compact-urban', name: 'Compact Urban', color: '#3B82F6' },
+  { id: 'retro-vintage', name: 'Retro Vintage', color: '#DF5339' },
+  { id: 'nature-eco', name: 'Nature Eco', color: '#166534' },
+  { id: 'abstract-art', name: 'Abstract Art', color: '#7C3AED' },
+  // ── New ultra-premium templates ──
+  { id: 'scandinavian-frost', name: 'Scandinavian Frost', color: '#94A3B8' },
+  { id: 'art-deco-glam', name: 'Art Deco Glam', color: '#D4AF37' },
+  { id: 'japanese-zen', name: 'Japanese Zen', color: '#8B7355' },
+  { id: 'mediterranean-sun', name: 'Mediterranean Sun', color: '#C2410C' },
+  { id: 'industrial-loft', name: 'Industrial Loft', color: '#78716C' },
+  { id: 'royal-palace', name: 'Royal Palace', color: '#7E22CE' },
+  { id: 'coastal-breeze', name: 'Coastal Breeze', color: '#0284C7' },
+  { id: 'neo-brutalist', name: 'Neo Brutalist', color: '#F97316' },
 ];
 
 export default function WebsiteBuilderPage() {
@@ -81,6 +91,8 @@ export default function WebsiteBuilderPage() {
   const [roomTypes, setRoomTypes] = useState<any[]>([]);
   const [iconPickerOpen, setIconPickerOpen] = useState<number | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
+  // Track whether the user has explicitly customized the primary color
+  const userCustomizedColor = useRef(false);
 
   // Core Columns
   const [brandLogo, setBrandLogo] = useState('');
@@ -130,7 +142,13 @@ export default function WebsiteBuilderPage() {
           const d = settingsRes.data;
           setTenantSlug(d.slug || 'suma1');
           setBrandLogo(d.brandLogo || '');
-          setPrimaryColor(d.primaryColor || '#0ea5e9');
+          // If the user has previously saved a custom primary color, mark it as customized
+          if (d.primaryColor) {
+            userCustomizedColor.current = true;
+            setPrimaryColor(d.primaryColor);
+          } else {
+            setPrimaryColor('#0ea5e9');
+          }
           setSecondaryColor(d.secondaryColor || '#38bdf8');
           setTagline(d.tagline || '');
           setHeroImage(d.heroImage || '');
@@ -380,15 +398,23 @@ export default function WebsiteBuilderPage() {
               </div>
               
               <div className="space-y-4">
-                <label className="text-sm font-semibold text-surface-900">12 Premium Architectures</label>
+                <label className="text-sm font-semibold text-surface-900">20 Premium Architectures</label>
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 border-t border-surface-100 pt-4">
                   {THEMES.map(theme => (
-                    <button key={theme.id} onClick={() => setWebsiteConfig({ ...websiteConfig, theme: theme.id })}
+                    <button key={theme.id} onClick={() => {
+                      setWebsiteConfig({ ...websiteConfig, theme: theme.id });
+                      // Auto-set the curated default brand color for this template unless user has explicitly customized it
+                      if (!userCustomizedColor.current) {
+                        const defaultColor = DEFAULT_BRAND_COLORS[theme.id];
+                        if (defaultColor) setPrimaryColor(defaultColor);
+                      }
+                    }}
                       className={`p-4 rounded-xl border text-sm text-center font-bold transition-all shadow-sm ${
                         websiteConfig.theme === theme.id ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-surface-200 text-surface-600 hover:border-primary-300 hover:bg-surface-50'
                       }`}
                     >
-                      {theme.name}
+                      <span className="inline-block w-4 h-4 rounded-full border border-surface-300 mb-2 mx-auto" style={{ backgroundColor: theme.color }} />
+                      <span className="block">{theme.name}</span>
                     </button>
                   ))}
                 </div>
@@ -412,8 +438,8 @@ export default function WebsiteBuilderPage() {
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Primary</label>
                         <div className="flex gap-2 items-center">
-                          <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-surface-200 bg-white" />
-                          <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="input-field shadow-sm uppercase flex-1 text-sm py-1.5" />
+                          <input type="color" value={primaryColor} onChange={(e) => { userCustomizedColor.current = true; setPrimaryColor(e.target.value); }} className="w-10 h-10 rounded cursor-pointer border border-surface-200 bg-white" />
+                          <input type="text" value={primaryColor} onChange={(e) => { userCustomizedColor.current = true; setPrimaryColor(e.target.value); }} className="input-field shadow-sm uppercase flex-1 text-sm py-1.5" />
                         </div>
                       </div>
                       <div className="space-y-1.5">

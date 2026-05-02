@@ -3,16 +3,12 @@ import { publicApi } from '@/lib/api';
 import PropertyLayoutClient from './property-layout-client';
 
 /**
- * ISR — cache the rendered HTML at the edge for 60 s, then revalidate in
- * the background on the next request. Cuts page-load latency for India
- * visitors hitting a US-hosted origin from ~600 ms to <100 ms after the
- * first request warms the cache.
- *
- * Manual invalidation: when an owner saves the website builder, the API
- * fires `POST /api/revalidate` (see app/api/revalidate/route.ts) so the
- * change shows up immediately rather than within the 60 s window.
+ * ISR revalidation — set to 0 for instant updates during development/testing.
+ * For production with high traffic, consider increasing to 30-60s and relying
+ * on the on-demand revalidation webhook (POST /api/revalidate) triggered
+ * when an owner saves the website builder.
  */
-export const revalidate = 60;
+export const revalidate = 0;
 import ThemedHeader from './themes/themed-header';
 import ThemedHero from './themes/themed-hero';
 import BookingWidgetWrapper from './themes/themed-booking-widget';
@@ -68,28 +64,26 @@ export default async function PropertyHomePage({ params }: { params: { slug: str
       {/* Absolute floating Booking Widget for Desktop, Sticky for Mobile */}
       <ThemedHeader config={config} property={property} themeTokens={themeTokens} locale={params.locale} />
 
-      <ThemedHero config={components.hero || {}} property={property} themeTokens={themeTokens} />
+      <ThemedHero config={components.hero || {}} property={property} themeTokens={themeTokens} locale={params.locale} propertySlug={params.slug} />
 
-      <div className="w-full relative z-20 bg-surface-50">
-        <ThemedAbout config={components.about || {}} property={property} themeTokens={themeTokens} />
-        <ThemedAmenities config={components.amenities || {}} themeTokens={themeTokens} />
-        <ThemedRooms config={components.rooms || {}} property={property} locale={params.locale} propertySlug={params.slug} themeTokens={themeTokens} />
-        <ThemedRateComparison
-          rateData={rateComparisonData}
-          roomTypes={(property.roomTypes || []).map((rt: { id: string; name: string; baseRate: number }) => ({ id: rt.id, name: rt.name, baseRate: rt.baseRate }))}
-          themeTokens={themeTokens}
-        />
-        <ThemedGallery config={components.gallery || {}} themeTokens={themeTokens} />
-        <ThemedStats config={components.stats || {}} themeTokens={themeTokens} />
-        <ThemedNearby config={components.nearby || {}} themeTokens={themeTokens} />
-        <ThemedReviews config={components.reviews || {}} property={property} themeTokens={themeTokens} />
-        <ThemedFaq config={components.faq || {}} themeTokens={themeTokens} />
-        <ThemedPolicies config={components.policies || {}} property={property} themeTokens={themeTokens} />
-        <ThemedLocation config={components.location || {}} property={property} themeTokens={themeTokens} />
-        <ThemedAwards config={components.awards || {}} themeTokens={themeTokens} />
-        <ThemedOffers config={components.offers || {}} property={property} themeTokens={themeTokens} />
-        <ThemedContact config={components.contact || {}} property={property} themeTokens={themeTokens} />
-      </div>
+      <ThemedAbout config={components.about || {}} property={property} themeTokens={themeTokens} />
+      <ThemedAmenities config={components.amenities || {}} themeTokens={themeTokens} />
+      <ThemedRooms config={components.rooms || {}} property={property} locale={params.locale} propertySlug={params.slug} themeTokens={themeTokens} />
+      <ThemedRateComparison
+        rateData={rateComparisonData}
+        roomTypes={(property.roomTypes || []).map((rt: { id: string; name: string; baseRate: number }) => ({ id: rt.id, name: rt.name, baseRate: rt.baseRate }))}
+        themeTokens={themeTokens}
+      />
+      <ThemedGallery config={components.gallery || {}} themeTokens={themeTokens} />
+      <ThemedStats config={components.stats || {}} themeTokens={themeTokens} />
+      <ThemedNearby config={components.nearby || {}} themeTokens={themeTokens} property={property} />
+      <ThemedReviews config={components.reviews || {}} property={property} themeTokens={themeTokens} />
+      <ThemedFaq config={components.faq || {}} themeTokens={themeTokens} />
+      <ThemedPolicies config={components.policies || {}} property={property} themeTokens={themeTokens} />
+      <ThemedLocation config={components.location || {}} property={property} themeTokens={themeTokens} />
+      <ThemedAwards config={components.awards || {}} themeTokens={themeTokens} />
+      <ThemedOffers config={components.offers || {}} property={property} themeTokens={themeTokens} />
+      <ThemedContact config={components.contact || {}} property={property} themeTokens={themeTokens} />
 
       <BookingWidgetWrapper propertySlug={params.slug} locale={params.locale} config={config} themeTokens={themeTokens} />
     </PropertyLayoutClient>

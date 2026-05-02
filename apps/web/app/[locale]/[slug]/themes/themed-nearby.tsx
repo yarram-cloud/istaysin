@@ -3,7 +3,7 @@ import { ThemeStyleMap } from './theme-tokens';
 import { MapPin, Navigation, Map } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-export default function ThemedNearby({ config, themeTokens }: { config: any, themeTokens: ThemeStyleMap }) {
+export default function ThemedNearby({ config, themeTokens, property }: { config: any, themeTokens: ThemeStyleMap, property?: any }) {
   const t = useTranslations('PropertySite');
   if (!config.enabled) return null;
   const POIs = config.places || config.pointsOfInterest || [];
@@ -170,11 +170,18 @@ export default function ThemedNearby({ config, themeTokens }: { config: any, the
           ))}
         </div>
         
-        <div className="mt-20 text-center">
-           <button className="border border-[color:var(--brand-color,#000)] text-[color:var(--brand-color,#000)] px-10 py-4 uppercase tracking-[0.2em] text-xs font-semibold hover:bg-[color:var(--brand-color,#000)] hover:text-white transition-all duration-500">
+        {property?.latitude && property?.longitude && (
+          <div className="mt-20 text-center">
+            <a
+              href={`https://www.google.com/maps/search/nearby+places/@${property.latitude},${property.longitude},15z`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block border border-[color:var(--brand-color,#000)] text-[color:var(--brand-color,#000)] px-10 py-4 uppercase tracking-[0.2em] text-xs font-semibold hover:bg-[color:var(--brand-color,#000)] hover:text-white transition-all duration-500"
+            >
               View Map Directory
-           </button>
-        </div>
+            </a>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -11,7 +11,18 @@ import { usePropertyType } from '@/lib/property-context';
 
 interface Floor { id: string; name: string; level: number; }
 interface RoomType { id: string; name: string; maxOccupancy: number; baseRate: number; description?: string; }
-interface Room { id: string; roomNumber: string; status: string; baseRate: number; floor?: Floor; roomType?: RoomType; floorId: string; roomTypeId: string; }
+interface CurrentOccupancy {
+  bookingRoomId: string;
+  advanceAmount: number;
+  securityDeposit: number;
+  securityDepositStatus: string;
+  booking: { id: string; bookingNumber: string; guestName: string; checkInDate: string; checkOutDate: string };
+}
+interface Room {
+  id: string; roomNumber: string; status: string; baseRate: number;
+  floor?: Floor; roomType?: RoomType; floorId: string; roomTypeId: string;
+  currentOccupancy?: CurrentOccupancy | null;
+}
 
 const STATUS_OPTIONS = ['available', 'occupied', 'blocked', 'maintenance', 'dirty', 'cleaning'];
 const PG_STATUS_OPTIONS = ['available', 'occupied', 'maintenance'];
@@ -96,6 +107,8 @@ export default function RoomsPage() {
     available: rooms.filter(r => r.status === 'available').length,
     occupied: rooms.filter(r => r.status === 'occupied').length,
     maintenance: rooms.filter(r => r.status === 'maintenance').length,
+    advanceTotal: rooms.reduce((s, r) => s + (r.currentOccupancy?.advanceAmount || 0), 0),
+    depositTotal: rooms.reduce((s, r) => s + (r.currentOccupancy?.securityDepositStatus === 'held' ? (r.currentOccupancy?.securityDeposit || 0) : 0), 0),
   }), [rooms]);
 
   async function handleStatusChange(roomId: string, newStatus: string) {
@@ -140,10 +153,10 @@ export default function RoomsPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: t('roomsPage.total'), value: stats.total, color: 'text-surface-900', bg: 'bg-surface-50 border-surface-200' },
-          { label: isLongStay ? t('roomsPage.vacant') : t('roomsPage.available'), value: stats.available, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-          { label: t('roomsPage.occupied'), value: stats.occupied, color: 'text-primary-700', bg: 'bg-primary-50 border-primary-200' },
-          { label: t('roomsPage.maintenance'), value: stats.maintenance, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+          { label: t('roomsPage.total'), value: String(stats.total), color: 'text-surface-900', bg: 'bg-surface-50 border-surface-200' },
+          { label: isLongStay ? t('roomsPage.vacant') : t('roomsPage.available'), value: String(stats.available), color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+          { label: t('roomsPage.occupied'), value: String(stats.occupied), color: 'text-primary-700', bg: 'bg-primary-50 border-primary-200' },
+          { label: t('roomsPage.maintenance'), value: String(stats.maintenance), color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl p-3 border ${s.bg}`}>
             <p className="text-xs text-surface-500 font-medium">{s.label}</p>
@@ -151,6 +164,20 @@ export default function RoomsPage() {
           </div>
         ))}
       </div>
+
+      {/* Advance & Deposit Totals (only when there is something to show) */}
+      {(stats.advanceTotal > 0 || stats.depositTotal > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-xl p-3 border bg-emerald-50 border-emerald-200">
+            <p className="text-xs text-emerald-700 font-medium">Advance collected</p>
+            <p className="text-xl font-bold text-emerald-800">₹{stats.advanceTotal.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="rounded-xl p-3 border bg-amber-50 border-amber-200">
+            <p className="text-xs text-amber-700 font-medium">Security deposit held</p>
+            <p className="text-xl font-bold text-amber-800">₹{stats.depositTotal.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      )}
 
       {/* Search, Filter & View Toggle */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -208,28 +235,47 @@ export default function RoomsPage() {
       ) : (
         /* ── Grid View ── */
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filtered.map(room => (
-            <div key={room.id} className="bg-white rounded-xl border border-surface-200 p-3 hover:shadow-md hover:border-primary-200 transition-all group overflow-hidden">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-base font-bold text-surface-900 truncate">{room.roomNumber}</span>
-                <span className={`w-3 h-3 rounded-full flex-shrink-0 ${STATUS_DOT[room.status] || 'bg-surface-300'}`} title={room.status} />
+          {filtered.map(room => {
+            const occ = room.currentOccupancy;
+            const hasAdv = occ && occ.advanceAmount > 0;
+            const hasDep = occ && occ.securityDeposit > 0 && occ.securityDepositStatus === 'held';
+            return (
+              <div key={room.id} className="bg-white rounded-xl border border-surface-200 p-3 hover:shadow-md hover:border-primary-200 transition-all group overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-base font-bold text-surface-900 truncate">{room.roomNumber}</span>
+                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${STATUS_DOT[room.status] || 'bg-surface-300'}`} title={room.status} />
+                </div>
+                <p className="text-xs text-surface-500 mb-1.5 truncate">{room.roomType?.name || '-'}</p>
+                <p className="text-xs text-surface-400 truncate">{room.floor?.name || '-'}</p>
+                {(hasAdv || hasDep) && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {hasAdv && (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                        Adv ₹{occ!.advanceAmount.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                    {hasDep && (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                        Dep ₹{occ!.securityDeposit.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="mt-3 pt-2 border-t border-surface-100">
+                  <select
+                    value={room.status}
+                    onChange={(e) => handleStatusChange(room.id, e.target.value)}
+                    className={`w-full text-[10px] sm:text-xs px-2 py-1 rounded-lg border font-semibold cursor-pointer outline-none ${STATUS_CLASSES[room.status] || 'bg-surface-100 text-surface-600 border-surface-200'}`}
+                  >
+                    {activeStatusOptions.map(s => {
+                      const label = isLongStay ? (STATUS_LABELS_PG[s] || s.charAt(0).toUpperCase() + s.slice(1)) : s.charAt(0).toUpperCase() + s.slice(1);
+                      return <option key={s} value={s}>{label}</option>;
+                    })}
+                  </select>
+                </div>
               </div>
-              <p className="text-xs text-surface-500 mb-1.5 truncate">{room.roomType?.name || '-'}</p>
-              <p className="text-xs text-surface-400 truncate">{room.floor?.name || '-'}</p>
-              <div className="mt-3 pt-2 border-t border-surface-100">
-                <select
-                  value={room.status}
-                  onChange={(e) => handleStatusChange(room.id, e.target.value)}
-                  className={`w-full text-[10px] sm:text-xs px-2 py-1 rounded-lg border font-semibold cursor-pointer outline-none ${STATUS_CLASSES[room.status] || 'bg-surface-100 text-surface-600 border-surface-200'}`}
-                >
-                  {activeStatusOptions.map(s => {
-                    const label = isLongStay ? (STATUS_LABELS_PG[s] || s.charAt(0).toUpperCase() + s.slice(1)) : s.charAt(0).toUpperCase() + s.slice(1);
-                    return <option key={s} value={s}>{label}</option>;
-                  })}
-                </select>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -266,28 +312,43 @@ function FloorGroup({ floor, rooms, onStatusChange, statusOptions, statusLabels 
               <tr className="border-t border-surface-100 bg-surface-50">
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Room #</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Type</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-surface-500 uppercase tracking-wider hidden sm:table-cell">Guest</th>
+                <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Advance</th>
+                <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Deposit</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-100">
-              {rooms.map((room) => (
-                <tr key={room.id} className="hover:bg-surface-50/50 transition-colors">
-                  <td className="px-4 py-2.5 text-sm font-bold text-surface-900">{room.roomNumber}</td>
-                  <td className="px-4 py-2.5 text-sm text-surface-600">{room.roomType?.name || '-'}</td>
-                  <td className="px-4 py-2.5">
-                    <select
-                      value={room.status}
-                      onChange={(e) => onStatusChange(room.id, e.target.value)}
-                      className={`text-[10px] sm:text-xs px-2 py-1 rounded-lg border font-semibold cursor-pointer outline-none focus:ring-2 focus:ring-primary-500/30 ${STATUS_CLASSES[room.status] || 'bg-surface-100 text-surface-600 border-surface-200'}`}
-                    >
-                      {statusOptions.map(s => {
-                        const label = statusLabels?.[s] || s.charAt(0).toUpperCase() + s.slice(1);
-                        return <option key={s} value={s}>{label}</option>;
-                      })}
-                    </select>
-                  </td>
-                </tr>
-              ))}
+              {rooms.map((room) => {
+                const occ = room.currentOccupancy;
+                return (
+                  <tr key={room.id} className="hover:bg-surface-50/50 transition-colors">
+                    <td className="px-4 py-2.5 text-sm font-bold text-surface-900">{room.roomNumber}</td>
+                    <td className="px-4 py-2.5 text-sm text-surface-600">{room.roomType?.name || '-'}</td>
+                    <td className="px-4 py-2.5 text-sm text-surface-600 hidden sm:table-cell truncate max-w-[200px]">{occ?.booking.guestName || '-'}</td>
+                    <td className="px-4 py-2.5 text-sm text-right font-semibold text-emerald-700">
+                      {occ && occ.advanceAmount > 0 ? `₹${occ.advanceAmount.toLocaleString('en-IN')}` : '-'}
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-right font-semibold text-amber-700">
+                      {occ && occ.securityDeposit > 0 && occ.securityDepositStatus === 'held'
+                        ? `₹${occ.securityDeposit.toLocaleString('en-IN')}`
+                        : '-'}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <select
+                        value={room.status}
+                        onChange={(e) => onStatusChange(room.id, e.target.value)}
+                        className={`text-[10px] sm:text-xs px-2 py-1 rounded-lg border font-semibold cursor-pointer outline-none focus:ring-2 focus:ring-primary-500/30 ${STATUS_CLASSES[room.status] || 'bg-surface-100 text-surface-600 border-surface-200'}`}
+                      >
+                        {statusOptions.map(s => {
+                          const label = statusLabels?.[s] || s.charAt(0).toUpperCase() + s.slice(1);
+                          return <option key={s} value={s}>{label}</option>;
+                        })}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

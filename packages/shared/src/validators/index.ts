@@ -91,6 +91,9 @@ export const roomSchema = z.object({
 // Booking Validators
 // ============================================================
 
+// Payment method shared across booking, check-in, and check-out flows
+export const paymentMethodEnum = z.enum(['cash', 'upi', 'card', 'bank_transfer']);
+
 export const bookingSchema = z
   .object({
     guestProfileId: z.string().uuid().optional(),
@@ -117,6 +120,8 @@ export const bookingSchema = z
     source: z.enum(['online', 'walkin', 'ota', 'phone', 'email', 'website', 'ota_booking_com', 'ota_makemytrip', 'ota_goibibo', 'agent']).default('online'),
     specialRequests: z.string().max(1000).optional(),
     advanceAmount: z.number().min(0).optional(),
+    securityDeposit: z.number().min(0).optional(),
+    paymentMethod: paymentMethodEnum.optional(),
     paymentMode: z.enum(['online', 'pay_at_hotel']).default('online'),
     promoCode: z.string().max(50).optional(),
   })
@@ -148,6 +153,15 @@ export const guestSchema = z.object({
 // Check-in Validators
 // ============================================================
 
+// Per-room advance + security deposit collection at check-in
+export const checkInPaymentSchema = z.object({
+  bookingRoomId: z.string().uuid(),
+  advanceAmount: z.number().min(0).default(0),
+  securityDeposit: z.number().min(0).default(0),
+  paymentMethod: paymentMethodEnum.optional(),
+  notes: z.string().max(500).optional(),
+});
+
 export const checkInSchema = z.object({
   roomAssignments: z
     .array(
@@ -172,13 +186,25 @@ export const checkInSchema = z.object({
       }),
     )
     .optional(),
+  // Advance & security deposit collected at check-in (per BookingRoom)
+  payments: z.array(checkInPaymentSchema).optional(),
+});
+
+// Security deposit settlement decision at check-out (per BookingRoom)
+export const depositSettlementSchema = z.object({
+  bookingRoomId: z.string().uuid(),
+  // 'refund' = full refund, 'partial' = refund refundedAmount, 'forfeit' = keep all
+  action: z.enum(['refund', 'partial', 'forfeit']),
+  refundedAmount: z.number().min(0).optional(),
+  notes: z.string().max(500).optional(),
 });
 
 export const checkOutSchema = z.object({
-  paymentMethod: z.enum(['cash', 'upi', 'card', 'bank_transfer']).optional(),
+  paymentMethod: paymentMethodEnum.optional(),
   settledAmount: z.number().min(0).optional(),
   discountAmount: z.number().min(0).optional(),
   notes: z.string().max(500).optional(),
+  depositSettlements: z.array(depositSettlementSchema).optional(),
 });
 
 // ============================================================
@@ -195,10 +221,20 @@ export const folioChargeSchema = z.object({
   sacCode: z.string().optional(),
 });
 
+// Allocate part of a payment against a specific FolioCharge (e.g. "May rent")
+export const chargeAllocationSchema = z.object({
+  chargeId: z.string().uuid(),
+  amount: z.number().min(0.01),
+});
+
 export const paymentSchema = z.object({
   bookingId: z.string().uuid(),
   amount: z.number().min(0.01, 'Amount must be positive'),
   method: z.enum(['cash', 'upi', 'card', 'bank_transfer']),
+  notes: z.string().max(500).optional(),
+  // Optional explicit allocations. If omitted, payment is auto-allocated FIFO
+  // across unpaid folio charges (oldest first).
+  chargeAllocations: z.array(chargeAllocationSchema).optional(),
 });
 
 // ============================================================
@@ -259,6 +295,8 @@ export const walkInBookingSchema = z.object({
   durationValue: z.number().int().min(1).max(365),
   durationUnit: z.enum(['days', 'months']),
   paymentMode: z.enum(['cash', 'upi', 'card']).optional(),
+  advanceAmount: z.number().min(0).optional(),
+  securityDeposit: z.number().min(0).optional(),
 });
 
 // ============================================================
