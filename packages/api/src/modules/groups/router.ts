@@ -47,7 +47,7 @@ groupsRouter.post('/blocks', validateRequest(createGroupBlockSchema), authorize(
 // GET /groups/blocks/:id/master-folio
 groupsRouter.get('/blocks/:id/master-folio', authorize('property_owner', 'general_manager', 'front_desk', 'accountant'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
+    {
       const block = await prisma.groupBlock.findUnique({
         where: { id: req.params.id },
         include: {
@@ -86,7 +86,7 @@ groupsRouter.get('/blocks/:id/master-folio', authorize('property_owner', 'genera
           breakdown: { charges: chargeDetails, payments: paymentDetails },
         },
       });
-    });
+    }
   } catch (err) {
     console.error('[MASTER FOLIO ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to retrieve master folio' });

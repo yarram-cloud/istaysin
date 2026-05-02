@@ -565,6 +565,10 @@ model GuestPayment {
   notes            String?
   gatewayPaymentId String?  @map("gateway_payment_id")
   receiptNumber    String?  @map("receipt_number")
+  // Date the money actually changed hands. User-editable, can be backdated
+  // (e.g. cash collected on the 3rd but logged on the 8th). Defaults to today.
+  // Distinct from createdAt, which is the immutable system-record timestamp.
+  paidOn           DateTime @default(now()) @map("paid_on")
   createdAt        DateTime @default(now()) @map("created_at")
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id])

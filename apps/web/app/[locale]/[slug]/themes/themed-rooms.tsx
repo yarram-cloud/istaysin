@@ -13,6 +13,9 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
   const subtitle = config.subtitle || t('findPerfectRoom');
   const rooms = property.roomTypes.slice(0, config.limit || 6);
 
+  /** Display base rate as "From ₹X,XXX" — actual price varies by season/day/occupancy */
+  const fmtPrice = (rate: number) => `From ₹${rate.toLocaleString('en-IN')}`;
+
   switch (themeTokens.templateId) {
     case 'modern-minimal':
       return (
@@ -41,7 +44,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                              <div className="flex flex-col gap-2"><span>Bed</span><span className="text-gray-900">{rt.bedType}</span></div>
                            </div>
                            <div className="flex items-center justify-between">
-                             <span className="text-2xl font-light text-gray-900">₹{rt.baseRate}</span>
+                             <span className="text-2xl font-light text-gray-900">{fmtPrice(rt.baseRate)}</span>
                              <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="text-sm font-bold uppercase tracking-[0.2em] hover:text-gray-500 transition-colors border-b border-black pb-1">Reserve</a>
                            </div>
                         </div>
@@ -70,7 +73,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-10" />
                       <div className="relative z-20 translate-y-8 group-hover:translate-y-0 transition-transform duration-700">
-                         <div className="text-brand text-xs uppercase tracking-[0.3em] font-bold mb-4">From ₹{rt.baseRate}</div>
+                         <div className="text-brand text-xs uppercase tracking-[0.3em] font-bold mb-4">{fmtPrice(rt.baseRate)}</div>
                          <h3 className={`text-4xl text-white font-serif mb-6 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                          <div className="h-0 group-hover:h-32 opacity-0 group-hover:opacity-100 overflow-hidden transition-all duration-700">
                             <p className={`text-gray-400 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
@@ -102,7 +105,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                          <h3 className={`text-3xl text-green-950 font-medium mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                          <p className={`text-green-900/60 font-light line-clamp-2 mb-8 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                          <div className="mt-auto flex items-center justify-between border-t border-green-900/10 pt-6">
-                            <span className="text-xl font-medium text-green-950">₹{rt.baseRate}</span>
+                            <span className="text-xl font-medium text-green-950">{fmtPrice(rt.baseRate)}</span>
                             <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-green-50 text-green-900 px-6 py-3 rounded-full text-sm font-semibold hover:bg-green-900 hover:text-white transition-colors">Select</a>
                          </div>
                       </div>
@@ -131,7 +134,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                          <h3 className={`text-3xl text-gray-900 mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                          <p className={`text-gray-500 font-light mb-8 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                          <div className="flex justify-between items-center border-t border-gray-100 pt-6">
-                            <span className="font-bold text-lg">₹{rt.baseRate}</span>
+                            <span className="font-bold text-lg">{fmtPrice(rt.baseRate)}</span>
                             <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-brand text-white px-8 py-3 rounded-full font-bold shadow-md hover:bg-black transition-colors">Book Now</a>
                          </div>
                       </div>
@@ -161,7 +164,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                          <h3 className={`text-4xl lg:text-5xl font-black uppercase tracking-tighter mb-6 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                          <p className={`text-gray-300 font-light mb-10 line-clamp-3 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                          <div className="flex items-center justify-between border-b border-gray-700 pb-4">
-                            <span className="text-2xl font-bold">₹{rt.baseRate}</span>
+                            <span className="text-2xl font-bold">{fmtPrice(rt.baseRate)}</span>
                             <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="hover:text-gray-400 transition-colors uppercase text-sm font-bold tracking-widest">Reserve  →</a>
                          </div>
                       </div>
@@ -185,7 +188,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                    <div key={rt.id} className="bg-white rounded-[3rem] p-6 shadow-xl border-4 border-transparent hover:border-brand transition-colors group flex flex-col">
                       <div className="aspect-[4/3] rounded-[2rem] overflow-hidden relative mb-8">
                          {rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover group-hover:scale-110 transition-transform duration-[2s]" />}
-                         <div className="absolute top-4 right-4 bg-white text-black px-4 py-2 rounded-full font-black text-sm shadow-md">₹{rt.baseRate}</div>
+                         <div className="absolute top-4 right-4 bg-white text-black px-4 py-2 rounded-full font-black text-sm shadow-md">{fmtPrice(rt.baseRate)}</div>
                       </div>
                       <h3 className={`text-3xl font-black text-gray-900 mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                       <p className={`text-gray-600 font-medium mb-8 flex-1 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
@@ -214,7 +217,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                       <div className="p-8 flex-1 flex flex-col">
                          <div className="flex justify-between items-start mb-4">
                             <h3 className={`text-2xl font-bold text-blue-950 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
-                            <div className="text-xl font-bold text-brand">₹{rt.baseRate}<span className="text-sm text-slate-500 font-normal block text-right">/ night</span></div>
+                            <div className="text-xl font-bold text-brand">{fmtPrice(rt.baseRate)}<span className="text-sm text-slate-500 font-normal block text-right">/ night</span></div>
                          </div>
                          <p className={`text-slate-600 mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                          <div className="mt-auto flex justify-between items-center">
@@ -254,7 +257,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                          <h3 className={`text-3xl text-yellow-950 font-serif mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                          <p className={`text-yellow-900/80 font-serif italic mb-8 line-clamp-3 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                          <div className="flex justify-between items-center border-t border-[#e8dfc8] pt-6">
-                            <span className="font-serif text-xl text-yellow-900">₹{rt.baseRate}</span>
+                            <span className="font-serif text-xl text-yellow-900">{fmtPrice(rt.baseRate)}</span>
                             <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="uppercase text-xs font-bold tracking-[0.2em] text-yellow-800 hover:text-black transition-colors">Confirm Room</a>
                          </div>
                       </div>
@@ -282,7 +285,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                          <h3 className={`text-2xl font-black uppercase text-black mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                          <p className={`text-black font-semibold line-clamp-3 mb-6 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                          <div className="mt-auto flex justify-between items-center text-xl font-black">
-                            <span>₹{rt.baseRate}</span>
+                            <span>{fmtPrice(rt.baseRate)}</span>
                             <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#DF5339] text-black px-4 py-2 border-[4px] border-black hover:-translate-y-1 hover:shadow-[4px_4px_0px_#000] transition-all uppercase text-sm">Select</a>
                          </div>
                       </div>
@@ -311,7 +314,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                             <h3 className={`text-4xl md:text-5xl font-black text-white mb-6 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                             <p className={`text-xl text-teal-100 mb-10 font-light line-clamp-2 md:line-clamp-none ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                             <div className="flex flex-col md:flex-row md:items-center gap-8">
-                               <div className="text-3xl font-bold text-[#FF9F1C]">₹{rt.baseRate}</div>
+                               <div className="text-3xl font-bold text-[#FF9F1C]">{fmtPrice(rt.baseRate)}</div>
                                <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-white text-teal-950 px-10 py-4 rounded-full font-bold uppercase tracking-wider hover:bg-[#FF9F1C] hover:text-white transition-colors w-max">Book Retreat</a>
                             </div>
                          </div>
@@ -338,7 +341,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                       </div>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-6 flex flex-col justify-end translate-y-8 group-hover:translate-y-0 transition-transform">
                          <h3 className={`text-2xl font-bold mb-2 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
-                         <div className="font-mono text-sm text-gray-400 mb-4 tracking-tighter">INR {rt.baseRate}</div>
+                         <div className="font-mono text-sm text-gray-400 mb-4 tracking-tighter">{fmtPrice(rt.baseRate)}</div>
                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                             <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-white text-black text-center py-3 font-black text-sm uppercase tracking-widest block w-full hover:bg-brand">Book</a>
                          </div>
@@ -369,7 +372,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                             <h3 className={`text-4xl md:text-5xl font-black text-gray-900 mb-8 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3>
                             <p className={`text-xl text-gray-600 font-medium mb-12 ${themeTokens.fontBodyClass}`}>{rt.description}</p>
                             <div className="flex items-center justify-between border-t-4 border-gray-100 pt-8 mt-auto">
-                               <span className="text-3xl font-black text-brand">₹{rt.baseRate}</span>
+                               <span className="text-3xl font-black text-brand">{fmtPrice(rt.baseRate)}</span>
                                <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-gray-900 hover:bg-brand text-white font-black px-10 py-5 rounded-[20px] text-lg transition-colors shadow-lg transform hover:-rotate-3">Book Fast</a>
                             </div>
                          </div>
@@ -390,7 +393,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any) => (
                 <div key={rt.id} className="group bg-[#F8FAFC] rounded-2xl overflow-hidden hover:shadow-xl transition-shadow border border-slate-100">
                   <div className="aspect-[4/3] overflow-hidden">{rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover group-hover:scale-105 transition-transform duration-[2s]" />}</div>
-                  <div className="p-8"><h3 className={`text-2xl font-light text-slate-800 mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-slate-400 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center border-t border-slate-100 pt-6"><span className="text-xl font-light text-slate-800">₹{rt.baseRate}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-slate-800 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors">Select</a></div></div>
+                  <div className="p-8"><h3 className={`text-2xl font-light text-slate-800 mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-slate-400 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center border-t border-slate-100 pt-6"><span className="text-xl font-light text-slate-800">{fmtPrice(rt.baseRate)}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-slate-800 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors">Select</a></div></div>
                 </div>
               ))}
             </div>
@@ -407,7 +410,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any) => (
                 <div key={rt.id} className="group border border-[#D4AF37]/20 hover:border-[#D4AF37]/60 transition-colors relative overflow-hidden">
                   <div className="aspect-[3/4] overflow-hidden relative">{rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover opacity-50 group-hover:opacity-80 transition-opacity duration-[2s] sepia-[0.2]" />}<div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D] via-black/60 to-transparent" /></div>
-                  <div className="absolute bottom-0 left-0 right-0 p-10"><div className="text-[#D4AF37] text-xs uppercase tracking-[0.3em] font-bold mb-3">From ₹{rt.baseRate}</div><h3 className={`text-3xl text-white font-bold mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black px-8 py-3 text-xs uppercase tracking-[0.2em] font-bold transition-all inline-block mt-4">Reserve</a></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-10"><div className="text-[#D4AF37] text-xs uppercase tracking-[0.3em] font-bold mb-3">{fmtPrice(rt.baseRate)}</div><h3 className={`text-3xl text-white font-bold mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black px-8 py-3 text-xs uppercase tracking-[0.2em] font-bold transition-all inline-block mt-4">Reserve</a></div>
                 </div>
               ))}
             </div>
@@ -424,7 +427,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any, i: number) => (
                 <div key={rt.id} className="grid md:grid-cols-2 gap-16 items-center group">
                   <div className={`aspect-[5/4] overflow-hidden ${i % 2 === 0 ? '' : 'md:order-2'}`}>{rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover group-hover:scale-105 transition-transform duration-[2s]" />}</div>
-                  <div className={`${i % 2 === 0 ? '' : 'md:order-1'}`}><h3 className={`text-3xl font-extralight text-[#3D3028] mb-6 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-[#8B7355] font-light mb-8 line-clamp-3 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex items-center justify-between border-t border-[#D4C8BA] pt-6"><span className="text-xl font-light text-[#3D3028]">₹{rt.baseRate}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#3D3028] text-[#F5F0EB] px-8 py-3 font-light tracking-widest uppercase text-sm hover:bg-[#8B7355] transition-colors">Book</a></div></div>
+                  <div className={`${i % 2 === 0 ? '' : 'md:order-1'}`}><h3 className={`text-3xl font-extralight text-[#3D3028] mb-6 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-[#8B7355] font-light mb-8 line-clamp-3 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex items-center justify-between border-t border-[#D4C8BA] pt-6"><span className="text-xl font-light text-[#3D3028]">{fmtPrice(rt.baseRate)}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#3D3028] text-[#F5F0EB] px-8 py-3 font-light tracking-widest uppercase text-sm hover:bg-[#8B7355] transition-colors">Book</a></div></div>
                 </div>
               ))}
             </div>
@@ -441,7 +444,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any) => (
                 <div key={rt.id} className={`group bg-white ${themeTokens.radiusClass} overflow-hidden shadow-lg hover:shadow-2xl transition-shadow border border-orange-100`}>
                   <div className="aspect-[4/3] overflow-hidden">{rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover group-hover:scale-105 transition-transform duration-[2s]" />}</div>
-                  <div className="p-8"><h3 className={`text-2xl font-bold text-[#431407] mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-[#9A3412]/60 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center border-t border-orange-100 pt-6"><span className="text-xl font-bold text-[#C2410C]">₹{rt.baseRate}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#C2410C] text-white px-6 py-3 rounded-full text-sm font-bold hover:bg-[#9A3412] transition-colors">Book</a></div></div>
+                  <div className="p-8"><h3 className={`text-2xl font-bold text-[#431407] mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-[#9A3412]/60 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center border-t border-orange-100 pt-6"><span className="text-xl font-bold text-[#C2410C]">{fmtPrice(rt.baseRate)}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#C2410C] text-white px-6 py-3 rounded-full text-sm font-bold hover:bg-[#9A3412] transition-colors">Book</a></div></div>
                 </div>
               ))}
             </div>
@@ -459,7 +462,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any, i: number) => (
                 <div key={rt.id} className="group border border-stone-700 hover:border-[#F97316] transition-colors overflow-hidden">
                   <div className="aspect-video overflow-hidden">{rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover contrast-125 opacity-60 group-hover:opacity-100 transition-opacity duration-700" />}</div>
-                  <div className="p-8 border-t border-stone-700"><h3 className={`text-2xl font-black uppercase tracking-tighter text-white mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-stone-400 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center"><span className="text-xl font-mono text-[#F97316]">₹{rt.baseRate}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="border-2 border-[#F97316] text-[#F97316] hover:bg-[#F97316] hover:text-black px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all">Reserve</a></div></div>
+                  <div className="p-8 border-t border-stone-700"><h3 className={`text-2xl font-black uppercase tracking-tighter text-white mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-stone-400 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center"><span className="text-xl font-mono text-[#F97316]">{fmtPrice(rt.baseRate)}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="border-2 border-[#F97316] text-[#F97316] hover:bg-[#F97316] hover:text-black px-6 py-2 text-xs font-bold uppercase tracking-widest transition-all">Reserve</a></div></div>
                 </div>
               ))}
             </div>
@@ -476,7 +479,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any) => (
                 <div key={rt.id} className="group border border-purple-500/20 hover:border-purple-400/50 transition-colors p-4 relative overflow-hidden">
                   <div className="aspect-[3/4] overflow-hidden relative">{rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover opacity-40 group-hover:opacity-70 transition-opacity duration-[2s]" />}<div className="absolute inset-0 bg-gradient-to-t from-[#0A0118] via-transparent to-transparent" /></div>
-                  <div className="absolute bottom-0 left-0 right-0 p-10"><p className="text-purple-300/60 tracking-[0.3em] uppercase text-xs mb-3">From ₹{rt.baseRate}</p><h3 className={`text-3xl text-white font-light mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#7E22CE] text-white hover:bg-purple-500 px-8 py-3 text-xs uppercase tracking-[0.2em] font-semibold transition-all inline-block mt-2">Reserve Suite</a></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-10"><p className="text-purple-300/60 tracking-[0.3em] uppercase text-xs mb-3">{fmtPrice(rt.baseRate)}</p><h3 className={`text-3xl text-white font-light mb-4 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#7E22CE] text-white hover:bg-purple-500 px-8 py-3 text-xs uppercase tracking-[0.2em] font-semibold transition-all inline-block mt-2">Reserve Suite</a></div>
                 </div>
               ))}
             </div>
@@ -493,7 +496,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any) => (
                 <div key={rt.id} className="group bg-white rounded-[2rem] p-4 shadow-lg hover:shadow-2xl transition-shadow border border-sky-100 overflow-hidden">
                   <div className="aspect-[4/3] rounded-[1.5rem] overflow-hidden">{rt.photos?.[0] && <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover group-hover:scale-105 transition-transform duration-[2s]" />}</div>
-                  <div className="p-6 pt-8"><h3 className={`text-2xl font-bold text-slate-800 mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-slate-500 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center border-t border-sky-100 pt-6"><span className="text-xl font-bold text-sky-600">₹{rt.baseRate}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-sky-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-sky-500 transition-colors shadow-md">Book</a></div></div>
+                  <div className="p-6 pt-8"><h3 className={`text-2xl font-bold text-slate-800 mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-slate-500 font-light mb-6 line-clamp-2 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center border-t border-sky-100 pt-6"><span className="text-xl font-bold text-sky-600">{fmtPrice(rt.baseRate)}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-sky-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-sky-500 transition-colors shadow-md">Book</a></div></div>
                 </div>
               ))}
             </div>
@@ -510,7 +513,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
               {rooms.map((rt: any) => (
                 <div key={rt.id} className="bg-white border-[6px] border-black shadow-[8px_8px_0px_#000] hover:-translate-y-2 hover:shadow-[12px_12px_0px_#F97316] transition-all group flex flex-col">
                   <div className="aspect-square border-b-[6px] border-black overflow-hidden">{rt.photos?.[0] ? <SafeNextImage src={rt.photos[0].url} alt={rt.name} containerClassName="w-full h-full" className="object-cover group-hover:scale-110 transition-transform duration-500" /> : <div className="w-full h-full bg-[#FEF3C7]" />}</div>
-                  <div className="p-6 flex-1 flex flex-col"><h3 className={`text-2xl font-black uppercase text-black mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-black/70 font-bold mb-6 line-clamp-2 flex-1 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center"><span className="text-xl font-black">₹{rt.baseRate}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#F97316] text-black border-4 border-black px-4 py-2 font-black uppercase text-sm hover:shadow-[4px_4px_0px_#000] transition-all">Book</a></div></div>
+                  <div className="p-6 flex-1 flex flex-col"><h3 className={`text-2xl font-black uppercase text-black mb-3 ${themeTokens.fontHeadingClass}`}>{rt.name}</h3><p className={`text-black/70 font-bold mb-6 line-clamp-2 flex-1 ${themeTokens.fontBodyClass}`}>{rt.description}</p><div className="flex justify-between items-center"><span className="text-xl font-black">{fmtPrice(rt.baseRate)}</span><a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-[#F97316] text-black border-4 border-black px-4 py-2 font-black uppercase text-sm hover:shadow-[4px_4px_0px_#000] transition-all">Book</a></div></div>
                 </div>
               ))}
             </div>
@@ -528,7 +531,7 @@ export default function ThemedRooms({ property, locale, propertySlug, themeToken
                    <div key={rt.id} className="bg-white p-6 rounded-xl shadow-lg">
                       <h3 className="text-2xl font-bold mb-4">{rt.name}</h3>
                       <p className="mb-6 text-gray-600">{rt.description}</p>
-                      <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-brand text-white px-4 py-2 rounded font-bold block text-center">Book for ₹{rt.baseRate}</a>
+                      <a href={`/${locale}/${propertySlug}/book?roomType=${rt.id}`} className="bg-brand text-white px-4 py-2 rounded font-bold block text-center">{fmtPrice(rt.baseRate)} — Book Now</a>
                    </div>
                  ))}
               </div>

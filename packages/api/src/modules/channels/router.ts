@@ -34,20 +34,18 @@ channelsRouter.use(authenticate, resolveTenant, requireTenant, authorize('proper
 // GET /channels — mask apiKey in responses
 channelsRouter.get('/', async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const connections = await prisma.channelConnection.findMany({
-        where: { tenantId: req.tenantId! },
-        include: { mappings: true }
-      });
-
-      // Never expose raw API keys to the frontend
-      const sanitized = connections.map(c => ({
-        ...c,
-        apiKey: c.apiKey ? '••••••' + c.apiKey.slice(-4) : '',
-      }));
-
-      res.json({ success: true, data: sanitized });
+    const connections = await prisma.channelConnection.findMany({
+      where: { tenantId: req.tenantId! },
+      include: { mappings: true }
     });
+
+    // Never expose raw API keys to the frontend
+    const sanitized = connections.map(c => ({
+      ...c,
+      apiKey: c.apiKey ? '••••••' + c.apiKey.slice(-4) : '',
+    }));
+
+    res.json({ success: true, data: sanitized });
   } catch (err) {
     console.error('[CHANNELS LIST ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch channels' });

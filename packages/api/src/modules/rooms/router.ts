@@ -17,14 +17,12 @@ roomsRouter.use(authenticate, resolveTenant, requireTenant);
 // GET /rooms/floors
 roomsRouter.get('/floors', async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const floors = await prisma.floor.findMany({
-        where: { tenantId: req.tenantId! },
-        orderBy: { sortOrder: 'asc' },
-        include: { rooms: { select: { id: true, roomNumber: true, status: true } } },
-      });
-      res.json({ success: true, data: floors });
+    const floors = await prisma.floor.findMany({
+      where: { tenantId: req.tenantId! },
+      orderBy: { sortOrder: 'asc' },
+      include: { rooms: { select: { id: true, roomNumber: true, status: true } } },
     });
+    res.json({ success: true, data: floors });
   } catch (err) {
     console.error('[ROOMS FLOORS ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch floors' });
@@ -81,20 +79,93 @@ roomsRouter.put('/floors/:id', authorize('property_owner', 'general_manager'), a
 // GET /rooms/types
 roomsRouter.get('/types', async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const types = await prisma.roomType.findMany({
-        where: { tenantId: req.tenantId!, isActive: true },
-        include: {
-          photos: { orderBy: { sortOrder: 'asc' }, take: 3 },
-          _count: { select: { rooms: true } },
-        },
-        orderBy: { name: 'asc' },
-      });
-      res.json({ success: true, data: types });
+    const types = await prisma.roomType.findMany({
+      where: { tenantId: req.tenantId!, isActive: true },
+      include: {
+        photos: { orderBy: { sortOrder: 'asc' }, take: 3 },
+        _count: { select: { rooms: true } },
+      },
+      orderBy: { name: 'asc' },
     });
+    res.json({ success: true, data: types });
   } catch (err) {
     console.error('[ROOMS TYPES ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch room types' });
+  }
+});
+
+// POST /rooms/types/:id/photos
+roomsRouter.post('/types/:id/photos', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!;
+    const { url, caption, sortOrder } = req.body;
+    if (!url || typeof url !== 'string') {
+      res.status(400).json({ success: false, error: 'url is required' });
+      return;
+    }
+    // Security: only allow our own upload paths or HTTPS URLs (no javascript:, data:, etc.)
+    if (!url.startsWith('/uploads/') && !url.startsWith('https://')) {
+      res.status(400).json({ success: false, error: 'Invalid image URL' });
+      return;
+    }
+
+    await withTenant(tenantId, async () => {
+      // Verify room type belongs to tenant
+      const roomType = await prisma.roomType.findFirst({
+        where: { id: req.params.id, tenantId },
+      });
+      if (!roomType) {
+        res.status(404).json({ success: false, error: 'Room type not found' });
+        return;
+      }
+
+      // Limit to 5 photos per room type
+      const existingCount = await prisma.roomPhoto.count({
+        where: { roomTypeId: req.params.id, tenantId },
+      });
+      if (existingCount >= 5) {
+        res.status(400).json({ success: false, error: 'Maximum 5 photos per room type' });
+        return;
+      }
+
+      const photo = await prisma.roomPhoto.create({
+        data: {
+          tenantId,
+          roomTypeId: req.params.id,
+          url,
+          caption: caption || null,
+          sortOrder: typeof sortOrder === 'number' ? sortOrder : existingCount,
+        },
+      });
+      await logAudit(tenantId, req.userId, 'CREATE', 'room_photo', photo.id, { roomTypeId: req.params.id, url }, req.ip || undefined);
+      res.status(201).json({ success: true, data: photo });
+    });
+  } catch (err) {
+    console.error('[ROOM PHOTO CREATE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to add photo' });
+  }
+});
+
+// DELETE /rooms/types/:id/photos/:photoId
+roomsRouter.delete('/types/:id/photos/:photoId', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!;
+    await withTenant(tenantId, async () => {
+      const photo = await prisma.roomPhoto.findFirst({
+        where: { id: req.params.photoId, roomTypeId: req.params.id, tenantId },
+      });
+      if (!photo) {
+        res.status(404).json({ success: false, error: 'Photo not found' });
+        return;
+      }
+
+      await prisma.roomPhoto.delete({ where: { id: req.params.photoId } });
+      await logAudit(tenantId, req.userId, 'DELETE', 'room_photo', req.params.photoId, { roomTypeId: req.params.id }, req.ip || undefined);
+      res.json({ success: true, message: 'Photo deleted' });
+    });
+  } catch (err) {
+    console.error('[ROOM PHOTO DELETE ERROR]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete photo' });
   }
 });
 
@@ -222,50 +293,48 @@ roomsRouter.get('/', async (req: Request, res: Response) => {
     if (floorId) where.floorId = floorId;
     if (roomTypeId) where.roomTypeId = roomTypeId;
 
-    await withTenant(req.tenantId!, async () => {
-      const rooms = await prisma.room.findMany({
-        where,
-        include: {
-          floor: { select: { id: true, name: true } },
-          roomType: { select: { id: true, name: true, baseRate: true, amenities: true } },
-          // Active checked-in booking room — used to expose advance & security deposit
-          bookingRooms: {
-            where: { booking: { status: 'checked_in' } },
-            select: {
-              id: true,
-              advanceAmount: true,
-              securityDeposit: true,
-              securityDepositStatus: true,
-              booking: {
-                select: { id: true, bookingNumber: true, guestName: true, checkInDate: true, checkOutDate: true },
-              },
+    const rooms = await prisma.room.findMany({
+      where,
+      include: {
+        floor: { select: { id: true, name: true } },
+        roomType: { select: { id: true, name: true, baseRate: true, amenities: true } },
+        // Active checked-in booking room — used to expose advance & security deposit
+        bookingRooms: {
+          where: { booking: { status: 'checked_in' } },
+          select: {
+            id: true,
+            advanceAmount: true,
+            securityDeposit: true,
+            securityDepositStatus: true,
+            booking: {
+              select: { id: true, bookingNumber: true, guestName: true, checkInDate: true, checkOutDate: true },
             },
-            take: 1,
           },
+          take: 1,
         },
-        orderBy: [{ floor: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
-      });
-
-      // Flatten the active occupancy into a stable shape on each room
-      const data = rooms.map((r) => {
-        const active = r.bookingRooms[0];
-        const { bookingRooms, ...rest } = r as any;
-        return {
-          ...rest,
-          currentOccupancy: active
-            ? {
-                bookingRoomId: active.id,
-                advanceAmount: active.advanceAmount,
-                securityDeposit: active.securityDeposit,
-                securityDepositStatus: active.securityDepositStatus,
-                booking: active.booking,
-              }
-            : null,
-        };
-      });
-
-      res.json({ success: true, data });
+      },
+      orderBy: [{ floor: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
     });
+
+    // Flatten the active occupancy into a stable shape on each room
+    const data = rooms.map((r) => {
+      const active = r.bookingRooms[0];
+      const { bookingRooms, ...rest } = r as any;
+      return {
+        ...rest,
+        currentOccupancy: active
+          ? {
+              bookingRoomId: active.id,
+              advanceAmount: active.advanceAmount,
+              securityDeposit: active.securityDeposit,
+              securityDepositStatus: active.securityDepositStatus,
+              booking: active.booking,
+            }
+          : null,
+      };
+    });
+
+    res.json({ success: true, data });
   } catch (err) {
     console.error('[ROOMS LIST ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch rooms' });
@@ -399,41 +468,37 @@ roomsRouter.get('/availability', async (req: Request, res: Response) => {
       return;
     }
 
-    await withTenant(req.tenantId!, async () => {
-      // Get all active rooms excluding permanently blocked ones.
-      // Do NOT filter by current room.status — a room occupied TODAY
-      // may be free on future requested dates.
-      const checkInDt = new Date(checkIn as string + 'T12:00:00+05:30');
-      const checkOutDt = new Date(checkOut as string + 'T12:00:00+05:30');
-      const where: any = {
-        tenantId: req.tenantId!,
-        isActive: true,
-        status: { notIn: ['blocked', 'maintenance'] },
-      };
-      if (roomTypeId) where.roomTypeId = roomTypeId;
+    const tenantId = req.tenantId!;
 
-      const rooms = await prisma.room.findMany({
-        where,
-        include: {
-          floor: { select: { id: true, name: true } },
-          roomType: { select: { id: true, name: true, baseRate: true, amenities: true, maxOccupancy: true } },
-          bookingRooms: {
-            where: {
-              booking: {
-                status: { in: ['pending_confirmation', 'confirmed', 'checked_in'] },
-                checkInDate: { lt: checkOutDt },
-                checkOutDate: { gt: checkInDt },
-              },
+    const checkInDt = new Date(checkIn as string + 'T12:00:00+05:30');
+    const checkOutDt = new Date(checkOut as string + 'T12:00:00+05:30');
+    const where: any = {
+      tenantId,
+      isActive: true,
+      status: { notIn: ['blocked', 'maintenance'] },
+    };
+    if (roomTypeId) where.roomTypeId = roomTypeId;
+
+    const rooms = await prisma.room.findMany({
+      where,
+      include: {
+        floor: { select: { id: true, name: true } },
+        roomType: { select: { id: true, name: true, baseRate: true, amenities: true, maxOccupancy: true } },
+        bookingRooms: {
+          where: {
+            booking: {
+              status: { in: ['pending_confirmation', 'confirmed', 'checked_in'] },
+              checkInDate: { lt: checkOutDt },
+              checkOutDate: { gt: checkInDt },
             },
           },
         },
-      });
-
-      // Filter out rooms that have active bookings in the range
-      const availableRooms = rooms.filter((r) => r.bookingRooms.length === 0);
-
-      res.json({ success: true, data: availableRooms });
+      },
     });
+
+    const availableRooms = rooms.filter((r) => r.bookingRooms.length === 0);
+
+    res.json({ success: true, data: availableRooms });
   } catch (err) {
     console.error('[ROOMS AVAILABILITY ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to check availability' });
@@ -463,60 +528,60 @@ roomsRouter.get('/availability-grid', async (req: Request, res: Response) => {
       return;
     }
 
-    await withTenant(req.tenantId!, async () => {
-      const rooms = await prisma.room.findMany({
-        where: { tenantId: req.tenantId!, isActive: true },
-        include: {
-          floor: { select: { id: true, name: true, sortOrder: true } },
-          roomType: { select: { id: true, name: true, baseRate: true } },
-          bookingRooms: {
-            where: {
-              booking: {
-                status: { notIn: ['cancelled'] },
-                checkInDate: { lt: end },
-                checkOutDate: { gt: start },
+    const tenantId = req.tenantId!;
+
+    const rooms = await prisma.room.findMany({
+      where: { tenantId, isActive: true },
+      include: {
+        floor: { select: { id: true, name: true, sortOrder: true } },
+        roomType: { select: { id: true, name: true, baseRate: true } },
+        bookingRooms: {
+          where: {
+            booking: {
+              status: { notIn: ['cancelled'] },
+              checkInDate: { lt: end },
+              checkOutDate: { gt: start },
+            },
+          },
+          include: {
+            booking: {
+              select: {
+                id: true, bookingNumber: true, guestName: true,
+                guestPhone: true, guestEmail: true,
+                checkInDate: true, checkOutDate: true,
+                status: true, totalAmount: true, source: true,
+                numAdults: true, numChildren: true,
               },
             },
-            include: {
-              booking: {
-                select: {
-                  id: true, bookingNumber: true, guestName: true,
-                  guestPhone: true, guestEmail: true,
-                  checkInDate: true, checkOutDate: true,
-                  status: true, totalAmount: true, source: true,
-                  numAdults: true, numChildren: true,
-                },
-              },
-            },
           },
         },
-        orderBy: [{ floor: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
-      });
-
-      const unassigned = await prisma.bookingRoom.findMany({
-        where: {
-          tenantId: req.tenantId!,
-          roomId: null,
-          booking: {
-            status: { notIn: ['cancelled'] },
-            checkInDate: { lt: end },
-            checkOutDate: { gt: start },
-          },
-        },
-        include: {
-          booking: {
-            select: {
-              id: true, bookingNumber: true, guestName: true,
-              guestPhone: true, checkInDate: true, checkOutDate: true,
-              status: true, totalAmount: true, source: true,
-            },
-          },
-          roomType: { select: { id: true, name: true } },
-        },
-      });
-
-      res.json({ success: true, data: { rooms, unassigned } });
+      },
+      orderBy: [{ floor: { sortOrder: 'asc' } }, { roomNumber: 'asc' }],
     });
+
+    const unassigned = await prisma.bookingRoom.findMany({
+      where: {
+        tenantId,
+        roomId: null,
+        booking: {
+          status: { notIn: ['cancelled'] },
+          checkInDate: { lt: end },
+          checkOutDate: { gt: start },
+        },
+      },
+      include: {
+        booking: {
+          select: {
+            id: true, bookingNumber: true, guestName: true,
+            guestPhone: true, checkInDate: true, checkOutDate: true,
+            status: true, totalAmount: true, source: true,
+          },
+        },
+        roomType: { select: { id: true, name: true } },
+      },
+    });
+
+    res.json({ success: true, data: { rooms, unassigned } });
   } catch (err) {
     console.error('[AVAILABILITY GRID ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch availability grid' });

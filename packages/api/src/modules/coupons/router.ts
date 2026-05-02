@@ -24,7 +24,7 @@ couponsRouter.post('/validate', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Tenant ID required' });
     }
 
-    await withTenant(tenantId, async () => {
+    {
       const coupon = await prisma.coupon.findUnique({
         where: {
           tenantId_code: {
@@ -84,7 +84,7 @@ couponsRouter.post('/validate', async (req: Request, res: Response) => {
           discountAmount: Math.round(discountAmount),
         },
       });
-    });
+    }
   } catch (err) {
     console.error('[COUPON VALIDATE ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to validate coupon' });
@@ -97,13 +97,11 @@ couponsRouter.use(authenticate, resolveTenant, requireTenant);
 // GET /coupons
 couponsRouter.get('/', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const coupons = await prisma.coupon.findMany({
-        where: { tenantId: req.tenantId! },
-        orderBy: { createdAt: 'desc' },
-      });
-      res.json({ success: true, data: coupons });
+    const coupons = await prisma.coupon.findMany({
+      where: { tenantId: req.tenantId! },
+      orderBy: { createdAt: 'desc' },
     });
+    res.json({ success: true, data: coupons });
   } catch (err: any) {
     console.error('[COUPON LIST ERROR]', err);
     res.status(500).json({ success: false, error: err.message || 'Failed to fetch coupons' });

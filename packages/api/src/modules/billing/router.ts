@@ -76,21 +76,20 @@ const SAC_CODES: Record<string, string> = {
 // GET /billing/:bookingId/folio
 billingRouter.get('/:bookingId/folio', async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const charges = await prisma.folioCharge.findMany({
-        where: { bookingId: req.params.bookingId, tenantId: req.tenantId! },
-        orderBy: { chargeDate: 'asc' },
-      });
-      const payments = await prisma.guestPayment.findMany({
-        where: { bookingId: req.params.bookingId, tenantId: req.tenantId! },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      const totalCharges = charges.reduce((sum, c) => sum + c.totalPrice + c.cgst + c.sgst + c.igst, 0);
-      const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
-
-      res.json({ success: true, data: { charges, payments, totalCharges, totalPayments, balance: totalCharges - totalPayments } });
+    const tenantId = req.tenantId!;
+    const charges = await prisma.folioCharge.findMany({
+      where: { bookingId: req.params.bookingId, tenantId },
+      orderBy: { chargeDate: 'asc' },
     });
+    const payments = await prisma.guestPayment.findMany({
+      where: { bookingId: req.params.bookingId, tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const totalCharges = charges.reduce((sum, c) => sum + c.totalPrice + c.cgst + c.sgst + c.igst, 0);
+    const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
+
+    res.json({ success: true, data: { charges, payments, totalCharges, totalPayments, balance: totalCharges - totalPayments } });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch folio' });
   }
@@ -330,6 +329,27 @@ billingRouter.post('/payment', authorize('property_owner', 'general_manager', 'f
       return;
     }
 
+    // Resolve paidOn: user-supplied date (date-only or ISO datetime) → Date, else now.
+    // Reject future dates — payments can be backdated, never forward-dated.
+    const now = new Date();
+    let paidOn = now;
+    if (parsed.data.paidOn) {
+      const raw = parsed.data.paidOn;
+      // Date-only strings ("YYYY-MM-DD") are parsed as UTC midnight by JS;
+      // anchor them to noon IST so they don't drift to the previous day in displays.
+      paidOn = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+        ? new Date(`${raw}T06:30:00.000Z`) // 12:00 IST = 06:30 UTC
+        : new Date(raw);
+      if (Number.isNaN(paidOn.getTime())) {
+        res.status(400).json({ success: false, error: 'Invalid paidOn date' });
+        return;
+      }
+      if (paidOn.getTime() > now.getTime() + 60_000) {
+        res.status(400).json({ success: false, error: 'Payment date cannot be in the future' });
+        return;
+      }
+    }
+
     const result = await withTenant(req.tenantId!, async () => {
       // Verify booking exists
       const booking = await prisma.booking.findUnique({
@@ -391,11 +411,13 @@ billingRouter.post('/payment', authorize('property_owner', 'general_manager', 'f
           status: 'completed',
           category: 'payment',
           notes: parsed.data.notes || null,
+          paidOn,
         },
       });
 
-      // Apply allocations to FolioCharge.paidAmount + paidAt
-      const now = new Date();
+      // Apply allocations to FolioCharge.paidAmount + paidAt.
+      // Stamp paidAt with the user-entered paidOn so the folio history reflects the
+      // actual collection date, not the system-record timestamp.
       for (const a of allocations) {
         const cur = await prisma.folioCharge.findUnique({
           where: { id: a.chargeId },
@@ -408,7 +430,7 @@ billingRouter.post('/payment', authorize('property_owner', 'general_manager', 'f
           data: {
             paidAmount: newPaid,
             // Stamp paidAt only when fully cleared (within rounding tolerance)
-            paidAt: newPaid + 0.001 >= cur.totalPrice ? now : null,
+            paidAt: newPaid + 0.001 >= cur.totalPrice ? paidOn : null,
           },
         });
       }
@@ -441,121 +463,120 @@ billingRouter.post('/payment', authorize('property_owner', 'general_manager', 'f
 // Primarily used by the PG/Hostel rent-roll dashboard, but works for any property type.
 billingRouter.get('/rent-roll', authorize('property_owner', 'general_manager', 'accountant', 'front_desk'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: req.tenantId! },
-        select: { rentGracePeriodDays: true, propertyType: true },
-      });
-      const graceDays = tenant?.rentGracePeriodDays ?? 5;
-      const now = new Date();
+    const tenantId = req.tenantId!;
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { rentGracePeriodDays: true, propertyType: true },
+    });
+    const graceDays = tenant?.rentGracePeriodDays ?? 5;
+    const now = new Date();
 
-      const bookings = await prisma.booking.findMany({
-        where: { tenantId: req.tenantId!, status: 'checked_in' },
-        select: {
-          id: true,
-          bookingNumber: true,
-          guestName: true,
-          guestPhone: true,
-          checkInDate: true,
-          checkOutDate: true,
-          totalAmount: true,
-          advancePaid: true,
-          balanceDue: true,
-          billingMode: true,
-          monthlyRate: true,
-          bookingRooms: {
-            select: { id: true, room: { select: { roomNumber: true } }, roomType: { select: { name: true } } },
-          },
-          folioCharges: {
-            orderBy: { chargeDate: 'asc' },
-            select: {
-              id: true, chargeDate: true, category: true, description: true,
-              totalPrice: true, paidAmount: true, paidAt: true,
-            },
+    const bookings = await prisma.booking.findMany({
+      where: { tenantId, status: 'checked_in' },
+      select: {
+        id: true,
+        bookingNumber: true,
+        guestName: true,
+        guestPhone: true,
+        checkInDate: true,
+        checkOutDate: true,
+        totalAmount: true,
+        advancePaid: true,
+        balanceDue: true,
+        billingMode: true,
+        monthlyRate: true,
+        bookingRooms: {
+          select: { id: true, room: { select: { roomNumber: true } }, roomType: { select: { name: true } } },
+        },
+        folioCharges: {
+          orderBy: { chargeDate: 'asc' },
+          select: {
+            id: true, chargeDate: true, category: true, description: true,
+            totalPrice: true, paidAmount: true, paidAt: true,
           },
         },
-        orderBy: { checkInDate: 'asc' },
-      });
+      },
+      orderBy: { checkInDate: 'asc' },
+    });
 
-      // Compute status for each charge + group by month (YYYY-MM)
-      const data = bookings.map((b) => {
-        const monthMap = new Map<string, {
-          period: string; // "YYYY-MM"
-          charges: any[];
-          totalDue: number;
-          totalPaid: number;
-          status: 'paid' | 'partial' | 'due' | 'overdue';
-        }>();
+    // Compute status for each charge + group by month (YYYY-MM)
+    const data = bookings.map((b) => {
+      const monthMap = new Map<string, {
+        period: string; // "YYYY-MM"
+        charges: any[];
+        totalDue: number;
+        totalPaid: number;
+        status: 'paid' | 'partial' | 'due' | 'overdue';
+      }>();
 
-        for (const c of b.folioCharges) {
-          const dt = new Date(c.chargeDate);
-          const period = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
-          const remaining = Math.max(0, c.totalPrice - c.paidAmount);
-          const fullyPaid = remaining <= 0.001;
-          const partiallyPaid = !fullyPaid && c.paidAmount > 0;
-          const overdueThreshold = new Date(dt);
-          overdueThreshold.setDate(overdueThreshold.getDate() + graceDays);
-          const isOverdue = !fullyPaid && now > overdueThreshold;
+      for (const c of b.folioCharges) {
+        const dt = new Date(c.chargeDate);
+        const period = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+        const remaining = Math.max(0, c.totalPrice - c.paidAmount);
+        const fullyPaid = remaining <= 0.001;
+        const partiallyPaid = !fullyPaid && c.paidAmount > 0;
+        const overdueThreshold = new Date(dt);
+        overdueThreshold.setDate(overdueThreshold.getDate() + graceDays);
+        const isOverdue = !fullyPaid && now > overdueThreshold;
 
-          const chargeStatus = fullyPaid
-            ? 'paid'
-            : isOverdue
-              ? 'overdue'
-              : partiallyPaid
-                ? 'partial'
-                : 'due';
-
-          if (!monthMap.has(period)) {
-            monthMap.set(period, { period, charges: [], totalDue: 0, totalPaid: 0, status: 'due' });
-          }
-          const m = monthMap.get(period)!;
-          m.charges.push({ ...c, status: chargeStatus, remaining });
-          m.totalDue += c.totalPrice;
-          m.totalPaid += c.paidAmount;
-        }
-
-        // Roll up monthly status from the rows in that month (worst status wins)
-        const months = Array.from(monthMap.values()).map((m) => {
-          const rowStatuses = m.charges.map((c: any) => c.status);
-          const status: 'paid' | 'partial' | 'due' | 'overdue' = rowStatuses.includes('overdue')
+        const chargeStatus = fullyPaid
+          ? 'paid'
+          : isOverdue
             ? 'overdue'
-            : rowStatuses.every((s: string) => s === 'paid')
-              ? 'paid'
-              : rowStatuses.some((s: string) => s === 'partial' || s === 'paid')
-                ? 'partial'
-                : 'due';
-          return { ...m, status };
-        });
-        months.sort((a, b) => a.period.localeCompare(b.period));
+            : partiallyPaid
+              ? 'partial'
+              : 'due';
 
-        return {
-          bookingId: b.id,
-          bookingNumber: b.bookingNumber,
-          guestName: b.guestName,
-          guestPhone: b.guestPhone,
-          checkInDate: b.checkInDate,
-          checkOutDate: b.checkOutDate,
-          totalAmount: b.totalAmount,
-          advancePaid: b.advancePaid,
-          balanceDue: b.balanceDue,
-          billingMode: b.billingMode,
-          monthlyRate: b.monthlyRate,
-          rooms: b.bookingRooms.map((br) => ({
-            number: br.room?.roomNumber || null,
-            type: br.roomType?.name || null,
-          })),
-          months,
-        };
-      });
+        if (!monthMap.has(period)) {
+          monthMap.set(period, { period, charges: [], totalDue: 0, totalPaid: 0, status: 'due' });
+        }
+        const m = monthMap.get(period)!;
+        m.charges.push({ ...c, status: chargeStatus, remaining });
+        m.totalDue += c.totalPrice;
+        m.totalPaid += c.paidAmount;
+      }
 
-      res.json({
-        success: true,
-        data: {
-          residents: data,
-          graceDays,
-          propertyType: tenant?.propertyType,
-        },
+      // Roll up monthly status from the rows in that month (worst status wins)
+      const months = Array.from(monthMap.values()).map((m) => {
+        const rowStatuses = m.charges.map((c: any) => c.status);
+        const status: 'paid' | 'partial' | 'due' | 'overdue' = rowStatuses.includes('overdue')
+          ? 'overdue'
+          : rowStatuses.every((s: string) => s === 'paid')
+            ? 'paid'
+            : rowStatuses.some((s: string) => s === 'partial' || s === 'paid')
+              ? 'partial'
+              : 'due';
+        return { ...m, status };
       });
+      months.sort((a, b) => a.period.localeCompare(b.period));
+
+      return {
+        bookingId: b.id,
+        bookingNumber: b.bookingNumber,
+        guestName: b.guestName,
+        guestPhone: b.guestPhone,
+        checkInDate: b.checkInDate,
+        checkOutDate: b.checkOutDate,
+        totalAmount: b.totalAmount,
+        advancePaid: b.advancePaid,
+        balanceDue: b.balanceDue,
+        billingMode: b.billingMode,
+        monthlyRate: b.monthlyRate,
+        rooms: b.bookingRooms.map((br) => ({
+          number: br.room?.roomNumber || null,
+          type: br.roomType?.name || null,
+        })),
+        months,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        residents: data,
+        graceDays,
+        propertyType: tenant?.propertyType,
+      },
     });
   } catch (err) {
     console.error('[BILLING RENT ROLL ERROR]', err);
@@ -566,15 +587,13 @@ billingRouter.get('/rent-roll', authorize('property_owner', 'general_manager', '
 // GET /billing/invoices
 billingRouter.get('/invoices', authorize('property_owner', 'general_manager', 'accountant'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const invoices = await prisma.invoice.findMany({
-        where: { tenantId: req.tenantId! },
-        include: { booking: { select: { bookingNumber: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      });
-      res.json({ success: true, data: invoices });
+    const invoices = await prisma.invoice.findMany({
+      where: { tenantId: req.tenantId! },
+      include: { booking: { select: { bookingNumber: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
     });
+    res.json({ success: true, data: invoices });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch invoices' });
   }
@@ -583,49 +602,48 @@ billingRouter.get('/invoices', authorize('property_owner', 'general_manager', 'a
 // GET /billing/invoices/:id/pdf
 billingRouter.get('/invoices/:id/pdf', authorize('property_owner', 'general_manager', 'front_desk', 'accountant'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const invoice = await prisma.invoice.findUnique({
-        where: { id: req.params.id, tenantId: req.tenantId! },
-        include: {
-          booking: {
-            select: {
-              checkInDate: true,
-              checkOutDate: true,
-              folioCharges: {
-                orderBy: { chargeDate: 'asc' as const },
-              },
+    const tenantId = req.tenantId!;
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: req.params.id, tenantId },
+      include: {
+        booking: {
+          select: {
+            checkInDate: true,
+            checkOutDate: true,
+            folioCharges: {
+              orderBy: { chargeDate: 'asc' as const },
             },
           },
         },
-      });
-
-      if (!invoice) {
-        res.status(404).json({ success: false, error: 'Invoice not found' });
-        return;
-      }
-
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: req.tenantId! },
-        select: {
-          name: true, address: true, city: true, state: true,
-          pincode: true, gstNumber: true, contactPhone: true, contactEmail: true,
-        },
-      });
-
-      // Lazy import the generator so we don't block API boot unnecessarily
-      const { buildInvoicePdf } = await import('../../services/pdf-generator');
-      
-      const pdfBuffer = await buildInvoicePdf(
-        invoice, 
-        invoice.booking?.folioCharges || [], 
-        tenant || {}
-      );
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
-      res.setHeader('Content-Length', pdfBuffer.length);
-      res.send(pdfBuffer);
+      },
     });
+
+    if (!invoice) {
+      res.status(404).json({ success: false, error: 'Invoice not found' });
+      return;
+    }
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        name: true, address: true, city: true, state: true,
+        pincode: true, gstNumber: true, contactPhone: true, contactEmail: true,
+      },
+    });
+
+    // Lazy import the generator so we don't block API boot unnecessarily
+    const { buildInvoicePdf } = await import('../../services/pdf-generator');
+    
+    const pdfBuffer = await buildInvoicePdf(
+      invoice, 
+      invoice.booking?.folioCharges || [], 
+      tenant || {}
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
   } catch (err) {
     console.error('PDF Generation Error:', err);
     res.status(500).json({ success: false, error: 'Failed to generate PDF' });
@@ -664,9 +682,10 @@ billingRouter.get('/gstr1', authorize('property_owner', 'general_manager', 'acco
     const fromIst = new Date(Date.UTC(year, month - 1, 1) - IST_OFFSET_MS);
     const toIst   = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999) - IST_OFFSET_MS);
 
-    await withTenant(req.tenantId!, async () => {
+    {
+      const tenantId = req.tenantId!;
       const tenant = await prisma.tenant.findUnique({
-        where: { id: req.tenantId! },
+        where: { id: tenantId },
         select: { name: true, gstNumber: true, state: true },
       });
 
@@ -825,7 +844,7 @@ billingRouter.get('/gstr1', authorize('property_owner', 'general_manager', 'acco
       } catch (auditErr) {
         console.error('[GSTR1 AUDIT LOG FAILED]', auditErr);
       }
-    });
+    }
   } catch (err) {
     console.error('[GSTR1 EXPORT ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to generate GSTR-1 export' });

@@ -232,6 +232,9 @@ export const paymentSchema = z.object({
   amount: z.number().min(0.01, 'Amount must be positive'),
   method: z.enum(['cash', 'upi', 'card', 'bank_transfer']),
   notes: z.string().max(500).optional(),
+  // Date the payment was actually received (user-editable, can be backdated).
+  // ISO 8601 string (e.g. "2026-05-02" or full datetime). Defaults to now if omitted.
+  paidOn: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   // Optional explicit allocations. If omitted, payment is auto-allocated FIFO
   // across unpaid folio charges (oldest first).
   chargeAllocations: z.array(chargeAllocationSchema).optional(),

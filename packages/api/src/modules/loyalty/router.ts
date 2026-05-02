@@ -106,13 +106,11 @@ loyaltyRouter.use('/rewards', authenticate, resolveTenant, requireTenant);
 // GET /loyalty/rewards — list rewards for the property
 loyaltyRouter.get('/rewards', async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const rewards = await prisma.loyaltyReward.findMany({
-        where: { tenantId: req.tenantId! },
-        orderBy: { pointsCost: 'asc' },
-      });
-      res.json({ success: true, data: rewards });
+    const rewards = await prisma.loyaltyReward.findMany({
+      where: { tenantId: req.tenantId! },
+      orderBy: { pointsCost: 'asc' },
     });
+    res.json({ success: true, data: rewards });
   } catch (err) {
     console.error('[LOYALTY REWARDS LIST ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch rewards' });

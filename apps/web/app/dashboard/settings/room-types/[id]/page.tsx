@@ -1,16 +1,19 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { roomsApi } from '@/lib/api';
-import { BedDouble, ArrowLeft, Loader2, Save, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { roomsApi, uploadApi } from '@/lib/api';
+import { BedDouble, ArrowLeft, Loader2, Save, Image as ImageIcon, Trash2, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function EditRoomTypePage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [photos, setPhotos] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -33,6 +36,7 @@ export default function EditRoomTypePage({ params }: { params: { id: string } })
             baseRate: type.baseRate || 0,
             pricingUnit: type.pricingUnit || 'nightly',
           });
+          setPhotos(type.photos || []);
         } else {
           toast.error('Room type not found');
           router.push('/dashboard/settings/room-types');
@@ -90,6 +94,57 @@ export default function EditRoomTypePage({ params }: { params: { id: string } })
     });
   }
 
+  async function handlePhotoUpload() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (photos.length >= 5) {
+        toast.error('Maximum 5 photos per room type');
+        return;
+      }
+      // 5 MB limit
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File too large. Maximum size is 5 MB.');
+        return;
+      }
+      setUploading(true);
+      try {
+        // Step 1: Upload file to /api/upload (local disk or Cloudinary)
+        const uploadRes = await uploadApi.uploadFile(file);
+        if (!uploadRes.url) throw new Error('Upload failed');
+        
+        // Step 2: Persist as a RoomPhoto record
+        const photoRes = await roomsApi.addRoomTypePhoto(params.id, {
+          url: uploadRes.url,
+          sortOrder: photos.length,
+        });
+        if (photoRes.success && photoRes.data) {
+          setPhotos(prev => [...prev, photoRes.data]);
+          toast.success('Photo uploaded successfully');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to upload photo');
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
+  }
+
+  async function handlePhotoDelete(photoId: string) {
+    try {
+      const res = await roomsApi.deleteRoomTypePhoto(params.id, photoId);
+      if (res.success) {
+        setPhotos(prev => prev.filter(p => p.id !== photoId));
+        toast.success('Photo removed');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove photo');
+    }
+  }
 
   if (loading) {
     return (
@@ -186,7 +241,7 @@ export default function EditRoomTypePage({ params }: { params: { id: string } })
               </div>
             </div>
 
-            <div className="pt-8 flex items-center justify-between">
+            <div className="pt-8 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <button
                 type="button"
                 onClick={handleDelete}
@@ -218,13 +273,70 @@ export default function EditRoomTypePage({ params }: { params: { id: string } })
           </form>
         </div>
 
+        {/* Photo Gallery Panel */}
         <div className="space-y-6">
-          <div className="bg-white border border-surface-200 rounded-2xl p-6 text-center shadow-sm">
-            <div className="w-16 h-16 bg-surface-50 rounded-xl flex items-center justify-center mx-auto mb-4 border border-surface-200 border-dashed hover:bg-surface-100 transition-colors cursor-pointer" onClick={() => toast.info('Image uploading via Cloudinary coming next.')}>
-              <ImageIcon className="w-6 h-6 text-surface-400" />
+          <div className="bg-white border border-surface-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold text-surface-900 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-primary-600" />
+                Photo Gallery
+              </h4>
+              <span className="text-xs text-surface-400 font-medium">{photos.length}/5</span>
             </div>
-            <h4 className="text-sm font-semibold text-surface-900 mb-2">Photo Gallery</h4>
-            <p className="text-xs text-surface-500 mb-4">Click to upload photos for this room type. Features rolling out soon.</p>
+
+            {/* Existing Photos */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {photos.map((photo: any, i: number) => (
+                  <div key={photo.id} className="relative group aspect-[4/3] rounded-xl overflow-hidden border border-surface-200 bg-surface-50">
+                    <Image
+                      src={photo.url}
+                      alt={photo.caption || `Room photo ${i + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 50vw, 200px"
+                      unoptimized={photo.url.startsWith('/uploads/')}
+                    />
+                    {i === 0 && (
+                      <div className="absolute top-1.5 left-1.5 bg-primary-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider z-10">
+                        Hero
+                      </div>
+                    )}
+                    <button
+                      onClick={() => handlePhotoDelete(photo.id)}
+                      className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-600/90 hover:bg-red-700 text-white rounded-lg flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md z-10"
+                      title="Remove photo"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload Button */}
+            {photos.length < 5 && (
+              <button
+                onClick={handlePhotoUpload}
+                disabled={uploading}
+                className="w-full border-2 border-dashed border-surface-200 hover:border-primary-400 bg-surface-50 hover:bg-primary-50/50 rounded-xl p-6 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group"
+              >
+                {uploading ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+                ) : (
+                  <Upload className="w-6 h-6 text-surface-400 group-hover:text-primary-500 transition-colors" />
+                )}
+                <span className="text-xs font-semibold text-surface-500 group-hover:text-primary-600 transition-colors">
+                  {uploading ? 'Uploading...' : 'Upload Photo'}
+                </span>
+              </button>
+            )}
+
+            {photos.length === 0 && !uploading && (
+              <p className="text-xs text-surface-400 text-center mt-3">
+                First photo will be the hero image on your website.
+              </p>
+            )}
           </div>
         </div>
       </div>

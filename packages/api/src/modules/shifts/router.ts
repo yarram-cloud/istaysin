@@ -28,36 +28,35 @@ const shiftSchema = baseShiftSchema.refine(data => new Date(data.startTime) < ne
 shiftsRouter.get('/', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
     const { start, end, userId } = req.query;
+    const tenantId = req.tenantId!;
     
-    await withTenant(req.tenantId!, async () => {
-      const where: any = { tenantId: req.tenantId! };
-      
-      if (userId && typeof userId === 'string') {
-        where.userId = userId;
+    const where: any = { tenantId };
+    
+    if (userId && typeof userId === 'string') {
+      where.userId = userId;
+    }
+    
+    if (start || end) {
+      where.startTime = {};
+      if (start) {
+        const d = new Date(start as string);
+        if (!isNaN(d.getTime())) where.startTime.gte = d;
       }
-      
-      if (start || end) {
-        where.startTime = {};
-        if (start) {
-          const d = new Date(start as string);
-          if (!isNaN(d.getTime())) where.startTime.gte = d;
-        }
-        if (end) {
-          const d = new Date(end as string);
-          if (!isNaN(d.getTime())) where.startTime.lte = d;
-        }
+      if (end) {
+        const d = new Date(end as string);
+        if (!isNaN(d.getTime())) where.startTime.lte = d;
       }
+    }
 
-      const shifts = await prisma.staffShift.findMany({
-        where,
-        include: {
-          user: { select: { id: true, fullName: true, email: true } }
-        },
-        orderBy: { startTime: 'asc' }
-      });
-
-      res.json({ success: true, data: shifts });
+    const shifts = await prisma.staffShift.findMany({
+      where,
+      include: {
+        user: { select: { id: true, fullName: true, email: true } }
+      },
+      orderBy: { startTime: 'asc' }
     });
+
+    res.json({ success: true, data: shifts });
   } catch (err) {
     console.error('[SHIFTS LIST ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch shifts' });

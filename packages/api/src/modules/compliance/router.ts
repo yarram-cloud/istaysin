@@ -26,41 +26,38 @@ complianceRouter.get('/c-form/export', authorize('property_owner', 'general_mana
   try {
     const hours = parseInt(req.query.hours as string) || 24;
     const sinceDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const tenantId = req.tenantId!;
 
-    let exportData: any[] = [];
-    
-    await withTenant(req.tenantId!, async () => {
-      // Find all booking guests where nationality is NOT Indian/India, who checked in recent hours
-      const foreignGuests = await prisma.bookingGuest.findMany({
-        where: {
-          tenantId: req.tenantId!,
-          NOT: {
-            nationality: { in: ['Indian', 'India', 'IND'] }
-          },
-          createdAt: { gte: sinceDate }
+    // Find all booking guests where nationality is NOT Indian/India, who checked in recent hours
+    const foreignGuests = await prisma.bookingGuest.findMany({
+      where: {
+        tenantId,
+        NOT: {
+          nationality: { in: ['Indian', 'India', 'IND'] }
         },
-        include: {
-          booking: {
-            select: { bookingNumber: true, checkInDate: true, checkOutDate: true }
-          }
+        createdAt: { gte: sinceDate }
+      },
+      include: {
+        booking: {
+          select: { bookingNumber: true, checkInDate: true, checkOutDate: true }
         }
-      });
-
-      exportData = foreignGuests.map(g => ({
-        FullName: g.fullName,
-        Nationality: g.nationality,
-        PassportNumber: g.idProofNumber || 'Missing',
-        VisaNumber: g.visaNumber || 'Missing',
-        VisaExpiry: g.visaExpiryDate ? g.visaExpiryDate.toISOString().split('T')[0] : 'Missing',
-        ArrivingFrom: g.arrivingFrom || 'Missing',
-        GoingTo: g.goingTo || 'Missing',
-        PurposeOfVisit: g.purposeOfVisit || 'Tourist',
-        BookingReference: g.booking.bookingNumber,
-        CheckInDate: g.booking.checkInDate.toISOString().split('T')[0]
-      }));
-
-      await logAudit(req.tenantId!, req.userId, 'READ', 'compliance_cform', 'export', { range: `${hours} hours`, count: exportData.length }, req.ip || undefined);
+      }
     });
+
+    const exportData = foreignGuests.map(g => ({
+      FullName: g.fullName,
+      Nationality: g.nationality,
+      PassportNumber: g.idProofNumber || 'Missing',
+      VisaNumber: g.visaNumber || 'Missing',
+      VisaExpiry: g.visaExpiryDate ? g.visaExpiryDate.toISOString().split('T')[0] : 'Missing',
+      ArrivingFrom: g.arrivingFrom || 'Missing',
+      GoingTo: g.goingTo || 'Missing',
+      PurposeOfVisit: g.purposeOfVisit || 'Tourist',
+      BookingReference: g.booking.bookingNumber,
+      CheckInDate: g.booking.checkInDate.toISOString().split('T')[0]
+    }));
+
+    await logAudit(tenantId, req.userId, 'READ', 'compliance_cform', 'export', { range: `${hours} hours`, count: exportData.length }, req.ip || undefined);
 
     res.json({ success: true, data: exportData });
   } catch (err) {
@@ -72,54 +69,47 @@ complianceRouter.get('/c-form/export', authorize('property_owner', 'general_mana
 // GET /compliance/guest-register
 complianceRouter.get('/guest-register', authorize('property_owner', 'general_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
-    // Use IST midnight-to-midnight so dates match what hotel staff see on screen
     const IST_OFFSET = 5.5 * 60 * 60 * 1000;
     const todayIST = new Date(Date.now() + IST_OFFSET).toISOString().split('T')[0];
     const startDateStr = (req.query.startDate as string) || todayIST;
     const endDateStr = (req.query.endDate as string) || todayIST;
-    // Parse as IST midnight by appending the offset
     const startDate = new Date(`${startDateStr}T00:00:00+05:30`);
     const endDate = new Date(`${endDateStr}T23:59:59.999+05:30`);
+    const tenantId = req.tenantId!;
 
-    let registerData: any[] = [];
-
-    await withTenant(req.tenantId!, async () => {
-      const guests = await prisma.bookingGuest.findMany({
-        where: {
-          tenantId: req.tenantId!,
-          booking: {
-            // Filter by when guests actually checked in, not when the record was created
-            checkInDate: {
-              gte: startDate,
-              lte: endDate,
-            },
-            status: { in: ['confirmed', 'checked_in', 'checked_out'] },
+    const guests = await prisma.bookingGuest.findMany({
+      where: {
+        tenantId,
+        booking: {
+          checkInDate: {
+            gte: startDate,
+            lte: endDate,
           },
+          status: { in: ['confirmed', 'checked_in', 'checked_out'] },
         },
-        include: {
-          booking: {
-            include: {
-              bookingRooms: { include: { room: true } },
-              guestProfile: { select: { nationality: true, idProofType: true, idProofNumber: true } },
-            }
+      },
+      include: {
+        booking: {
+          include: {
+            bookingRooms: { include: { room: true } },
+            guestProfile: { select: { nationality: true, idProofType: true, idProofNumber: true } },
           }
-        },
-        orderBy: { booking: { checkInDate: 'asc' } }
-      });
+        }
+      },
+      orderBy: { booking: { checkInDate: 'asc' } }
+    });
 
-      registerData = guests.map((g, idx) => {
-        // GuestProfile is the source of truth for nationality — BookingGuest defaults to "Indian"
-        // which is wrong for foreign nationals whose profile was linked after the booking was created.
-        const profileNationality = g.booking.guestProfile?.nationality;
-        const nationality =
-          (g.nationality && g.nationality !== 'Indian') ? g.nationality :
-          (profileNationality && profileNationality !== 'Indian') ? profileNationality :
-          g.nationality;
+    const registerData = guests.map((g, idx) => {
+      const profileNationality = g.booking.guestProfile?.nationality;
+      const nationality =
+        (g.nationality && g.nationality !== 'Indian') ? g.nationality :
+        (profileNationality && profileNationality !== 'Indian') ? profileNationality :
+        g.nationality;
 
-        const idProofType = g.idProofType || g.booking.guestProfile?.idProofType;
-        const idProofNumber = g.idProofNumber || g.booking.guestProfile?.idProofNumber;
+      const idProofType = g.idProofType || g.booking.guestProfile?.idProofType;
+      const idProofNumber = g.idProofNumber || g.booking.guestProfile?.idProofNumber;
 
-        return ({
+      return ({
         sNo: idx + 1,
         fullName: g.fullName,
         fathersName: 'Not Recorded',
@@ -137,11 +127,10 @@ complianceRouter.get('/guest-register', authorize('property_owner', 'general_man
         cFormSubmitted: g.cFormSubmitted,
         cFormSubmittedAt: g.cFormSubmittedAt,
         guestId: g.id
-        });
       });
-
-      await logAudit(req.tenantId!, req.userId, 'READ', 'compliance', 'register', { count: registerData.length }, req.ip || undefined);
     });
+
+    await logAudit(tenantId, req.userId, 'READ', 'compliance', 'register', { count: registerData.length }, req.ip || undefined);
 
     res.json({ success: true, data: registerData });
   } catch (err) {

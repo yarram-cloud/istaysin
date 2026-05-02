@@ -318,6 +318,10 @@ export const roomsApi = {
     extraBedCharge?: number;
   }) => apiFetch(`/rooms/types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteRoomType: (id: string) => apiFetch(`/rooms/types/${id}`, { method: 'DELETE' }),
+  addRoomTypePhoto: (roomTypeId: string, body: { url: string; caption?: string; sortOrder?: number }) =>
+    apiFetch(`/rooms/types/${roomTypeId}/photos`, { method: 'POST', body: JSON.stringify(body) }),
+  deleteRoomTypePhoto: (roomTypeId: string, photoId: string) =>
+    apiFetch(`/rooms/types/${roomTypeId}/photos/${photoId}`, { method: 'DELETE' }),
 
   // Rooms
   getRooms: (params?: Record<string, string>) => {

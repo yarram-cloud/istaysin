@@ -13,14 +13,12 @@ pricingRouter.use(authenticate, resolveTenant, requireTenant);
 // GET /pricing
 pricingRouter.get('/', authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const rules = await prisma.pricingRule.findMany({
-        where: { tenantId: req.tenantId! },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-        include: { roomType: { select: { name: true } } },
-      });
-      res.json({ success: true, data: rules });
+    const rules = await prisma.pricingRule.findMany({
+      where: { tenantId: req.tenantId! },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      include: { roomType: { select: { name: true } } },
     });
+    res.json({ success: true, data: rules });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch pricing rules' });
   }

@@ -15,42 +15,41 @@ reviewsRouter.use(authenticate, resolveTenant, requireTenant, authorize('propert
 reviewsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const { rating, isPublished } = req.query;
+    const tenantId = req.tenantId!;
 
-    await withTenant(req.tenantId!, async () => {
-      const whereClause: any = { tenantId: req.tenantId! };
-      
-      if (rating) {
-        whereClause.rating = parseInt(rating as string);
+    const whereClause: any = { tenantId };
+    
+    if (rating) {
+      whereClause.rating = parseInt(rating as string);
+    }
+    
+    if (isPublished !== undefined) {
+      whereClause.isPublished = isPublished === 'true';
+    }
+
+    const reviews = await prisma.review.findMany({
+      where: whereClause,
+      include: {
+        booking: { select: { bookingNumber: true, checkInDate: true, checkOutDate: true } },
+        guestProfile: { select: { fullName: true, email: true, phone: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Calculate aggregate stats quickly
+    const aggregate = await prisma.review.aggregate({
+      where: { tenantId },
+      _avg: { rating: true },
+      _count: { id: true },
+    });
+
+    res.json({ 
+      success: true, 
+      data: reviews,
+      meta: {
+        averageRating: aggregate._avg.rating || 0,
+        totalReviews: aggregate._count.id || 0
       }
-      
-      if (isPublished !== undefined) {
-        whereClause.isPublished = isPublished === 'true';
-      }
-
-      const reviews = await prisma.review.findMany({
-        where: whereClause,
-        include: {
-          booking: { select: { bookingNumber: true, checkInDate: true, checkOutDate: true } },
-          guestProfile: { select: { fullName: true, email: true, phone: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      // Calculate aggregate stats quickly
-      const aggregate = await prisma.review.aggregate({
-        where: { tenantId: req.tenantId! },
-        _avg: { rating: true },
-        _count: { id: true },
-      });
-
-      res.json({ 
-        success: true, 
-        data: reviews,
-        meta: {
-          averageRating: aggregate._avg.rating || 0,
-          totalReviews: aggregate._count.id || 0
-        }
-      });
     });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch reviews' });

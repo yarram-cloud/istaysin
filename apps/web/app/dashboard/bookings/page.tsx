@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { CalendarDays, Plus, Search, X, Loader2, CheckCircle, XCircle, Eye, Zap, Globe, Phone, Clock, Ban, Building2, Edit2, Save, ChevronDown, ChevronRight, Mail, User, BedDouble, ArrowRight, Printer, MessageCircle, Percent, Tag, SprayCan, IndianRupee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -1218,6 +1218,12 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   const [recPayMethod, setRecPayMethod] = useState<'cash' | 'upi' | 'card' | 'bank_transfer'>('cash');
   const [recPayNotes, setRecPayNotes] = useState('');
   const [recPayChargeId, setRecPayChargeId] = useState<string>(''); // '' = auto-allocate FIFO
+  // Today in IST as YYYY-MM-DD — used as default + max for the paid-on date input.
+  const todayIst = useMemo(
+    () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
+    [],
+  );
+  const [recPayPaidOn, setRecPayPaidOn] = useState<string>(todayIst);
   const [recordingPayment, setRecordingPayment] = useState(false);
   // Discount
   const [showDiscount, setShowDiscount] = useState(false);
@@ -1569,6 +1575,8 @@ ${folioCharges.length > 0 ? `
         amount: amt,
         method: recPayMethod,
         ...(recPayNotes.trim() ? { notes: recPayNotes.trim() } : {}),
+        // paidOn defaults to today; only send when user changed it (saves a roundtrip on the wire).
+        ...(recPayPaidOn && recPayPaidOn !== todayIst ? { paidOn: recPayPaidOn } : {}),
         // Explicit allocation if user picked a specific charge; else backend auto-allocates FIFO
         ...(recPayChargeId ? { chargeAllocations: [{ chargeId: recPayChargeId, amount: amt }] } : {}),
       });
@@ -1577,6 +1585,7 @@ ${folioCharges.length > 0 ? `
       setRecPayAmount('');
       setRecPayNotes('');
       setRecPayChargeId('');
+      setRecPayPaidOn(todayIst);
       onRefresh();
       // Refresh folio charges in the panel since paidAmount likely changed
       loadFolioCharges();
@@ -2073,7 +2082,7 @@ ${folioCharges.length > 0 ? `
                       .sort((a: any, b: any) => new Date(a.chargeDate).getTime() - new Date(b.chargeDate).getTime());
                     return (
                       <form onSubmit={handleRecordPayment} className="px-4 py-3 bg-white space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2 items-end">
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end">
                           <div>
                             <label className="block text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-1">Amount (₹)</label>
                             <input
@@ -2085,6 +2094,17 @@ ${folioCharges.length > 0 ? `
                               value={recPayAmount}
                               onChange={(e) => setRecPayAmount(e.target.value)}
                               placeholder="0.00"
+                              className="w-full h-9 px-3 rounded-lg border border-emerald-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-1">Paid on</label>
+                            <input
+                              required
+                              type="date"
+                              value={recPayPaidOn}
+                              max={todayIst}
+                              onChange={(e) => setRecPayPaidOn(e.target.value)}
                               className="w-full h-9 px-3 rounded-lg border border-emerald-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                             />
                           </div>

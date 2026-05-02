@@ -19,14 +19,12 @@ const outletSchema = z.object({
 // GET /pos/outlets
 posRouter.get('/outlets', authorize('property_owner', 'general_manager', 'fnb_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const outlets = await (prisma as any).posOutlet.findMany({
-        where: { tenantId: req.tenantId! },
-        include: { _count: { select: { orders: true, items: true } } },
-        orderBy: { name: 'asc' }
-      });
-      res.json({ success: true, data: outlets });
+    const outlets = await (prisma as any).posOutlet.findMany({
+      where: { tenantId: req.tenantId! },
+      include: { _count: { select: { orders: true, items: true } } },
+      orderBy: { name: 'asc' }
     });
+    res.json({ success: true, data: outlets });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to list POS outlets' });
   }
@@ -66,17 +64,15 @@ const menuSchema = z.object({
 // GET /pos/menu?outletId=xxx
 posRouter.get('/menu', authorize('property_owner', 'general_manager', 'fnb_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const where: any = { tenantId: req.tenantId! };
-      if (req.query.outletId) where.outletId = req.query.outletId;
-      if (req.query.category) where.category = req.query.category;
-      
-      const items = await (prisma as any).menuItem.findMany({
-        where,
-        orderBy: [{ category: 'asc' }, { name: 'asc' }]
-      });
-      res.json({ success: true, data: items });
+    const where: any = { tenantId: req.tenantId! };
+    if (req.query.outletId) where.outletId = req.query.outletId;
+    if (req.query.category) where.category = req.query.category;
+    
+    const items = await (prisma as any).menuItem.findMany({
+      where,
+      orderBy: [{ category: 'asc' }, { name: 'asc' }]
     });
+    res.json({ success: true, data: items });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to list menu items' });
   }
@@ -154,19 +150,17 @@ async function getFnbGstRate(tenantId: string): Promise<number> {
 // GET /pos/orders
 posRouter.get('/orders', authorize('property_owner', 'general_manager', 'fnb_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const where: any = { tenantId: req.tenantId! };
-      if (req.query.outletId) where.outletId = req.query.outletId;
-      if (req.query.status) where.status = req.query.status;
+    const where: any = { tenantId: req.tenantId! };
+    if (req.query.outletId) where.outletId = req.query.outletId;
+    if (req.query.status) where.status = req.query.status;
 
-      const orders = await (prisma as any).posOrder.findMany({
-        where,
-        include: { items: true, outlet: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: Math.min(parseInt(req.query.limit as string || '50'), 200)
-      });
-      res.json({ success: true, data: orders });
+    const orders = await (prisma as any).posOrder.findMany({
+      where,
+      include: { items: true, outlet: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(parseInt(req.query.limit as string || '50'), 200)
     });
+    res.json({ success: true, data: orders });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to list orders' });
   }
@@ -175,17 +169,15 @@ posRouter.get('/orders', authorize('property_owner', 'general_manager', 'fnb_man
 // GET /pos/orders/:id
 posRouter.get('/orders/:id', authorize('property_owner', 'general_manager', 'fnb_manager', 'front_desk'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const order = await (prisma as any).posOrder.findUnique({
-        where: { id: req.params.id },
-        include: { items: true, outlet: true }
-      });
-      if (!order) {
-        res.status(404).json({ success: false, error: 'Order not found' });
-        return;
-      }
-      res.json({ success: true, data: order });
+    const order = await (prisma as any).posOrder.findUnique({
+      where: { id: req.params.id },
+      include: { items: true, outlet: true }
     });
+    if (!order) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+    res.json({ success: true, data: order });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch order' });
   }

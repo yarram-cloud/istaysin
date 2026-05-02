@@ -337,33 +337,32 @@ bookingsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const { status, startDate, endDate } = req.query;
     const { page, limit } = clampPagination(req.query.page as string, req.query.limit as string);
+    const tenantId = req.tenantId!;
 
-    await withTenant(req.tenantId!, async () => {
-      const where: any = { tenantId: req.tenantId! };
-      if (status) where.status = status;
-      if (startDate) where.checkInDate = { ...(where.checkInDate || {}), gte: new Date(startDate as string) };
-      if (endDate) where.checkOutDate = { ...(where.checkOutDate || {}), lte: new Date(endDate as string) };
+    const where: any = { tenantId };
+    if (status) where.status = status;
+    if (startDate) where.checkInDate = { ...(where.checkInDate || {}), gte: new Date(startDate as string) };
+    if (endDate) where.checkOutDate = { ...(where.checkOutDate || {}), lte: new Date(endDate as string) };
 
-      const [bookings, total] = await Promise.all([
-        prisma.booking.findMany({
-          where,
-          include: {
-            bookingRooms: {
-              include: { room: { select: { roomNumber: true } }, roomType: { select: { name: true } } },
-            },
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include: {
+          bookingRooms: {
+            include: { room: { select: { roomNumber: true } }, roomType: { select: { name: true } } },
           },
-          orderBy: { createdAt: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        prisma.booking.count({ where }),
-      ]);
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.booking.count({ where }),
+    ]);
 
-      res.json({
-        success: true,
-        data: bookings,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      });
+    res.json({
+      success: true,
+      data: bookings,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
     console.error('[BOOKING LIST ERROR]', err);
@@ -374,42 +373,39 @@ bookingsRouter.get('/', async (req: Request, res: Response) => {
 // GET /bookings/:id
 bookingsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const booking = await prisma.booking.findUnique({
-        where: { id: req.params.id },
-        include: {
-          bookingRooms: {
-            include: {
-              room: { select: { id: true, roomNumber: true, floor: { select: { name: true } } } },
-              roomType: { select: { id: true, name: true } },
-            },
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: {
+        bookingRooms: {
+          include: {
+            room: { select: { id: true, roomNumber: true, floor: { select: { name: true } } } },
+            roomType: { select: { id: true, name: true } },
           },
-          bookingGuests: true,
-          guestProfile: { select: { nationality: true, idProofType: true, idProofNumber: true } },
-          folioCharges: { orderBy: { chargeDate: 'asc' } },
-          guestPayments: { orderBy: { createdAt: 'desc' } },
-          invoices: true,
         },
-      });
-
-      if (!booking) {
-        res.status(404).json({ success: false, error: 'Booking not found' });
-        return;
-      }
-
-      // Resolve nationality on each BookingGuest — GuestProfile is the source of truth
-      // for foreign nationals whose BookingGuest row was created before the profile was linked.
-      const profileNationality = booking.guestProfile?.nationality;
-      const resolvedBookingGuests = booking.bookingGuests.map(bg => {
-        const nationality =
-          (bg.nationality && bg.nationality !== 'Indian') ? bg.nationality :
-          (profileNationality && profileNationality !== 'Indian') ? profileNationality :
-          bg.nationality;
-        return { ...bg, nationality };
-      });
-
-      res.json({ success: true, data: { ...booking, bookingGuests: resolvedBookingGuests } });
+        bookingGuests: true,
+        guestProfile: { select: { nationality: true, idProofType: true, idProofNumber: true } },
+        folioCharges: { orderBy: { chargeDate: 'asc' } },
+        guestPayments: { orderBy: { createdAt: 'desc' } },
+        invoices: true,
+      },
     });
+
+    if (!booking || booking.tenantId !== req.tenantId) {
+      res.status(404).json({ success: false, error: 'Booking not found' });
+      return;
+    }
+
+    // Resolve nationality on each BookingGuest
+    const profileNationality = booking.guestProfile?.nationality;
+    const resolvedBookingGuests = booking.bookingGuests.map(bg => {
+      const nationality =
+        (bg.nationality && bg.nationality !== 'Indian') ? bg.nationality :
+        (profileNationality && profileNationality !== 'Indian') ? profileNationality :
+        bg.nationality;
+      return { ...bg, nationality };
+    });
+
+    res.json({ success: true, data: { ...booking, bookingGuests: resolvedBookingGuests } });
   } catch (err) {
     console.error('[BOOKING GET ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch booking' });

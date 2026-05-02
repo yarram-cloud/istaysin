@@ -20,57 +20,56 @@ guestsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const { search } = req.query;
     const { page, limit } = clampPagination(req.query.page as string, req.query.limit as string);
+    const tenantId = req.tenantId!;
 
-    await withTenant(req.tenantId!, async () => {
-      const where: any = { tenantId: req.tenantId! };
-      if (search) {
-        const searchStr = (search as string).trim();
-        if (searchStr) {
-          where.OR = [
-            { fullName: { contains: searchStr, mode: 'insensitive' } },
-            { email: { contains: searchStr, mode: 'insensitive' } },
-            { phone: { contains: searchStr } },
-          ];
-        }
+    const where: any = { tenantId };
+    if (search) {
+      const searchStr = (search as string).trim();
+      if (searchStr) {
+        where.OR = [
+          { fullName: { contains: searchStr, mode: 'insensitive' } },
+          { email: { contains: searchStr, mode: 'insensitive' } },
+          { phone: { contains: searchStr } },
+        ];
       }
+    }
 
-      const [guests, total] = await Promise.all([
-        prisma.guestProfile.findMany({
-          where,
-          orderBy: { fullName: 'asc' },
-          skip: (page - 1) * limit,
-          take: limit,
-          include: {
-            _count: {
-              select: {
-                bookings: { where: { status: 'checked_out' } },
-              },
-            },
-            bookings: {
-              where: { status: 'checked_out' },
-              orderBy: { checkOutDate: 'desc' },
-              take: 1,
-              select: { checkOutDate: true },
+    const [guests, total] = await Promise.all([
+      prisma.guestProfile.findMany({
+        where,
+        orderBy: { fullName: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          _count: {
+            select: {
+              bookings: { where: { status: 'checked_out' } },
             },
           },
-        }),
-        prisma.guestProfile.count({ where }),
-      ]);
+          bookings: {
+            where: { status: 'checked_out' },
+            orderBy: { checkOutDate: 'desc' },
+            take: 1,
+            select: { checkOutDate: true },
+          },
+        },
+      }),
+      prisma.guestProfile.count({ where }),
+    ]);
 
-      // Map to include totalStays and lastVisit
-      const enriched = guests.map((g: any) => ({
-        ...g,
-        totalStays: g._count?.bookings || 0,
-        lastVisit: g.bookings?.[0]?.checkOutDate || null,
-        _count: undefined,
-        bookings: undefined,
-      }));
+    // Map to include totalStays and lastVisit
+    const enriched = guests.map((g: any) => ({
+      ...g,
+      totalStays: g._count?.bookings || 0,
+      lastVisit: g.bookings?.[0]?.checkOutDate || null,
+      _count: undefined,
+      bookings: undefined,
+    }));
 
-      res.json({
-        success: true,
-        data: enriched,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      });
+    res.json({
+      success: true,
+      data: enriched,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
     console.error('[GUESTS LIST ERROR]', err);
@@ -128,18 +127,16 @@ guestsRouter.post('/', authorize('property_owner', 'general_manager', 'front_des
 // GET /guests/:id
 guestsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const guest = await prisma.guestProfile.findFirst({
-        where: { id: req.params.id, tenantId: req.tenantId! },
-      });
-
-      if (!guest) {
-        res.status(404).json({ success: false, error: 'Guest not found' });
-        return;
-      }
-
-      res.json({ success: true, data: guest });
+    const guest = await prisma.guestProfile.findFirst({
+      where: { id: req.params.id, tenantId: req.tenantId! },
     });
+
+    if (!guest) {
+      res.status(404).json({ success: false, error: 'Guest not found' });
+      return;
+    }
+
+    res.json({ success: true, data: guest });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch guest' });
   }

@@ -17,14 +17,12 @@ housekeepingRouter.get('/tasks', authorize('property_owner', 'general_manager', 
     if (status) where.status = status;
     if (date) where.taskDate = new Date(date as string);
 
-    await withTenant(req.tenantId!, async () => {
-      const tasks = await prisma.housekeepingTask.findMany({
-        where,
-        include: { room: { select: { roomNumber: true, floor: { select: { name: true } } } } },
-        orderBy: { createdAt: 'desc' },
-      });
-      res.json({ success: true, data: tasks });
+    const tasks = await prisma.housekeepingTask.findMany({
+      where,
+      include: { room: { select: { roomNumber: true, floor: { select: { name: true } } } } },
+      orderBy: { createdAt: 'desc' },
     });
+    res.json({ success: true, data: tasks });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch tasks' });
   }
@@ -194,23 +192,21 @@ housekeepingRouter.post('/maintenance', validateRequest(createMaintenanceSchema)
 // GET /housekeeping/staff
 housekeepingRouter.get('/staff', authorize('property_owner', 'general_manager', 'front_desk', 'housekeeping'), async (req: Request, res: Response) => {
   try {
-    await withTenant(req.tenantId!, async () => {
-      const staffMembers = await prisma.tenantMembership.findMany({
-        where: { 
-          tenantId: req.tenantId!,
-          role: { in: ['housekeeping', 'general_manager', 'property_owner'] },
-          isActive: true
-        },
-        include: { user: { select: { id: true, fullName: true, email: true } } }
-      });
-      const formatted = staffMembers.map(s => ({
-        id: s.userId,
-        fullName: s.user?.fullName,
-        email: s.user?.email,
-        role: s.role
-      }));
-      res.json({ success: true, data: formatted });
+    const staffMembers = await prisma.tenantMembership.findMany({
+      where: { 
+        tenantId: req.tenantId!,
+        role: { in: ['housekeeping', 'general_manager', 'property_owner'] },
+        isActive: true
+      },
+      include: { user: { select: { id: true, fullName: true, email: true } } }
     });
+    const formatted = staffMembers.map(s => ({
+      id: s.userId,
+      fullName: s.user?.fullName,
+      email: s.user?.email,
+      role: s.role
+    }));
+    res.json({ success: true, data: formatted });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch housekeeping staff' });
   }
