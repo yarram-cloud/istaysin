@@ -69,6 +69,7 @@ tenantsRouter.post('/register-property', authenticate, async (req: Request, res:
         slug,
         schemaName,
         status: 'pending_approval',
+        plan: data.plan || 'free',
         propertyType: data.propertyType,
         address: data.address,
         city: data.city,
@@ -149,7 +150,7 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
   try {
     const tid = req.tenantId!;
 
-    const [tenant, floorCount, roomTypeCount, roomCount, staffCount, pricingCount] = await Promise.all([
+    const [tenant, floorCount, roomTypeCount, roomCount, staffCount] = await Promise.all([
       prisma.tenant.findUnique({
         where: { id: tid },
         select: {
@@ -163,7 +164,6 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
       prisma.roomType.count({ where: { tenantId: tid } }),
       prisma.room.count({ where: { tenantId: tid } }),
       prisma.tenantMembership.count({ where: { tenantId: tid, isActive: true } }),
-      prisma.pricingRule.count({ where: { tenantId: tid } }),
     ]);
 
     if (!tenant) { res.status(404).json({ success: false, error: 'Not found' }); return; }
@@ -222,16 +222,6 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
         skippable: true,
         skipped: skippedSteps.includes('staff'),
       },
-      {
-        id: 'pricing',
-        completed: pricingCount > 0 || cfg.pricingEnabled === false || skippedSteps.includes('pricing'),
-        detail: cfg.pricingEnabled === false
-          ? 'Disabled — using base room-type rates'
-          : skippedSteps.includes('pricing') ? 'Skipped — can add later'
-          : pricingCount > 0 ? `${pricingCount} pricing rule(s)` : 'No pricing rules yet',
-        skippable: true,
-        skipped: skippedSteps.includes('pricing') || cfg.pricingEnabled === false,
-      },
     ];
 
     const completedCount = steps.filter(s => s.completed).length;
@@ -245,7 +235,7 @@ tenantsRouter.get('/setup-progress', authenticate, resolveTenant, requireTenant,
 });
 
 // POST /tenants/skip-setup-step
-const SKIPPABLE_STEPS = ['compliance', 'staff', 'pricing'];
+const SKIPPABLE_STEPS = ['compliance', 'staff'];
 tenantsRouter.post('/skip-setup-step', authenticate, resolveTenant, requireTenant, authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
     const { stepId } = req.body;

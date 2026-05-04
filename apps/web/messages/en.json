@@ -246,7 +246,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "Pending Actions",
+      "pendingActionsSubtitle": "Bookings requiring staff confirmation or follow-up",
+      "pendingActionsCount": "{count} Actions",
+      "pendingToast": "{count} booking(s) awaiting confirmation",
+      "pendingToastAction": "View Pending",
+      "awaitingConfirmation": "Awaiting Confirmation",
+      "amountDue": "Amount Due",
+      "expires": "Expires",
+      "expiredLabel": "Expired",
+      "confirm": "Confirm",
+      "decline": "Decline"
     },
 
     "guestsPage": {

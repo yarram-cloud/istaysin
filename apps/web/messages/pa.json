@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "ਬਕਾਇਆ ਕਾਰਵਾਈਆਂ",
+      "pendingActionsSubtitle": "ਸਟਾਫ਼ ਪੁਸ਼ਟੀ ਜਾਂ ਫਾਲੋ-ਅੱਪ ਦੀ ਲੋੜ ਵਾਲੀਆਂ ਬੁਕਿੰਗਾਂ",
+      "pendingActionsCount": "{count} ਕਾਰਵਾਈਆਂ",
+      "pendingToast": "{count} ਬੁਕਿੰਗ(ਆਂ) ਪੁਸ਼ਟੀ ਦੀ ਉਡੀਕ ਕਰ ਰਹੀਆਂ ਹਨ",
+      "pendingToastAction": "ਬਕਾਇਆ ਵੇਖੋ",
+      "awaitingConfirmation": "ਪੁਸ਼ਟੀ ਦੀ ਉਡੀਕ",
+      "amountDue": "ਦੇਣ ਯੋਗ ਰਕਮ",
+      "expires": "ਮਿਆਦ",
+      "expiredLabel": "ਮਿਆਦ ਪੁੱਗ ਗਈ",
+      "confirm": "ਪੁਸ਼ਟੀ ਕਰੋ",
+      "decline": "ਰੱਦ ਕਰੋ"
     },
     "guestsPage": {
       "title": "Guest Directory",

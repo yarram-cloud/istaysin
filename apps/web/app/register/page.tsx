@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const LocationMap = dynamic(() => import('./LocationMap'), { ssr: false, loading: () => <div className="h-[280px] rounded-xl bg-surface-100 flex items-center justify-center text-surface-400 text-sm">Loading map...</div> });
 
@@ -37,6 +37,14 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to error banner whenever an error is set
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [error]);
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('free');
 
@@ -147,6 +155,7 @@ export default function RegisterPage() {
         referenceCode: referenceCode || undefined,
         latitude,
         longitude,
+        plan: selectedPlan,
       });
 
       if (!propRes.success) throw new Error(propRes.error || 'Property registration failed');
@@ -214,7 +223,7 @@ export default function RegisterPage() {
       const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(msg);
       toast.error(msg, { duration: 6000 });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // scrolling is handled by the useEffect on `error`
     } finally {
       setLoading(false);
     }
@@ -238,7 +247,7 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit} className="max-w-xl mx-auto px-4 space-y-6">
         {/* Error */}
         {error && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+          <div ref={errorRef} className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm transition-all duration-300">
             {error}
           </div>
         )}

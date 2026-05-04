@@ -54,7 +54,8 @@ export async function calculatePricing(
   roomTypeId: string,
   checkIn: Date,
   checkOut: Date,
-  extraBeds: number = 0
+  extraBeds: number = 0,
+  baseRateOverride?: number
 ): Promise<PricingResult> {
   const roomType = await prisma.roomType.findFirst({
     where: { id: roomTypeId, tenantId },
@@ -75,7 +76,7 @@ export async function calculatePricing(
   // Load GST slabs once per pricing calculation
   const gstSlabs = gstEnabled ? await loadGstSlabs() : [];
 
-  const baseRate = roomType.baseRate;
+  const baseRate = baseRateOverride ?? roomType.baseRate;
   const extraBedCharge = (roomType.extraBedCharge || 0) * extraBeds;
   const pricingUnit: 'nightly' | 'monthly' = roomType.pricingUnit === 'monthly' ? 'monthly' : 'nightly';
 

@@ -370,7 +370,7 @@ roomsRouter.post('/', authorize('property_owner', 'general_manager'), async (req
 // PUT /rooms/:id
 roomsRouter.put('/:id', validateRequest(updateRoomSchema), authorize('property_owner', 'general_manager'), async (req: Request, res: Response) => {
   try {
-    const { roomNumber, floorId, roomTypeId, status, rateOverride } = req.body;
+    const { roomNumber, floorId, roomTypeId, status, rateOverride, features } = req.body;
     if (!roomNumber?.trim()) {
       res.status(400).json({ success: false, error: 'Room number is required' });
       return;
@@ -394,6 +394,7 @@ roomsRouter.put('/:id', validateRequest(updateRoomSchema), authorize('property_o
           ...(roomTypeId && { roomTypeId }),
           ...(status && { status }),
           ...(rateOverride !== undefined && { rateOverride: rateOverride === null ? null : parseFloat(rateOverride) }),
+          ...(features !== undefined && { features: features as any }),
         },
         include: {
           floor: { select: { id: true, name: true } },

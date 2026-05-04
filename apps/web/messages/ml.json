@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "തീർപ്പാകാത്ത പ്രവർത്തനങ്ങൾ",
+      "pendingActionsSubtitle": "ജീവനക്കാരുടെ സ്ഥിരീകരണം അല്ലെങ്കിൽ ഫോളോ-അപ്പ് ആവശ്യമായ ബുക്കിംഗുകൾ",
+      "pendingActionsCount": "{count} പ്രവർത്തനങ്ങൾ",
+      "pendingToast": "{count} ബുക്കിംഗ്(കൾ) സ്ഥിരീകരണത്തിനായി കാത്തിരിക്കുന്നു",
+      "pendingToastAction": "തീർപ്പാകാത്തവ കാണുക",
+      "awaitingConfirmation": "സ്ഥിരീകരണത്തിനായി കാത്തിരിക്കുന്നു",
+      "amountDue": "അടയ്ക്കേണ്ട തുക",
+      "expires": "കാലാവധി",
+      "expiredLabel": "കാലാവധി കഴിഞ്ഞു",
+      "confirm": "സ്ഥിരീകരിക്കുക",
+      "decline": "നിരസിക്കുക"
     },
     "guestsPage": {
       "title": "Guest Directory",

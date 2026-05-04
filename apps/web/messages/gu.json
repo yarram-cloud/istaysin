@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "બાકી ક્રિયાઓ",
+      "pendingActionsSubtitle": "સ્ટાફ પુષ્ટિ અથવા ફોલો-અપ જરૂરી બુકિંગ",
+      "pendingActionsCount": "{count} ક્રિયાઓ",
+      "pendingToast": "{count} બુકિંગ પુષ્ટિની રાહ જોઈ રહ્યા છે",
+      "pendingToastAction": "બાકી જુઓ",
+      "awaitingConfirmation": "પુષ્ટિની રાહ જોઈ રહ્યા છે",
+      "amountDue": "ચૂકવવાની રકમ",
+      "expires": "સમાપ્તિ",
+      "expiredLabel": "સમાપ્ત",
+      "confirm": "પુષ્ટિ કરો",
+      "decline": "નકારો"
     },
     "guestsPage": {
       "title": "Guest Directory",

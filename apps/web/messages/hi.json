@@ -242,7 +242,18 @@
       "night": "रात",
       "nights": "रातें",
       "month": "महीना",
-      "subtitleLongStay": "Manage tenant move-ins and bookings"
+      "subtitleLongStay": "Manage tenant move-ins and bookings",
+      "pendingActions": "लंबित कार्रवाई",
+      "pendingActionsSubtitle": "बुकिंग जिन्हें स्टाफ पुष्टि या अनुवर्ती कार्रवाई की आवश्यकता है",
+      "pendingActionsCount": "{count} कार्रवाई",
+      "pendingToast": "{count} बुकिंग पुष्टि की प्रतीक्षा कर रही हैं",
+      "pendingToastAction": "लंबित देखें",
+      "awaitingConfirmation": "पुष्टि की प्रतीक्षा",
+      "amountDue": "देय राशि",
+      "expires": "समाप्ति",
+      "expiredLabel": "समाप्त",
+      "confirm": "पुष्टि करें",
+      "decline": "अस्वीकार करें"
     },
     "guestsPage": {
       "title": "अतिथि निर्देशिका",

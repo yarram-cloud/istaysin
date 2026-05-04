@@ -281,12 +281,16 @@ function PropertySettings({ onBack }: { onBack: () => void }) {
 // ── Subscription Settings ─────────────────────────────────────
 function SubscriptionSettings({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
+  const [currentPlan, setCurrentPlan] = useState('free');
+  const [saasPlans, setSaasPlans] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any>(null);
 
   useEffect(() => {
     tenantsApi.getSettings().then((res) => {
       if (res.success && res.data) {
-         setSubscription(res.data.subscriptions?.[0] || null);
+        setCurrentPlan(res.data.plan || 'free');
+        setSaasPlans(res.data.saasPlans || []);
+        setSubscription(res.data.subscriptions?.[0] || null);
       }
       setLoading(false);
     });
@@ -294,44 +298,140 @@ function SubscriptionSettings({ onBack }: { onBack: () => void }) {
 
   if (loading) return <div className="glass-card p-12 text-center animate-pulse"><div className="h-8 bg-white/[0.06] rounded-lg w-48 mx-auto" /></div>;
 
+  const planLabels: Record<string, string> = { free: 'Starter (Free)', starter: 'Basic', professional: 'Professional', enterprise: 'Enterprise' };
+  const planColors: Record<string, string> = {
+    free: 'bg-surface-100 text-surface-700 border-surface-200',
+    starter: 'bg-blue-50 text-blue-700 border-blue-200',
+    professional: 'bg-violet-50 text-violet-700 border-violet-200',
+    enterprise: 'bg-amber-50 text-amber-800 border-amber-200',
+  };
+
   return (
     <div>
-      <div className="glass-card p-6 max-w-2xl">
+      <div className="glass-card p-6 max-w-3xl">
         <h2 className="text-xl font-display font-bold mb-6">Your Subscription Plan</h2>
-        {!subscription ? (
-          <div className="p-6 bg-surface-50 text-surface-900 rounded-xl text-center">
-            <h3 className="font-bold mb-2">No Active Subscription</h3>
-            <p className="text-sm">Please upgrade to a paid plan to unlock features.</p>
+
+        {/* Current Plan Banner */}
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-primary-50 to-emerald-50 border border-primary-200 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-500 mb-1">Current Plan</p>
+              <p className="text-2xl font-bold font-display text-surface-900">
+                {planLabels[currentPlan] || currentPlan}
+              </p>
+              {subscription && (
+                <p className="text-sm text-surface-500 mt-1">
+                  Renews on{' '}
+                  <span className="font-medium text-surface-700">
+                    {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  {' · '}
+                  <span className="capitalize">{subscription.billingCycle}</span> billing
+                </p>
+              )}
+            </div>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${planColors[currentPlan] || planColors.free}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Active
+            </span>
           </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center p-6 bg-primary-900/40 rounded-xl border border-primary-500/20">
-              <div>
-                <p className="text-sm text-primary-400">Current Plan</p>
-                <p className="text-3xl font-bold font-display uppercase tracking-wider">{subscription.plan}</p>
-                <div className="mt-2 text-sm text-surface-300">
-                  Renews on: <span className="text-white font-medium">{new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="px-3 py-1 bg-green-500/20 text-green-400 font-medium rounded-full text-xs uppercase border border-green-500/20">Active</span>
-                <p className="mt-4 font-medium text-surface-300 capitalize">{subscription.billingCycle} Billing</p>
-              </div>
+        </div>
+
+        {/* Available Plans Grid */}
+        {saasPlans.length > 0 && (
+          <>
+            <h3 className="text-sm font-bold text-surface-500 uppercase tracking-wider mb-4">Available Plans</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {saasPlans.map((plan: any) => {
+                const isCurrent = plan.code === currentPlan;
+                const hasCustom = plan._hasCustomPricing;
+                const monthlyPrice = plan.discountMonthly > 0 ? plan.discountMonthly : plan.actualPrice;
+                const isFree = monthlyPrice === 0;
+
+                return (
+                  <div key={plan.id}
+                    className={`relative p-5 rounded-2xl border-2 transition-all ${
+                      isCurrent
+                        ? 'border-primary-500 bg-primary-50/30 shadow-md shadow-primary-100'
+                        : 'border-surface-200 bg-white hover:border-surface-300'
+                    }`}>
+                    {isCurrent && (
+                      <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
+                        Current
+                      </span>
+                    )}
+                    {hasCustom && !isCurrent && (
+                      <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
+                        Custom Price
+                      </span>
+                    )}
+
+                    <h4 className="font-bold text-surface-900 text-lg">{plan.name}</h4>
+                    <div className="mt-2 mb-3">
+                      {isFree ? (
+                        <span className="text-2xl font-bold text-surface-900">Free</span>
+                      ) : (
+                        <>
+                          <span className="text-2xl font-bold text-surface-900">{'\u20B9'}{monthlyPrice.toLocaleString('en-IN')}</span>
+                          <span className="text-sm text-surface-400"> /month</span>
+                          {plan.discountMonthly > 0 && plan.discountMonthly < plan.actualPrice && (
+                            <span className="ml-2 text-sm line-through text-surface-300">{'\u20B9'}{plan.actualPrice.toLocaleString('en-IN')}</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {plan.description && (
+                      <p className="text-sm text-surface-500 mb-3">{plan.description}</p>
+                    )}
+
+                    {Array.isArray(plan.features) && plan.features.length > 0 && (
+                      <ul className="space-y-1.5 text-sm text-surface-600">
+                        {(plan.features as string[]).slice(0, 5).map((f: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-emerald-500 mt-0.5 shrink-0">{'\u2713'}</span>
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {!isCurrent && !isFree && (
+                      <button
+                        onClick={() => {
+                          toast.info('Contact support to upgrade your plan', {
+                            description: 'Reach out via WhatsApp or email to switch plans.',
+                            duration: 5000,
+                          });
+                        }}
+                        className="mt-4 w-full py-2.5 rounded-xl bg-primary-600 text-white text-sm font-bold hover:bg-primary-700 transition-colors"
+                      >
+                        Upgrade to {plan.name}
+                      </button>
+                    )}
+                    {isCurrent && (
+                      <div className="mt-4 text-center text-sm text-primary-600 font-medium">
+                        {'\u2713'} You&apos;re on this plan
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            
-            <div className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl flex items-center justify-between">
-               <div>
-                 <h4 className="font-medium text-white mb-1">Looking for more?</h4>
-                 <p className="text-sm text-surface-400">Upgrade to unlock WhatsApp automation, custom domain, and advanced analytics.</p>
-               </div>
-               <button className="btn-primary">View Upgrades</button>
-            </div>
+          </>
+        )}
+
+        {saasPlans.length === 0 && (
+          <div className="p-6 bg-surface-50 rounded-xl text-center">
+            <p className="text-sm text-surface-500">
+              Plan pricing has not been configured yet. Contact support for upgrade options.
+            </p>
           </div>
         )}
       </div>
     </div>
   );
 }
+
 
 
 // ── Staff Settings ────────────────────────────────────────────

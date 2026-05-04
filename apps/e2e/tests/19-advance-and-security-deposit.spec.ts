@@ -45,7 +45,7 @@ test.describe('Advance + Security Deposit at Check-In', () => {
     const booking = await makeBooking(request, tenantId, roomTypeId);
 
     // Confirm
-    await request.post(`/api/v1/bookings/${booking.id}/confirm`, {
+    await request.patch(`/api/v1/bookings/${booking.id}/confirm`, {
       data: { paymentMode: 'pay_at_hotel', amount: 0 },
     });
 
@@ -90,7 +90,7 @@ test.describe('Advance + Security Deposit at Check-In', () => {
 
   test('rooms endpoint exposes advance and deposit on the active occupancy', async ({ request }) => {
     const booking = await makeBooking(request, tenantId, roomTypeId);
-    await request.post(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
+    await request.patch(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
 
     // Need a room assigned for the active-occupancy lookup
     const availRes = await request.get(`/api/v1/rooms/availability?checkIn=${booking.checkInDate.slice(0,10)}&checkOut=${booking.checkOutDate.slice(0,10)}&roomTypeId=${roomTypeId}`);
@@ -118,7 +118,7 @@ test.describe('Advance + Security Deposit at Check-In', () => {
 
   test('checkout — full deposit refund records security_refund payment and updates status', async ({ request }) => {
     const booking = await makeBooking(request, tenantId, roomTypeId);
-    await request.post(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
+    await request.patch(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
     const bookingRoomId = booking.bookingRooms[0].id;
 
     await request.post(`/api/v1/check-in-out/${booking.id}/check-in`, {
@@ -146,7 +146,7 @@ test.describe('Advance + Security Deposit at Check-In', () => {
 
   test('checkout — partial refund clamps to held amount and records partial status', async ({ request }) => {
     const booking = await makeBooking(request, tenantId, roomTypeId);
-    await request.post(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
+    await request.patch(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
     const bookingRoomId = booking.bookingRooms[0].id;
 
     await request.post(`/api/v1/check-in-out/${booking.id}/check-in`, {
@@ -175,7 +175,7 @@ test.describe('Advance + Security Deposit at Check-In', () => {
 
   test('checkout — forfeit records zero refund and reason notes', async ({ request }) => {
     const booking = await makeBooking(request, tenantId, roomTypeId);
-    await request.post(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
+    await request.patch(`/api/v1/bookings/${booking.id}/confirm`, { data: { paymentMode: 'pay_at_hotel', amount: 0 } });
     const bookingRoomId = booking.bookingRooms[0].id;
 
     await request.post(`/api/v1/check-in-out/${booking.id}/check-in`, {

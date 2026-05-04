@@ -508,7 +508,7 @@ function RoomsSection({ rooms, setRooms, floors, roomTypes, onRefresh }: {
 
   // Inline edit state
   const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ roomNumber: '', floorId: '', roomTypeId: '', status: 'available', rateOverride: 0 });
+  const [editForm, setEditForm] = useState({ roomNumber: '', floorId: '', roomTypeId: '', status: 'available', rateOverride: 0, displayLabel: '' });
 
   // Pre-select first floor/type when opening add form
   function openAdd() {
@@ -541,11 +541,23 @@ function RoomsSection({ rooms, setRooms, floors, roomTypes, onRefresh }: {
   async function handleEdit() {
     if (!editId || !editForm.roomNumber.trim()) return;
     try {
-      // Send null if rateOverride is 0 to reset to base rate
-      const payload = { 
+      const payload: any = { 
         ...editForm, 
         rateOverride: editForm.rateOverride > 0 ? editForm.rateOverride : null 
       };
+      // Merge displayLabel into features JSON
+      if (editForm.displayLabel.trim()) {
+        const existingFeatures = rooms.find(r => r.id === editId);
+        const features = { ...((existingFeatures as any)?.features || {}), displayLabel: editForm.displayLabel.trim() };
+        payload.features = features;
+      } else {
+        // Clear displayLabel if empty
+        const existingFeatures = rooms.find(r => r.id === editId);
+        const features = { ...((existingFeatures as any)?.features || {}) };
+        delete features.displayLabel;
+        payload.features = features;
+      }
+      delete payload.displayLabel; // remove from root level
       const res = await roomsApi.updateRoom(editId, payload as any);
       if (res.success) {
         await onRefresh();
@@ -576,12 +588,14 @@ function RoomsSection({ rooms, setRooms, floors, roomTypes, onRefresh }: {
 
   function startEdit(r: Room) {
     setEditId(r.id);
+    const features = (r as any).features || {};
     setEditForm({ 
       roomNumber: r.roomNumber, 
       floorId: r.floorId, 
       roomTypeId: r.roomTypeId, 
       status: r.status,
-      rateOverride: (r as any).rateOverride || 0
+      rateOverride: (r as any).rateOverride || 0,
+      displayLabel: features.displayLabel || ''
     });
   }
 
@@ -679,6 +693,19 @@ function RoomsSection({ rooms, setRooms, floors, roomTypes, onRefresh }: {
                             className="w-full form-input py-1.5 text-xs"
                           />
                         </div>
+                        {editForm.rateOverride > 0 && (
+                          <div className="shrink-0 min-w-[140px]">
+                            <label className="text-[10px] uppercase font-bold text-surface-400 mb-1 block">Display Label</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Balcony Room"
+                              value={editForm.displayLabel}
+                              onChange={e => setEditForm({ ...editForm, displayLabel: e.target.value })}
+                              className="w-full form-input py-1.5 text-xs"
+                              title="Optional label shown to guests for this pricing tier"
+                            />
+                          </div>
+                        )}
                         <div className="flex items-center gap-1.5 pb-0.5">
                           <button
                             onClick={handleEdit}

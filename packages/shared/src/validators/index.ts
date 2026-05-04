@@ -55,6 +55,7 @@ export const propertyRegistrationSchema = z.object({
     .regex(/^[A-Za-z0-9_-]*$/, 'Reference code may only contain letters, numbers, hyphens and underscores')
     .optional()
     .or(z.literal('')),
+  plan: z.enum(['free', 'starter', 'professional', 'enterprise']).optional(),
 });
 
 // ============================================================
@@ -113,7 +114,7 @@ export const bookingSchema = z
           roomId: z.string().uuid().optional(),
           extraBeds: z.number().int().min(0).max(5).default(0),
           extraBedCharge: z.number().min(0).default(0),
-          baseRateOverride: z.number().min(0).optional(),
+          rateOverride: z.number().min(0).optional(),
         }),
       )
       .min(1, 'At least one room must be selected'),
@@ -349,8 +350,8 @@ export const updateLanguageSchema = z.object({
 // Bookings Router Additional Schemas
 // ============================================================
 export const confirmBookingSchema = z.object({
-  paymentMode: z.enum(['online', 'pay_at_hotel', 'cash', 'card', 'upi', 'bank_transfer']),
-  amount: z.number().min(0)
+  paymentMode: z.enum(['online', 'pay_at_hotel', 'cash', 'card', 'upi', 'bank_transfer']).optional(),
+  amount: z.number().min(0).optional()
 });
 
 export const cancelBookingSchema = z.object({
@@ -501,6 +502,7 @@ export const updateRoomSchema = z.object({
   // Canonical status list — must match PATCH /:id/status validation in rooms router
   status: z.enum(['available', 'occupied', 'blocked', 'maintenance', 'dirty', 'cleaning']).optional(),
   rateOverride: z.number().min(0).optional().nullable(),
+  features: z.record(z.unknown()).optional(),
 });
 
 export const updateRoomStatusSchema = z.object({

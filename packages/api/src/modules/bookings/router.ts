@@ -72,12 +72,21 @@ bookingsRouter.post('/', authorize('property_owner', 'general_manager', 'front_d
       const isInterState = propertyState && guestState && propertyState !== guestState;
 
       for (const sel of data.roomSelections) {
+        // If a specific room was selected and it has a rateOverride, use it;
+        // otherwise fall back to any explicit rateOverride from the selection.
+        let effectiveRateOverride = sel.rateOverride;
+        if (effectiveRateOverride == null && sel.roomId) {
+          const selectedRoom = await prisma.room.findUnique({ where: { id: sel.roomId }, select: { rateOverride: true } });
+          if (selectedRoom?.rateOverride != null) effectiveRateOverride = selectedRoom.rateOverride;
+        }
+
         const pricing = await calculatePricing(
           req.tenantId!,
           sel.roomTypeId,
           checkInDt,
           checkOutDt,
-          sel.extraBeds
+          sel.extraBeds,
+          effectiveRateOverride ?? undefined
         );
 
         totalAmount += pricing.grandTotal;
@@ -686,7 +695,8 @@ bookingsRouter.post('/walk-in', authorize('property_owner', 'general_manager', '
         room.roomTypeId,
         checkInDate,
         checkOutDate,
-        0
+        0,
+        room.rateOverride ?? undefined
       );
 
       const tenant = await prisma.tenant.findUnique({
@@ -853,11 +863,47 @@ bookingsRouter.put('/:id/assign-room', validateRequest(assignRoomSchema), author
         console.warn(`[ROOM ASSIGN] Room type mismatch: bookingRoom expects ${bookingRoom.roomTypeId}, assigning ${room.roomTypeId}`);
       }
 
-      // Assign the room
+      // Assign the room and handle room status transitions
+      const oldRoomId = bookingRoom.roomId; // may be null for first assignment
+
       await prisma.bookingRoom.update({
         where: { id: bookingRoomId },
         data: { roomId },
       });
+
+      // For checked-in bookings, update room statuses:
+      //   - Old room → 'available' (guest is physically moving out)
+      //   - New room → 'occupied' (guest is physically moving in)
+      // For non-checked-in bookings (confirmed/pending), room status stays
+      // as-is because the guest hasn't arrived yet.
+      if (booking.status === 'checked_in') {
+        // Mark new room as occupied
+        await prisma.room.update({
+          where: { id: roomId },
+          data: { status: 'occupied' },
+        });
+
+        // Release old room back to available (if there was a previous room)
+        if (oldRoomId && oldRoomId !== roomId) {
+          // Only release if no other active bookingRoom is using this room
+          const otherActiveUse = await prisma.bookingRoom.findFirst({
+            where: {
+              roomId: oldRoomId,
+              id: { not: bookingRoomId },
+              booking: {
+                status: { in: ['checked_in'] },
+                tenantId: req.tenantId!,
+              },
+            },
+          });
+          if (!otherActiveUse) {
+            await prisma.room.update({
+              where: { id: oldRoomId },
+              data: { status: 'available' },
+            });
+          }
+        }
+      }
 
       // If all bookingRooms now have rooms assigned and booking is pending, auto-confirm
       const updatedBooking = await prisma.booking.findFirst({
@@ -865,7 +911,7 @@ bookingsRouter.put('/:id/assign-room', validateRequest(assignRoomSchema), author
         include: { bookingRooms: { include: { room: true, roomType: true } } },
       });
 
-      await logAudit(req.tenantId!, req.userId, 'UPDATE', 'booking', req.params.id, { action: 'assign_room', roomId, bookingRoomId }, req.ip || undefined);
+      await logAudit(req.tenantId!, req.userId, 'UPDATE', 'booking', req.params.id, { action: 'assign_room', roomId, bookingRoomId, previousRoomId: oldRoomId }, req.ip || undefined);
 
       return { booking: updatedBooking, status: 200 };
     });

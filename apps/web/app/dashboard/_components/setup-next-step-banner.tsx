@@ -4,7 +4,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Building2, BedDouble, Palette, Receipt, FileText,
-  Users, TrendingUp, ArrowRight, Sparkles, PartyPopper,
+  Users, ArrowRight, Sparkles, PartyPopper,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -18,7 +18,6 @@ const STEP_ROUTE_MAP: { id: string; matchPath: string; matchSection?: string }[]
   { id: 'billing', matchPath: '/dashboard/settings', matchSection: 'billing' },
   { id: 'compliance', matchPath: '/dashboard/settings', matchSection: 'compliance' },
   { id: 'staff', matchPath: '/dashboard/settings', matchSection: 'staff' },
-  { id: 'pricing', matchPath: '/dashboard/pricing' },
 ];
 
 const STEP_META: Record<string, {
@@ -30,10 +29,9 @@ const STEP_META: Record<string, {
   billing: { title: 'Billing & GST', subtitle: 'GST number & legal entity', icon: Receipt, href: '/dashboard/settings?section=billing' },
   compliance: { title: 'Police Compliance', subtitle: 'Sarai Act & FRRO settings', icon: FileText, href: '/dashboard/settings?section=compliance' },
   staff: { title: 'Invite Staff', subtitle: 'Front desk & housekeeping', icon: Users, href: '/dashboard/settings?section=staff' },
-  pricing: { title: 'Pricing Rules', subtitle: 'Season & event rates', icon: TrendingUp, href: '/dashboard/pricing' },
 };
 
-const STEP_ORDER = ['property_info', 'room_inventory', 'branding', 'billing', 'compliance', 'staff', 'pricing'];
+const STEP_ORDER = ['property_info', 'room_inventory', 'branding', 'billing', 'compliance', 'staff'];
 
 export default function SetupNextStepBanner() {
   const pathname = usePathname();

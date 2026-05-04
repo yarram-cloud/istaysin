@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "పెండింగ్ చర్యలు",
+      "pendingActionsSubtitle": "సిబ్బంది నిర్ధారణ లేదా ఫాలో-అప్ అవసరమైన బుకింగ్‌లు",
+      "pendingActionsCount": "{count} చర్యలు",
+      "pendingToast": "{count} బుకింగ్(లు) నిర్ధారణ కోసం వేచి ఉన్నాయి",
+      "pendingToastAction": "పెండింగ్ చూడండి",
+      "awaitingConfirmation": "నిర్ధారణ కోసం వేచి ఉంది",
+      "amountDue": "చెల్లించవలసిన మొత్తం",
+      "expires": "గడువు",
+      "expiredLabel": "గడువు ముగిసింది",
+      "confirm": "నిర్ధారించు",
+      "decline": "తిరస్కరించు"
     },
     "guestsPage": {
       "title": "Guest Directory",

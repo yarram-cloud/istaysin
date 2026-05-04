@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "நிலுவையில் செயல்கள்",
+      "pendingActionsSubtitle": "ஊழியர் உறுதிப்படுத்தல் அல்லது பின்தொடர்தல் தேவைப்படும் பதிவுகள்",
+      "pendingActionsCount": "{count} செயல்கள்",
+      "pendingToast": "{count} பதிவு(கள்) உறுதிப்படுத்தலுக்கு காத்திருக்கின்றன",
+      "pendingToastAction": "நிலுவையில் பார்க்க",
+      "awaitingConfirmation": "உறுதிப்படுத்தலுக்கு காத்திருக்கிறது",
+      "amountDue": "செலுத்த வேண்டிய தொகை",
+      "expires": "காலாவதி",
+      "expiredLabel": "காலாவதியானது",
+      "confirm": "உறுதிப்படுத்து",
+      "decline": "நிராகரி"
     },
     "guestsPage": {
       "title": "Guest Directory",

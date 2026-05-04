@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "মুলতুবি কার্যক্রম",
+      "pendingActionsSubtitle": "কর্মীদের নিশ্চিতকরণ বা ফলো-আপ প্রয়োজন এমন বুকিং",
+      "pendingActionsCount": "{count} কার্যক্রম",
+      "pendingToast": "{count} বুকিং নিশ্চিতকরণের অপেক্ষায়",
+      "pendingToastAction": "মুলতুবি দেখুন",
+      "awaitingConfirmation": "নিশ্চিতকরণের অপেক্ষায়",
+      "amountDue": "বকেয়া পরিমাণ",
+      "expires": "মেয়াদ",
+      "expiredLabel": "মেয়াদ শেষ",
+      "confirm": "নিশ্চিত করুন",
+      "decline": "প্রত্যাখ্যান করুন"
     },
     "guestsPage": {
       "title": "Guest Directory",

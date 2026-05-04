@@ -29,6 +29,13 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
   // Availability State
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availability, setAvailability] = useState<any>(null);
+
+  // Pricing Tier State
+  const [pricingTiers, setPricingTiers] = useState<any[]>([]);
+  const [selectedTierKey, setSelectedTierKey] = useState<string>('');
+  const [hasRateVariance, setHasRateVariance] = useState(false);
+  const [lowAvailabilityThreshold, setLowAvailabilityThreshold] = useState(5);
+  const [showNightlyBreakdown, setShowNightlyBreakdown] = useState<string | null>(null);
   
   // Step 2 State
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -51,6 +58,10 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
   const [discountData, setDiscountData] = useState<any>(null);
   const [promoError, setPromoError] = useState('');
 
+  // Computed: selected tier data and its pricing
+  const selectedTier = pricingTiers.find((t: any) => t.tierKey === selectedTierKey) || pricingTiers[0];
+  const activePricing = selectedTier?.pricing || availability?.pricing;
+
   useEffect(() => {
     publicApi.property(params.slug)
       .then(res => {
@@ -70,14 +81,22 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
       .catch((err) => setError('Failed to load property details'))
       .finally(() => setLoading(false));
 
-    // Tomorrow's date default
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date(tomorrow);
-    dayAfter.setDate(dayAfter.getDate() + 1);
+    // Read dates from URL params if present, else default to tomorrow/day-after
+    const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const paramCheckIn = searchParams.get('checkIn');
+    const paramCheckOut = searchParams.get('checkOut');
     
-    setCheckIn(tomorrow.toISOString().split('T')[0]);
-    setCheckOut(dayAfter.toISOString().split('T')[0]);
+    if (paramCheckIn && paramCheckOut) {
+      setCheckIn(paramCheckIn);
+      setCheckOut(paramCheckOut);
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfter = new Date(tomorrow);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      setCheckIn(tomorrow.toISOString().split('T')[0]);
+      setCheckOut(dayAfter.toISOString().split('T')[0]);
+    }
   }, [params.slug]);
 
   const handleCheckAvailability = async (e: React.FormEvent) => {
@@ -97,6 +116,16 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
       
       if (data.success && data.data) {
         setAvailability(data.data);
+        // Set pricing tier state
+        if (data.data.pricingTiers) {
+          setPricingTiers(data.data.pricingTiers);
+          setHasRateVariance(data.data.hasRateVariance || false);
+          setLowAvailabilityThreshold(data.data.lowAvailabilityThreshold ?? 5);
+          setSelectedTierKey(data.data.pricingTiers[0]?.tierKey || 'base');
+        } else {
+          setPricingTiers([]);
+          setHasRateVariance(false);
+        }
       } else {
         setError(data.error || 'Failed to check availability');
       }
@@ -129,6 +158,7 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
         roomSelections: [{
           roomTypeId,
           extraBeds: 0,
+          rateOverride: selectedTier?.effectiveBaseRate || undefined,
         }],
         paymentMode,
         promoCode: discountData ? promoCode : undefined,
@@ -155,7 +185,7 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
     try {
       const res = await couponsApi.validate({
         code: promoCode,
-        bookingAmount: availability.pricing.totalAmount,
+        bookingAmount: activePricing?.totalAmount || availability.pricing.totalAmount,
         roomTypeId,
         checkIn
       }, property.id);
@@ -249,15 +279,87 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
                 </button>
               </form>
 
+              {/* ── Pricing Tier Picker ── */}
+              {availability?.available && hasRateVariance && pricingTiers.length > 1 && (
+                <div className="mt-8 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
+                  <h3 className="text-lg font-bold text-surface-900 mb-1">Choose Your Option</h3>
+                  <p className="text-sm text-surface-500 mb-4">Different room configurations are available at different rates</p>
+                  <div className="space-y-3">
+                    {pricingTiers.map((tier: any) => {
+                      const isSelected = selectedTierKey === tier.tierKey;
+                      const numNights = tier.pricing?.nightlyRates?.length || 1;
+                      const showUrgency = tier.availableCount <= lowAvailabilityThreshold;
+                      return (
+                        <button
+                          key={tier.tierKey}
+                          type="button"
+                          onClick={() => setSelectedTierKey(tier.tierKey)}
+                          className={`relative w-full text-left p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 ${
+                            isSelected
+                              ? 'border-primary-500 bg-primary-50/60 shadow-md shadow-primary-500/10'
+                              : 'border-surface-200 bg-white hover:border-surface-300 hover:bg-surface-50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`font-bold ${
+                                  isSelected ? 'text-primary-700' : 'text-surface-900'
+                                }`}>{tier.label}</span>
+                                {showUrgency && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 animate-pulse">
+                                    Only {tier.availableCount} left!
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-surface-500 mt-1">
+                                Avg ₹{tier.avgNightlyRate?.toLocaleString('en-IN')}/{tier.pricing?.pricingUnit === 'monthly' ? 'month' : 'night'} · {numNights} {tier.pricing?.pricingUnit === 'monthly' ? (numNights === 1 ? 'month' : 'months') : (numNights === 1 ? 'night' : 'nights')}
+                              </p>
+                              {/* Expandable nightly breakdown */}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setShowNightlyBreakdown(showNightlyBreakdown === tier.tierKey ? null : tier.tierKey); }}
+                                className="text-[11px] text-primary-600 hover:text-primary-700 font-medium mt-1.5 flex items-center gap-1"
+                              >
+                                {showNightlyBreakdown === tier.tierKey ? '▾ Hide rate details' : '▸ View rate details'}
+                              </button>
+                              {showNightlyBreakdown === tier.tierKey && (
+                                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto pr-2">
+                                  {tier.pricing?.nightlyRates?.map((nr: any, i: number) => (
+                                    <div key={i} className="flex justify-between text-[11px] text-surface-500">
+                                      <span>{new Date(nr.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', weekday: 'short' })}</span>
+                                      <span className="font-medium text-surface-700">₹{nr.rate.toLocaleString('en-IN')}{nr.ruleApplied ? ` (${nr.ruleApplied})` : ''}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className={`text-lg font-bold ${
+                                isSelected ? 'text-primary-700' : 'text-surface-900'
+                              }`}>₹{tier.pricing?.grandTotal?.toLocaleString('en-IN')}</p>
+                              <p className="text-[10px] text-surface-400 uppercase">Total incl. GST</p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <CheckCircle2 className="w-5 h-5 text-primary-500 absolute top-3 right-3" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {property && roomTypeId && (
                 <div className="mt-8">
                   <RateComparisonWidget 
                     slug={params.slug} 
                     roomTypeId={roomTypeId} 
                     directRate={
-                      Math.round((availability?.pricing?.totalAmount || 0) / (availability?.pricing?.nightlyRates?.length || 1)) || 
+                      Math.round((activePricing?.totalAmount || 0) / (activePricing?.nightlyRates?.length || 1)) ||
                       property.roomTypes?.find((r: any) => r.id === roomTypeId)?.baseRate || 0
-                    } 
+                    }
                   />
                 </div>
               )}
@@ -505,15 +607,21 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
               </div>
             )}
 
-            {availability?.available && availability.pricing && (
+            {availability?.available && activePricing && (
               <div className="pt-6 border-t border-white/10 space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                {hasRateVariance && selectedTier && (
+                  <div className="flex items-center gap-2 pb-3 border-b border-white/10">
+                    <span className="text-xs text-primary-400 font-semibold uppercase tracking-wider">Selected</span>
+                    <span className="text-sm font-medium text-white truncate">{selectedTier.label}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-surface-300">Room Base Rate (avg)</span>
-                  <span>₹{Math.round(availability.pricing.totalAmount / availability.pricing.nightlyRates.length)} x {availability.pricing.nightlyRates.length} nights</span>
+                  <span className="text-surface-300">{activePricing.pricingUnit === 'monthly' ? 'Monthly Rate (avg)' : 'Room Rate (avg)'}</span>
+                  <span>₹{Math.round(activePricing.totalAmount / (activePricing.nightlyRates?.length || 1)).toLocaleString('en-IN')} x {activePricing.nightlyRates?.length || 1} {activePricing.pricingUnit === 'monthly' ? 'months' : 'nights'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-surface-300">Taxes & GST</span>
-                  <span>₹{availability.pricing.totalGst}</span>
+                  <span>₹{activePricing.totalGst?.toLocaleString('en-IN')}</span>
                 </div>
                 {discountData && (
                   <div className="flex justify-between text-sm text-emerald-400 font-semibold">
@@ -523,7 +631,7 @@ export default function GuestCheckoutPage({ params }: { params: { slug: string; 
                 )}
                 <div className="flex justify-between font-bold text-lg pt-4 border-t border-white/20">
                   <span>Total Amount</span>
-                  <span>₹{Math.max(0, (availability?.pricing?.grandTotal || 0) - (discountData?.discountAmount || 0)).toLocaleString('en-IN')}</span>
+                  <span>₹{Math.max(0, (activePricing.grandTotal || 0) - (discountData?.discountAmount || 0)).toLocaleString('en-IN')}</span>
                 </div>
                 
                 {step === 1 && (

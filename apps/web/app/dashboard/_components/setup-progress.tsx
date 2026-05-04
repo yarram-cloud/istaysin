@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, BedDouble, Palette, Receipt, FileText,
-  Users, TrendingUp, CheckCircle2, ChevronDown, ArrowRight,
+  Users, CheckCircle2, ChevronDown, ArrowRight,
   X, Sparkles, Rocket, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -61,16 +61,9 @@ const STEP_META: Record<string, {
     actionLabel: 'Invite Staff',
     gradient: 'from-emerald-500 to-teal-500', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600',
   },
-  pricing: {
-    title: 'Pricing Rules', subtitle: 'Season & event rates',
-    icon: TrendingUp, href: '/dashboard/pricing',
-    guideToast: '💰  Create pricing rules for weekends/seasons.',
-    actionLabel: 'Set Rates',
-    gradient: 'from-indigo-500 to-purple-500', iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600',
-  },
 };
 
-const STEP_ORDER = ['property_info', 'room_inventory', 'branding', 'billing', 'compliance', 'staff', 'pricing'];
+const STEP_ORDER = ['property_info', 'room_inventory', 'branding', 'billing', 'compliance', 'staff'];
 const CONFETTI_COLORS = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#f43f5e'];
 const DISMISSED_KEY = 'istays_setup_dismissed';
 

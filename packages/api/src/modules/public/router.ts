@@ -394,6 +394,43 @@ publicRouter.post('/reviews', validateRequest(createReviewSchema), async (req: R
   }
 });
 
+// ── Tier label helpers ──────────────────────────────────────────
+function generateTierLabel(
+  roomTypeName: string,
+  rooms: { features: any; rateOverride: number | null }[],
+  isBaseTier: boolean
+): string {
+  // Priority 1: Custom displayLabel from features (use first room's label)
+  const customLabel = rooms[0]?.features?.displayLabel;
+  if (customLabel && typeof customLabel === 'string' && customLabel.trim()) {
+    return customLabel.trim();
+  }
+
+  if (isBaseTier) return roomTypeName;
+
+  // Priority 2: Derive from known feature keys
+  const featureLabels: string[] = [];
+  const f = rooms[0]?.features || {};
+  if (f.balcony) featureLabels.push('Balcony');
+  if (f.ac === true) featureLabels.push('AC');
+  if (f.attached_bathroom) featureLabels.push('Attached Bath');
+  if (f.view) featureLabels.push(`${String(f.view).charAt(0).toUpperCase() + String(f.view).slice(1)} View`);
+  if (f.sharing) featureLabels.push(`${f.sharing}-Sharing`);
+  if (f.floor) featureLabels.push(`${String(f.floor).charAt(0).toUpperCase() + String(f.floor).slice(1)} Floor`);
+
+  if (featureLabels.length > 0) {
+    return `${roomTypeName} · ${featureLabels.join(' · ')}`;
+  }
+
+  // Priority 3: Price-based fallback
+  const rate = rooms[0]?.rateOverride;
+  if (rate) {
+    return `${roomTypeName} · ₹${rate.toLocaleString('en-IN')}/night`;
+  }
+
+  return roomTypeName;
+}
+
 // GET /public/check-availability
 publicRouter.get('/check-availability', async (req: Request, res: Response) => {
   try {
@@ -404,22 +441,139 @@ publicRouter.get('/check-availability', async (req: Request, res: Response) => {
       return;
     }
 
+    const parsedCheckIn = new Date(checkIn as string);
+    const parsedCheckOut = new Date(checkOut as string);
+    const parsedExtraBeds = parseInt(extraBeds as string || '0', 10);
+
+    // Base pricing (backward compatible)
     const pricing = await calculatePricing(
       tenantId as string,
       roomTypeId as string,
-      new Date(checkIn as string),
-      new Date(checkOut as string),
-      parseInt(extraBeds as string || '0', 10)
+      parsedCheckIn,
+      parsedCheckOut,
+      parsedExtraBeds
     );
 
-    // TODO: Verify actual inventory constraints here if needed by fetching remaining rooms
-    const totalRooms = await prisma.room.count({ where: { roomTypeId: roomTypeId as string, tenantId: tenantId as string } });
-    if (totalRooms === 0) {
+    // Get room type name for labels
+    const roomType = await prisma.roomType.findFirst({
+      where: { id: roomTypeId as string, tenantId: tenantId as string },
+      select: { name: true },
+    });
+
+    // Fetch tenant config for lowAvailabilityThreshold
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId as string },
+      select: { config: true },
+    });
+    const tenantConfig = (tenant?.config as Record<string, any>) || {};
+    const lowAvailabilityThreshold = tenantConfig.lowAvailabilityThreshold ?? 5;
+
+    // Fetch all active rooms for this type
+    const allRooms = await prisma.room.findMany({
+      where: {
+        roomTypeId: roomTypeId as string,
+        tenantId: tenantId as string,
+        isActive: true,
+      },
+      select: { id: true, roomNumber: true, rateOverride: true, features: true, status: true,
+        floor: { select: { name: true } },
+      },
+    });
+
+    if (allRooms.length === 0) {
       res.json({ success: true, data: { available: false, pricing: null, reason: 'No rooms of this type exist.' } });
       return;
     }
 
-    res.json({ success: true, data: { available: true, pricing } });
+    // Find rooms with overlapping confirmed/checked_in bookings
+    const bookedRoomIds = await prisma.bookingRoom.findMany({
+      where: {
+        tenantId: tenantId as string,
+        roomId: { not: null },
+        booking: {
+          status: { in: ['confirmed', 'checked_in'] },
+          checkInDate: { lt: parsedCheckOut },
+          checkOutDate: { gt: parsedCheckIn },
+        },
+      },
+      select: { roomId: true },
+    });
+    const bookedIds = new Set(bookedRoomIds.map(br => br.roomId));
+
+    // Available rooms = active rooms minus booked rooms minus rooms with truly unavailable status
+    // Rooms with 'cleaning' status are still bookable for future dates
+    const availableRooms = allRooms.filter(
+      r => !bookedIds.has(r.id) && ['available', 'clean', 'cleaning', 'dirty', 'inspected'].includes(r.status)
+    );
+
+    if (availableRooms.length === 0) {
+      res.json({ success: true, data: { available: false, pricing, reason: 'No rooms available for selected dates.' } });
+      return;
+    }
+
+    // Group available rooms by their effective rate (rateOverride or null for base)
+    const tierGroups = new Map<string, typeof availableRooms>();
+    for (const room of availableRooms) {
+      const key = room.rateOverride ? `override_${room.rateOverride}` : 'base';
+      if (!tierGroups.has(key)) tierGroups.set(key, []);
+      tierGroups.get(key)!.push(room);
+    }
+
+    // Build pricing tiers
+    const pricingTiers = [];
+    for (const [tierKey, rooms] of tierGroups) {
+      const isBaseTier = tierKey === 'base';
+      const effectiveBaseRate = isBaseTier ? undefined : rooms[0].rateOverride!;
+
+      const tierPricing = isBaseTier
+        ? pricing // reuse already-calculated base pricing
+        : await calculatePricing(
+            tenantId as string,
+            roomTypeId as string,
+            parsedCheckIn,
+            parsedCheckOut,
+            parsedExtraBeds,
+            effectiveBaseRate
+          );
+
+      const numNights = tierPricing.nightlyRates.length || 1;
+      const avgNightlyRate = Math.round(tierPricing.totalAmount / numNights);
+
+      pricingTiers.push({
+        tierKey,
+        label: generateTierLabel(roomType?.name || '', rooms as any, isBaseTier),
+        availableCount: rooms.length,
+        effectiveBaseRate: effectiveBaseRate ?? null,
+        avgNightlyRate,
+        pricing: tierPricing,
+      });
+    }
+
+    // Sort tiers: base first, then by ascending effective rate
+    pricingTiers.sort((a, b) => {
+      if (a.tierKey === 'base') return -1;
+      if (b.tierKey === 'base') return 1;
+      return (a.effectiveBaseRate || 0) - (b.effectiveBaseRate || 0);
+    });
+
+    const hasRateVariance = pricingTiers.length > 1;
+
+    // Use the first (cheapest) tier's pricing as the top-level pricing
+    // so the booking page shows the correct rate when rooms have overrides.
+    // Previously this always used the un-overridden base-rate pricing,
+    // which was wrong when all rooms in the type had rateOverrides.
+    const effectivePricing = pricingTiers.length > 0 ? pricingTiers[0].pricing : pricing;
+
+    res.json({
+      success: true,
+      data: {
+        available: true,
+        pricing: effectivePricing,
+        pricingTiers,
+        hasRateVariance,
+        lowAvailabilityThreshold,
+      },
+    });
   } catch (err) {
     console.error('[PUBLIC AVAILABILITY ERROR]', err);
     res.status(500).json({ success: false, error: 'Failed to check availability' });
@@ -502,7 +656,8 @@ publicRouter.post('/bookings', async (req: Request, res: Response) => {
         sel.roomTypeId,
         new Date(data.checkInDate),
         new Date(data.checkOutDate),
-        sel.extraBeds
+        sel.extraBeds,
+        sel.rateOverride || undefined
       );
 
       totalAmount += pricing.grandTotal;

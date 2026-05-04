@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "प्रलंबित कृती",
+      "pendingActionsSubtitle": "कर्मचारी पुष्टी किंवा फॉलो-अपची आवश्यकता असलेले बुकिंग",
+      "pendingActionsCount": "{count} कृती",
+      "pendingToast": "{count} बुकिंग पुष्टीची प्रतीक्षा करत आहेत",
+      "pendingToastAction": "प्रलंबित पहा",
+      "awaitingConfirmation": "पुष्टीची प्रतीक्षा",
+      "amountDue": "देय रक्कम",
+      "expires": "मुदत",
+      "expiredLabel": "मुदत संपली",
+      "confirm": "पुष्टी करा",
+      "decline": "नकार द्या"
     },
     "guestsPage": {
       "title": "Guest Directory",

@@ -113,6 +113,23 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
+  // Toast notification for pending confirmations
+  const pendingToastShown = useRef(false);
+  useEffect(() => {
+    if (loading || pendingToastShown.current) return;
+    const pendingCount = bookings.filter(b => b.status === 'pending_confirmation').length;
+    if (pendingCount > 0) {
+      pendingToastShown.current = true;
+      toast.info(t('bookingsPage.pendingToast', { count: pendingCount }), {
+        action: {
+          label: t('bookingsPage.pendingToastAction'),
+          onClick: () => setStatusFilter('pending_confirmation'),
+        },
+        duration: 8000,
+      });
+    }
+  }, [bookings, loading]);
+
   // Keep expanded row in sync with refreshed bookings list (functional update avoids stale closure)
   useEffect(() => {
     setSelectedBooking(prev => {
@@ -129,11 +146,14 @@ export default function BookingsPage() {
       )
     : bookings;
 
-  const payAtHotelQueue = bookings.filter((b) => {
+  const pendingActionsQueue = bookings.filter((b) => {
+    // Include ALL pending_confirmation bookings
+    if (b.status === 'pending_confirmation') return true;
+    // Also include confirmed pay-at-hotel bookings
     if (!b.notes) return false;
     try {
       const meta = JSON.parse(b.notes);
-      return meta.paymentMode === 'pay_at_hotel' && ['confirmed', 'pending_confirmation'].includes(b.status);
+      return meta.paymentMode === 'pay_at_hotel' && b.status === 'confirmed';
     } catch { return false; }
   });
 
@@ -370,26 +390,39 @@ export default function BookingsPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Pay at Hotel Queue ────────────────────────────────── */}
-      {payAtHotelQueue.length > 0 && (
+      {/* ── Pending Actions Queue ──────────────────────────────────────── */}
+      {pendingActionsQueue.length > 0 && (
         <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden" style={{ borderLeft: '3px solid #f59e0b' }}>
           <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-surface-100">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-amber-600" />
+                <Zap className="w-4 h-4 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-surface-900">Pay at Hotel Queue</h3>
-                <p className="text-[11px] text-surface-500">Unconfirmed web reservations requiring follow-up</p>
+                <h3 className="text-sm font-semibold text-surface-900">⚡ {t('bookingsPage.pendingActions')}</h3>
+                <p className="text-[11px] text-surface-500">{t('bookingsPage.pendingActionsSubtitle')}</p>
               </div>
             </div>
             <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-200">
-              {payAtHotelQueue.length} Actions
+              {t('bookingsPage.pendingActionsCount', { count: pendingActionsQueue.length })}
             </span>
           </div>
           <div className="divide-y divide-surface-100">
-            {payAtHotelQueue.map((booking) => {
+            {pendingActionsQueue.map((booking) => {
               const expiry = getExpiryInfo(booking);
+              const isPending = booking.status === 'pending_confirmation';
+              // Derive source label
+              let sourceLabel = 'Website';
+              let sourceIcon = '🌐';
+              try {
+                const meta = JSON.parse(booking.notes || '{}');
+                if (meta.paymentMode === 'pay_at_hotel' && !isPending) {
+                  sourceLabel = 'Pay at Hotel';
+                  sourceIcon = '🏨';
+                }
+              } catch {}
+              if (booking.source === 'phone') { sourceLabel = 'Phone'; sourceIcon = '📞'; }
+              else if (booking.source === 'walkin') { sourceLabel = 'Walk-in'; sourceIcon = '🏨'; }
               return (
                 <div key={booking.id} className="flex items-center justify-between px-4 sm:px-5 py-3 hover:bg-primary-50/30 transition-colors">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -397,7 +430,17 @@ export default function BookingsPage() {
                       {booking.guestName?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-surface-900 truncate">{booking.guestName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-surface-900 truncate">{booking.guestName}</p>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-100 text-surface-600 font-medium shrink-0">
+                          {sourceIcon} {sourceLabel}
+                        </span>
+                        {isPending && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold shrink-0">
+                            {t('bookingsPage.awaitingConfirmation')}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <a href={`tel:${booking.guestPhone}`} onClick={(e) => e.stopPropagation()} className="text-xs text-primary-600 hover:text-primary-500 flex items-center gap-1 transition-colors">
                           <Phone className="w-3 h-3" /> {booking.guestPhone}
@@ -409,16 +452,16 @@ export default function BookingsPage() {
                   </div>
                   <div className="hidden md:flex items-center gap-6 px-4 shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-surface-500">{isLongStay ? 'Move-in' : 'Check-in'}</p>
+                      <p className="text-xs text-surface-500">{isLongStay ? t('bookingsPage.checkIn') : t('bookingsPage.checkIn')}</p>
                       <p className="text-sm font-medium text-surface-700">{new Date(booking.checkInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-surface-500">Amount Due</p>
+                      <p className="text-xs text-surface-500">{t('bookingsPage.amountDue')}</p>
                       <p className="text-sm font-bold text-amber-600">₹{booking.totalAmount?.toLocaleString('en-IN')}</p>
                     </div>
                     {expiry.label && (
                       <div className="text-right">
-                        <p className="text-xs text-surface-500">Expires</p>
+                        <p className="text-xs text-surface-500">{t('bookingsPage.expires')}</p>
                         <p className={`text-xs font-medium flex items-center gap-1 ${expiry.urgencyClass}`}>
                           <Clock className="w-3 h-3" /> {expiry.label}
                         </p>
@@ -428,11 +471,11 @@ export default function BookingsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <button onClick={(e) => { e.stopPropagation(); handleConfirm(booking.id); }}
                       className="h-8 px-3 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-emerald-200">
-                      <CheckCircle className="w-3.5 h-3.5" /> Confirm
+                      <CheckCircle className="w-3.5 h-3.5" /> {t('bookingsPage.confirm')}
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleCancel(booking.id, 'No-show / Pay at Hotel expired'); }}
                       className="h-8 px-3 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-red-200">
-                      <Ban className="w-3.5 h-3.5" /> Cancel
+                      <Ban className="w-3.5 h-3.5" /> {t('bookingsPage.decline')}
                     </button>
                   </div>
                 </div>
@@ -502,6 +545,8 @@ export default function BookingsPage() {
                     onDeselect={() => setSelectedBooking(null)}
                     onRefresh={fetchBookings}
                     onAssignRoom={fetchBookings}
+                    onConfirm={handleConfirm}
+                    onCancel={handleCancel}
                   />
                 ))}
               </tbody>
@@ -516,7 +561,7 @@ export default function BookingsPage() {
 
 
 // ── Booking Row — with inline expand-in-place detail ────────────
-function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, onRefresh, onAssignRoom }: {
+function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, onRefresh, onAssignRoom, onConfirm, onCancel }: {
   booking: Booking;
   statusLabels: Record<string, { label: string; class: string }>;
   isSelected: boolean;
@@ -524,6 +569,8 @@ function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, o
   onDeselect: () => void;
   onRefresh: () => void;
   onAssignRoom: () => void;
+  onConfirm: (id: string) => void;
+  onCancel: (id: string, reason?: string) => void;
 }) {
   const { isLongStay } = usePropertyType();
   const [showAssign, setShowAssign] = useState(false);
@@ -598,10 +645,28 @@ function BookingRow({ booking, statusLabels, isSelected, onSelect, onDeselect, o
         </td>
         <td className="px-4 sm:px-5 py-3.5 text-sm font-semibold text-surface-900">₹{booking.totalAmount?.toLocaleString('en-IN')}</td>
         <td className="px-4 sm:px-5 py-3.5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`text-[10px] px-2 py-1 rounded-full font-semibold uppercase tracking-wider ${statusLabels[booking.status]?.class || 'bg-surface-100 text-surface-500'}`}>
               {statusLabels[booking.status]?.label || booking.status}
             </span>
+            {booking.status === 'pending_confirmation' && !isSelected && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onConfirm(booking.id); }}
+                  className="h-7 px-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-[10px] font-semibold flex items-center gap-1 transition-colors border border-emerald-200"
+                  title="Confirm booking"
+                >
+                  <CheckCircle className="w-3 h-3" /> Confirm
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onCancel(booking.id); }}
+                  className="h-7 px-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-[10px] font-semibold flex items-center gap-1 transition-colors border border-red-200"
+                  title="Cancel booking"
+                >
+                  <Ban className="w-3 h-3" /> Decline
+                </button>
+              </>
+            )}
             {canAssign && !isSelected && (
               <button
                 onClick={handleAssignClick}
@@ -1212,8 +1277,21 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   const [coDepositActions, setCoDepositActions] = useState<Record<string, { action: 'refund' | 'partial' | 'forfeit'; refundedAmount: string; notes: string }>>({});
   const [coBalance, setCoBalance] = useState('');
   const [coPayMode, setCoPayMode] = useState('cash');
-  // Record Payment (mid-stay, e.g. monthly PG/Hostel rent)
-  const [showRecordPayment, setShowRecordPayment] = useState(false);
+  // Accordion: only one panel open at a time (defaults to folio expanded)
+  const [activePanel, setActivePanel] = useState<'folio' | 'payment' | 'moveout' | null>('folio');
+  const folioRef = useRef<HTMLDivElement>(null);
+  const paymentRef = useRef<HTMLDivElement>(null);
+  const moveoutRef = useRef<HTMLDivElement>(null);
+  const togglePanel = useCallback((panel: 'folio' | 'payment' | 'moveout') => {
+    setActivePanel(prev => {
+      const next = prev === panel ? null : panel;
+      if (next) setTimeout(() => {
+        const ref = next === 'folio' ? folioRef : next === 'payment' ? paymentRef : moveoutRef;
+        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+      return next;
+    });
+  }, []);
   const [recPayAmount, setRecPayAmount] = useState('');
   const [recPayMethod, setRecPayMethod] = useState<'cash' | 'upi' | 'card' | 'bank_transfer'>('cash');
   const [recPayNotes, setRecPayNotes] = useState('');
@@ -1229,10 +1307,12 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
   const [showDiscount, setShowDiscount] = useState(false);
   const [discountType, setDiscountType] = useState<'percent' | 'flat'>('percent');
   const [discountInput, setDiscountInput] = useState('');
+  // Use balanceDue (accounts for payments already made) instead of totalAmount
+  const currentBalance = booking.balanceDue ?? Math.max(0, (booking.totalAmount || 0) - (booking.advancePaid || 0));
   const discountAmount = discountType === 'percent'
-    ? Math.round(booking.totalAmount * (parseFloat(discountInput) || 0) / 100)
+    ? Math.round(currentBalance * (parseFloat(discountInput) || 0) / 100)
     : (parseFloat(discountInput) || 0);
-  const finalAmount = Math.max(0, booking.totalAmount - discountAmount);
+  const finalAmount = Math.max(0, currentBalance - discountAmount);
   const [changingRoomId, setChangingRoomId] = useState<string | null>(null);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [submittingCForm, setSubmittingCForm] = useState<string | null>(null);
@@ -1298,6 +1378,8 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
         // Fallback: reload from server if response shape unexpected
         loadFolioCharges();
       }
+      // Refresh parent so booking.balanceDue updates in Record Payment / Checkout headers
+      onRefresh();
       toast.success('Charge added to folio');
       setShowAddCharge(false);
       setChargeDesc('');
@@ -1319,6 +1401,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
       setFolioCharges(prev => prev.filter(c => c.id !== chargeId));
       setConfirmDeleteId(null);
       toast.success('Charge removed');
+      onRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Failed to remove charge');
     } finally {
@@ -1352,6 +1435,7 @@ function BookingInlineDetail({ booking, statusLabels, onClose, onRefresh }: {
       } else {
         loadFolioCharges();
       }
+      onRefresh();
       setEditingCharge(null);
       toast.success('Charge updated');
     } catch (err: any) {
@@ -1553,7 +1637,7 @@ ${folioCharges.length > 0 ? `
         .filter(Boolean);
 
       await checkinApi.checkOut(booking.id, {
-        settledAmount: parseFloat(coBalance) || 0,
+        settledAmount: parseFloat(coBalance) || finalAmount,
         paymentMethod: coPayMode,
         discountAmount: discountAmount > 0 ? discountAmount : undefined,
         ...(depositSettlements.length > 0 ? { depositSettlements } : {}),
@@ -1581,7 +1665,7 @@ ${folioCharges.length > 0 ? `
         ...(recPayChargeId ? { chargeAllocations: [{ chargeId: recPayChargeId, amount: amt }] } : {}),
       });
       toast.success(`Payment of ₹${amt.toLocaleString('en-IN')} recorded`);
-      setShowRecordPayment(false);
+      setActivePanel(null);
       setRecPayAmount('');
       setRecPayNotes('');
       setRecPayChargeId('');
@@ -1813,12 +1897,16 @@ ${folioCharges.length > 0 ? `
             )}
 
             {booking.status === 'checked_in' && (
-              <div className="space-y-3">
+              <div className="rounded-xl border border-surface-200 bg-white shadow-sm overflow-hidden divide-y divide-surface-100">
 
-                {/* ── FOLIO CHARGES PANEL ── */}
-                <div className="rounded-xl border border-violet-200 bg-violet-50/40 overflow-hidden">
-                  {/* Panel header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-violet-100 bg-violet-50/60">
+                {/* ── FOLIO CHARGES ACCORDION ── */}
+                <div ref={folioRef} className="border-l-4 border-l-violet-500">
+                  {/* Clickable header */}
+                  <button
+                    type="button"
+                    onClick={() => togglePanel('folio')}
+                    className={`w-full flex items-center justify-between px-4 py-3 transition-colors cursor-pointer ${activePanel === 'folio' ? 'bg-violet-50' : 'bg-violet-50/40 hover:bg-violet-50/70'}`}
+                  >
                     <p className="text-sm font-bold text-violet-900 flex items-center gap-2">
                       <IndianRupee className="w-4 h-4 text-violet-600" />
                       Folio Charges
@@ -1827,33 +1915,43 @@ ${folioCharges.length > 0 ? `
                           {folioCharges.length}
                         </span>
                       )}
+                      {/* Show total inline when collapsed */}
+                      {activePanel !== 'folio' && folioCharges.length > 0 && (
+                        <span className="text-xs text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full font-semibold">
+                          ₹{folioCharges.reduce((s: number, c: any) => s + c.totalPrice + c.cgst + c.sgst + c.igst, 0).toLocaleString('en-IN')}
+                        </span>
+                      )}
                     </p>
                     <div className="flex items-center gap-2">
-                      {/* Print Folio */}
-                      <button
-                        type="button"
-                        onClick={handlePrintFolio}
-                        title="Print Folio"
-                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-violet-200 bg-white text-violet-600 text-xs font-semibold hover:bg-violet-100 transition-colors"
-                      >
-                        <Printer className="w-3.5 h-3.5" /> Print
-                      </button>
-                      {/* Add Charge toggle */}
-                      <button
-                        type="button"
-                        onClick={() => setShowAddCharge(v => !v)}
-                        className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                          showAddCharge
-                            ? 'bg-violet-600 text-white'
-                            : 'border border-violet-300 bg-white text-violet-700 hover:bg-violet-100'
-                        }`}
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add Charge
-                      </button>
+                      {activePanel === 'folio' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handlePrintFolio(); }}
+                            title="Print Folio"
+                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-violet-200 bg-white text-violet-600 text-xs font-semibold hover:bg-violet-100 transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Print
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setShowAddCharge(v => !v); }}
+                            className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                              showAddCharge
+                                ? 'bg-violet-600 text-white'
+                                : 'border border-violet-300 bg-white text-violet-700 hover:bg-violet-100'
+                            }`}
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add Charge
+                          </button>
+                        </>
+                      )}
+                      <ChevronDown className={`w-4 h-4 text-violet-600 shrink-0 transition-transform duration-200 ${activePanel === 'folio' ? 'rotate-180' : ''}`} />
                     </div>
-                  </div>
+                  </button>
 
+                  {activePanel === 'folio' && (
+                    <>
                    {/* Add Charge inline form */}
                   {showAddCharge && (
                     <form onSubmit={handleAddCharge} className="px-4 py-3 border-b border-violet-100 bg-white">
@@ -2051,30 +2149,28 @@ ${folioCharges.length > 0 ? `
                       })()}
                     </div>
                   )}
+                    </>
+                  )}
                 </div>
 
-                {/* ── RECORD PAYMENT (mid-stay; primary for PG/Hostel monthly rent) ── */}
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-100 bg-emerald-50/60">
+                {/* ── RECORD PAYMENT ACCORDION ── */}
+                <div ref={paymentRef} className="border-l-4 border-l-emerald-500">
+                  <button
+                    type="button"
+                    onClick={() => togglePanel('payment')}
+                    className={`w-full flex items-center justify-between px-4 py-3 transition-colors cursor-pointer ${activePanel === 'payment' ? 'bg-emerald-50' : 'bg-emerald-50/40 hover:bg-emerald-50/70'}`}
+                  >
                     <div className="flex items-center gap-2 min-w-0">
                       <IndianRupee className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <p className="text-sm font-bold text-emerald-900">Record Payment</p>
+                      <p className="text-sm font-bold text-emerald-900">{isLongStay ? 'Record Rent' : 'Record Payment'}</p>
                       <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full whitespace-nowrap">
                         Balance ₹{(booking.balanceDue ?? Math.max(0, (booking.totalAmount || 0) - (booking.advancePaid || 0))).toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowRecordPayment(v => !v)}
-                      className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                        showRecordPayment ? 'bg-emerald-600 text-white' : 'border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100'
-                      }`}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> {isLongStay ? 'Record Rent' : 'Record Payment'}
-                    </button>
-                  </div>
+                    <ChevronDown className={`w-4 h-4 text-emerald-600 shrink-0 transition-transform duration-200 ${activePanel === 'payment' ? 'rotate-180' : ''}`} />
+                  </button>
 
-                  {showRecordPayment && (() => {
+                  {activePanel === 'payment' && (() => {
                     // Unpaid / partially-paid folio charges, oldest first
                     const unpaidCharges = folioCharges
                       .filter((c: any) => (c.totalPrice - (c.paidAmount || 0)) > 0.001)
@@ -2170,134 +2266,174 @@ ${folioCharges.length > 0 ? `
                   })()}
                 </div>
 
-                <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
-                  <h4 className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-3">
-                    <Building2 className="w-4 h-4 text-amber-600" /> {isLongStay ? 'Complete Move-Out' : 'Complete Check-Out'}
-                  </h4>
+                {/* ── MOVE-OUT ACCORDION ── */}
+                <div ref={moveoutRef} className="border-l-4 border-l-amber-500">
+                  <button
+                    type="button"
+                    onClick={() => togglePanel('moveout')}
+                    className={`w-full flex items-center justify-between px-4 py-3 transition-colors cursor-pointer ${activePanel === 'moveout' ? 'bg-amber-50' : 'bg-amber-50/40 hover:bg-amber-50/70'}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
+                      <p className="text-sm font-bold text-amber-900">{isLongStay ? 'Complete Move-Out' : 'Complete Check-Out'}</p>
+                      <span className="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        Due ₹{currentBalance.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-amber-600 shrink-0 transition-transform duration-200 ${activePanel === 'moveout' ? 'rotate-180' : ''}`} />
+                  </button>
 
-                  {/* Discount CTA */}
-                  {!showDiscount ? (
-                    <button onClick={() => setShowDiscount(true)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors mb-3">
-                      <Tag className="w-3.5 h-3.5" /> Apply Discount
-                    </button>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-lg bg-white border border-emerald-200">
-                      <div className="flex items-center rounded-lg border border-surface-200 overflow-hidden">
-                        <button onClick={() => setDiscountType('percent')}
-                          className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'percent' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
-                          <Percent className="w-3 h-3" />
+                  {activePanel === 'moveout' && (
+                    <div className="px-4 py-4 bg-amber-50/40 space-y-3">
+                      {/* Discount CTA */}
+                      {!showDiscount ? (
+                        <button onClick={() => setShowDiscount(true)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors">
+                          <Tag className="w-3.5 h-3.5" /> Apply Discount
                         </button>
-                        <button onClick={() => setDiscountType('flat')}
-                          className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'flat' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
-                          ₹ Flat
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-white border border-emerald-200">
+                          <div className="flex items-center rounded-lg border border-surface-200 overflow-hidden">
+                            <button onClick={() => setDiscountType('percent')}
+                              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'percent' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
+                              <Percent className="w-3 h-3" />
+                            </button>
+                            <button onClick={() => setDiscountType('flat')}
+                              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${discountType === 'flat' ? 'bg-emerald-600 text-white' : 'bg-white text-surface-600 hover:bg-surface-50'}`}>
+                              ₹ Flat
+                            </button>
+                          </div>
+                          <input type="number" min="0" placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
+                            value={discountInput} onChange={e => setDiscountInput(e.target.value)}
+                            className="w-24 h-8 px-3 rounded-lg border border-surface-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/30" />
+                          {discountAmount > 0 && (
+                            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">−₹{discountAmount.toLocaleString('en-IN')} → ₹{finalAmount.toLocaleString('en-IN')}</span>
+                          )}
+                          <button onClick={() => { setShowDiscount(false); setDiscountInput(''); }}
+                            className="text-xs text-surface-400 hover:text-surface-600 ml-auto">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* ── Balance breakdown ── */}
+                      <div className="rounded-lg bg-white border border-amber-200 p-3 space-y-1">
+                        <div className="flex items-center justify-between text-xs text-surface-500">
+                          <span>Total Charges</span>
+                          <span className="font-medium text-surface-700">₹{(booking.totalAmount || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                        {((booking.totalAmount || 0) - currentBalance) > 0 && (
+                          <div className="flex items-center justify-between text-xs text-emerald-600">
+                            <span>Payments Received</span>
+                            <span className="font-medium">−₹{((booking.totalAmount || 0) - currentBalance).toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        {discountAmount > 0 && (
+                          <div className="flex items-center justify-between text-xs text-emerald-600">
+                            <span>Discount</span>
+                            <span className="font-medium">−₹{discountAmount.toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-sm font-bold text-amber-900 pt-1 border-t border-amber-100">
+                          <span>Settlement Due</span>
+                          <span>₹{finalAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium pointer-events-none">₹</span>
+                          <input type="number" placeholder={finalAmount.toLocaleString('en-IN')}
+                            value={coBalance} onChange={e => setCoBalance(e.target.value)}
+                            className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30" />
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {['cash', 'card', 'upi'].map(mode => (
+                            <label key={mode} className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer capitalize">
+                              <input type="radio" name={`co-pay-${booking.id}`} value={mode} checked={coPayMode === mode} onChange={() => setCoPayMode(mode)} className="accent-amber-600" /> {mode}
+                            </label>
+                          ))}
+                        </div>
+                        <button onClick={handleCheckOut} disabled={saving}
+                          className="h-10 px-6 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-60 shadow-md shadow-amber-500/20">
+                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Move Out' : 'Check Out'}
                         </button>
                       </div>
-                      <input type="number" min="0" placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
-                        value={discountInput} onChange={e => setDiscountInput(e.target.value)}
-                        className="w-24 h-8 px-3 rounded-lg border border-surface-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/30" />
-                      {discountAmount > 0 && (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">−₹{discountAmount.toLocaleString('en-IN')} → ₹{finalAmount.toLocaleString('en-IN')}</span>
-                      )}
-                      <button onClick={() => { setShowDiscount(false); setDiscountInput(''); }}
-                        className="text-xs text-surface-400 hover:text-surface-600 ml-auto">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+
+                      {/* ── Security Deposit Settlement (per room with held deposit) ── */}
+                      {(() => {
+                        const heldRooms = (booking.bookingRooms || []).filter(
+                          (br: any) => (br.securityDeposit || 0) > 0 && br.securityDepositStatus === 'held'
+                        );
+                        if (heldRooms.length === 0) return null;
+                        return (
+                          <div className="pt-3 border-t border-amber-200 space-y-2">
+                            <p className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <IndianRupee className="w-3.5 h-3.5 text-amber-600" /> Security Deposit Settlement
+                            </p>
+                            {heldRooms.map((br: any) => {
+                              const decision = coDepositActions[br.id] || { action: 'refund' as const, refundedAmount: '', notes: '' };
+                              const setField = (k: 'action' | 'refundedAmount' | 'notes', v: any) =>
+                                setCoDepositActions((prev) => {
+                                  const existing = prev[br.id] || { action: 'refund' as const, refundedAmount: '', notes: '' };
+                                  return { ...prev, [br.id]: { ...existing, [k]: v } };
+                                });
+                              const roomLabel = br.room?.roomNumber
+                                ? `Room ${br.room.roomNumber}`
+                                : (br.roomType?.name || 'Room');
+                              return (
+                                <div key={br.id} className="bg-white border border-amber-100 rounded-lg p-3 space-y-2">
+                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="text-xs font-semibold text-surface-700">{roomLabel} — held: ₹{(br.securityDeposit || 0).toLocaleString('en-IN')}</span>
+                                    <div className="flex items-center gap-3 text-[11px] text-amber-900">
+                                      {(['refund', 'partial', 'forfeit'] as const).map((a) => (
+                                        <label key={a} className="flex items-center gap-1 cursor-pointer capitalize">
+                                          <input
+                                            type="radio"
+                                            name={`co-dep-${br.id}`}
+                                            value={a}
+                                            checked={decision.action === a}
+                                            onChange={() => setField('action', a)}
+                                            className="accent-amber-600"
+                                          />
+                                          {a === 'refund' ? 'Full refund' : a}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  {decision.action === 'partial' && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] font-semibold text-amber-800">Refund ₹</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={br.securityDeposit}
+                                        step="0.01"
+                                        inputMode="decimal"
+                                        value={decision.refundedAmount}
+                                        onChange={(e) => setField('refundedAmount', e.target.value)}
+                                        placeholder="0"
+                                        className="h-8 px-2 rounded-lg border border-amber-200 bg-white text-sm w-32 focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+                                      />
+                                    </div>
+                                  )}
+                                  {(decision.action === 'forfeit' || decision.action === 'partial') && (
+                                    <input
+                                      type="text"
+                                      value={decision.notes}
+                                      onChange={(e) => setField('notes', e.target.value)}
+                                      placeholder="Reason (e.g. damages to property)"
+                                      className="w-full h-8 px-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
-
-                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500 text-sm font-medium pointer-events-none">₹</span>
-                      <input type="number" placeholder={discountAmount > 0 ? finalAmount.toLocaleString('en-IN') : 'Balance Due'}
-                        value={coBalance} onChange={e => setCoBalance(e.target.value)}
-                        className="w-full h-10 pl-7 pr-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30" />
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {['cash', 'card', 'upi'].map(mode => (
-                        <label key={mode} className="flex items-center gap-1.5 text-sm text-amber-900 cursor-pointer capitalize">
-                          <input type="radio" name={`co-pay-${booking.id}`} value={mode} checked={coPayMode === mode} onChange={() => setCoPayMode(mode)} className="accent-amber-600" /> {mode}
-                        </label>
-                      ))}
-                    </div>
-                    <button onClick={handleCheckOut} disabled={saving}
-                      className="h-10 px-6 rounded-lg bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-500 transition-colors disabled:opacity-60 shadow-md shadow-amber-500/20">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {isLongStay ? 'Move Out' : 'Check Out'}
-                    </button>
-                  </div>
-
-                  {/* ── Security Deposit Settlement (per room with held deposit) ── */}
-                  {(() => {
-                    const heldRooms = (booking.bookingRooms || []).filter(
-                      (br: any) => (br.securityDeposit || 0) > 0 && br.securityDepositStatus === 'held'
-                    );
-                    if (heldRooms.length === 0) return null;
-                    return (
-                      <div className="mt-4 pt-4 border-t border-amber-200 space-y-2">
-                        <p className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                          <IndianRupee className="w-3.5 h-3.5 text-amber-600" /> Security Deposit Settlement
-                        </p>
-                        {heldRooms.map((br: any) => {
-                          const decision = coDepositActions[br.id] || { action: 'refund' as const, refundedAmount: '', notes: '' };
-                          const setField = (k: 'action' | 'refundedAmount' | 'notes', v: any) =>
-                            setCoDepositActions((prev) => {
-                              const existing = prev[br.id] || { action: 'refund' as const, refundedAmount: '', notes: '' };
-                              return { ...prev, [br.id]: { ...existing, [k]: v } };
-                            });
-                          const roomLabel = br.room?.roomNumber
-                            ? `Room ${br.room.roomNumber}`
-                            : (br.roomType?.name || 'Room');
-                          return (
-                            <div key={br.id} className="bg-white border border-amber-100 rounded-lg p-3 space-y-2">
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <span className="text-xs font-semibold text-surface-700">{roomLabel} — held: ₹{(br.securityDeposit || 0).toLocaleString('en-IN')}</span>
-                                <div className="flex items-center gap-3 text-[11px] text-amber-900">
-                                  {(['refund', 'partial', 'forfeit'] as const).map((a) => (
-                                    <label key={a} className="flex items-center gap-1 cursor-pointer capitalize">
-                                      <input
-                                        type="radio"
-                                        name={`co-dep-${br.id}`}
-                                        value={a}
-                                        checked={decision.action === a}
-                                        onChange={() => setField('action', a)}
-                                        className="accent-amber-600"
-                                      />
-                                      {a === 'refund' ? 'Full refund' : a}
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                              {decision.action === 'partial' && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-semibold text-amber-800">Refund ₹</span>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={br.securityDeposit}
-                                    step="0.01"
-                                    inputMode="decimal"
-                                    value={decision.refundedAmount}
-                                    onChange={(e) => setField('refundedAmount', e.target.value)}
-                                    placeholder="0"
-                                    className="h-8 px-2 rounded-lg border border-amber-200 bg-white text-sm w-32 focus:outline-none focus:ring-2 focus:ring-amber-400/30"
-                                  />
-                                </div>
-                              )}
-                              {(decision.action === 'forfeit' || decision.action === 'partial') && (
-                                <input
-                                  type="text"
-                                  value={decision.notes}
-                                  onChange={(e) => setField('notes', e.target.value)}
-                                  placeholder="Reason (e.g. damages to property)"
-                                  className="w-full h-8 px-3 rounded-lg border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30"
-                                />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
                 </div>
               </div>
             )}

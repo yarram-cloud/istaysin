@@ -242,7 +242,18 @@
       "dates": "Dates",
       "night": "night",
       "nights": "nights",
-      "month": "month"
+      "month": "month",
+      "pendingActions": "ಬಾಕಿ ಕ್ರಿಯೆಗಳು",
+      "pendingActionsSubtitle": "ಸಿಬ್ಬಂದಿ ಖಚಿತಪಡಿಸುವಿಕೆ ಅಥವಾ ಫಾಲೋ-ಅಪ್ ಅಗತ್ಯವಿರುವ ಬುಕಿಂಗ್‌ಗಳು",
+      "pendingActionsCount": "{count} ಕ್ರಿಯೆಗಳು",
+      "pendingToast": "{count} ಬುಕಿಂಗ್(ಗಳು) ಖಚಿತಪಡಿಸುವಿಕೆಗಾಗಿ ಕಾಯುತ್ತಿವೆ",
+      "pendingToastAction": "ಬಾಕಿ ನೋಡಿ",
+      "awaitingConfirmation": "ಖಚಿತಪಡಿಸುವಿಕೆಗಾಗಿ ಕಾಯುತ್ತಿದೆ",
+      "amountDue": "ಬಾಕಿ ಮೊತ್ತ",
+      "expires": "ಅವಧಿ",
+      "expiredLabel": "ಅವಧಿ ಮುಗಿದಿದೆ",
+      "confirm": "ಖಚಿತಪಡಿಸಿ",
+      "decline": "ನಿರಾಕರಿಸಿ"
     },
     "guestsPage": {
       "title": "Guest Directory",
